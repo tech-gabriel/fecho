@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DadosNovaCompra } from '@/domain/compras';
+import { recalcularFechamento } from '@/domain/faturas';
 import type { Repositorios } from './repositories';
 
 export function contratoDosRepositorios(nome: string, criar: () => Promise<Repositorios>) {
@@ -16,6 +17,7 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         diaVencimento: 5,
         limiteCentavos: 500_000,
         cor: '#8B5CF6',
+        ativo: true,
       });
       ana = await repos.terceiros.criar({ nome: 'Ana', cor: '#2563EB', ativo: true });
     });
@@ -40,6 +42,7 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
           diaVencimento: 15,
           limiteCentavos: 0,
           cor: '#3B82F6',
+          ativo: true,
         });
         expect(azul).not.toBe(cartaoRoxo);
 
@@ -56,6 +59,7 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
             diaVencimento: 5,
             limiteCentavos: 500_000,
             cor: '#8B5CF6',
+            ativo: true,
           },
           {
             id: azul,
@@ -64,17 +68,22 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
             diaVencimento: 15,
             limiteCentavos: 1_000_000,
             cor: '#3B82F6',
+            ativo: true,
           },
         ]);
       });
 
       it('categorias e terceiros seguem o mesmo contrato', async () => {
-        const mercado = await repos.categorias.criar({ nome: 'Mercado', icone: 'shopping-cart' });
+        const feira = await repos.categorias.criar({ nome: 'Feira', icone: 'carrot', ativo: true });
+        await repos.categorias.atualizar(feira, { ativo: false });
         await repos.terceiros.atualizar(ana, { ativo: false });
 
-        expect(await repos.categorias.listar()).toEqual([
-          { id: mercado, nome: 'Mercado', icone: 'shopping-cart' },
-        ]);
+        expect((await repos.categorias.listar()).find((c) => c.id === feira)).toEqual({
+          id: feira,
+          nome: 'Feira',
+          icone: 'carrot',
+          ativo: false,
+        });
         expect(await repos.terceiros.listar()).toEqual([
           { id: ana, nome: 'Ana', cor: '#2563EB', ativo: false },
         ]);
@@ -94,6 +103,101 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         );
         await expect(repos.cartoes.excluir(9999)).rejects.toThrow('não encontrado');
         await expect(repos.cartoes.restaurar(9999)).rejects.toThrow('não encontrado');
+      });
+    });
+
+    describe('uso em compras', () => {
+      it('diz se cartão, categoria e pessoa já têm compras, mesmo excluídas', async () => {
+        const feira = await repos.categorias.criar({ nome: 'Feira', icone: 'carrot', ativo: true });
+        const bruno = await repos.terceiros.criar({ nome: 'Bruno', cor: '#2563EB', ativo: true });
+        expect(await repos.cartoes.possuiCompras(cartaoRoxo)).toBe(false);
+
+        const id = await repos.compras.salvar(
+          compra({
+            categoriaId: feira,
+            rateios: [
+              { terceiroId: null, percentual: 50 },
+              { terceiroId: ana, percentual: 50 },
+            ],
+          }),
+        );
+        await repos.compras.excluir(id);
+
+        expect(await repos.cartoes.possuiCompras(cartaoRoxo)).toBe(true);
+        expect(await repos.categorias.possuiCompras(feira)).toBe(true);
+        expect(await repos.terceiros.possuiCompras(ana)).toBe(true);
+        expect(await repos.terceiros.possuiCompras(bruno)).toBe(false);
+      });
+    });
+
+    describe('recálculo do fechamento', () => {
+      const roxo = {
+        nome: 'Cartão Roxo',
+        diaFechamento: 25,
+        diaVencimento: 5,
+        limiteCentavos: 500_000,
+        cor: '#8B5CF6',
+        ativo: true,
+      };
+
+      it('lista as compras do cartão com as parcelas', async () => {
+        const id = await repos.compras.salvar(compra({ dataCompra: '2026-10-26', numParcelas: 2 }));
+
+        expect(await repos.cartoes.comprasParaRecalculo(cartaoRoxo)).toEqual([
+          {
+            compraId: id,
+            descricao: 'Tênis',
+            dataCompra: '2026-10-26',
+            parcelas: [
+              { numero: 1, competencia: '2026-10' },
+              { numero: 2, competencia: '2026-11' },
+            ],
+          },
+        ]);
+      });
+
+      it('grava o cartão e move as parcelas juntos', async () => {
+        await repos.compras.salvar(compra({ dataCompra: '2026-10-26' }));
+        const mudancas = recalcularFechamento(
+          await repos.cartoes.comprasParaRecalculo(cartaoRoxo),
+          28,
+          25,
+          '2026-10-20',
+        );
+
+        await repos.cartoes.atualizarComParcelas(cartaoRoxo, roxo, mudancas);
+
+        expect(await repos.compras.parcelasDaCompetencia('2026-10')).toEqual([]);
+        expect((await repos.compras.parcelasDaCompetencia('2027-01'))[0]?.numero).toBe(3);
+        expect((await repos.cartoes.listar())[0]?.diaFechamento).toBe(25);
+      });
+
+      it('não grava nada se uma parcela não existe', async () => {
+        const id = await repos.compras.salvar(compra({ dataCompra: '2026-10-26' }));
+
+        await expect(
+          repos.cartoes.atualizarComParcelas(cartaoRoxo, roxo, [
+            {
+              compraId: id,
+              descricao: 'Tênis',
+              de: '2026-10',
+              para: '2026-11',
+              parcelas: [
+                { numero: 1, competencia: '2026-11' },
+                { numero: 99, competencia: '2027-01' },
+              ],
+            },
+          ]),
+        ).rejects.toThrow();
+
+        expect((await repos.cartoes.listar())[0]?.diaFechamento).toBe(28);
+        expect(await repos.compras.parcelasDaCompetencia('2026-10')).toHaveLength(1);
+      });
+
+      it('recusa cartão inexistente', async () => {
+        await expect(repos.cartoes.atualizarComParcelas(9999, roxo, [])).rejects.toThrow(
+          'não encontrado',
+        );
       });
     });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { competenciaDaCompra, datasDaFatura } from './faturas';
+import { competenciaDaCompra, datasDaFatura, recalcularFechamento } from './faturas';
 
 describe('competenciaDaCompra', () => {
   it.each([
@@ -66,5 +66,75 @@ describe('datasDaFatura', () => {
   it('rejeita dias fora de 1 a 31', () => {
     expect(() => datasDaFatura('2026-10', { diaFechamento: 28, diaVencimento: 0 })).toThrow();
     expect(() => datasDaFatura('2026-10', { diaFechamento: 32, diaVencimento: 5 })).toThrow();
+  });
+});
+
+describe('recalcularFechamento', () => {
+  const compra = (compraId: number, dataCompra: string, competencias: string[]) => ({
+    compraId,
+    descricao: 'Compra ' + String(compraId),
+    dataCompra,
+    parcelas: competencias.map((competencia, i) => ({ numero: i + 1, competencia })),
+  });
+
+  it('move a compra que fica entre o dia antigo e o novo, com todas as parcelas', () => {
+    const mudancas = recalcularFechamento(
+      [
+        compra(1, '2026-10-26', ['2026-10', '2026-11', '2026-12']),
+        compra(2, '2026-10-10', ['2026-10']),
+      ],
+      28,
+      25,
+      '2026-10-20',
+    );
+
+    expect(mudancas).toEqual([
+      {
+        compraId: 1,
+        descricao: 'Compra 1',
+        de: '2026-10',
+        para: '2026-11',
+        parcelas: [
+          { numero: 1, competencia: '2026-11' },
+          { numero: 2, competencia: '2026-12' },
+          { numero: 3, competencia: '2027-01' },
+        ],
+      },
+    ]);
+  });
+
+  it('não mexe em compras de faturas anteriores à aberta', () => {
+    expect(
+      recalcularFechamento([compra(1, '2026-09-27', ['2026-09'])], 28, 25, '2026-10-20'),
+    ).toEqual([]);
+  });
+
+  it('aumentar o dia traz a compra de volta, inclusive na virada do ano', () => {
+    const [mudanca] = recalcularFechamento(
+      [compra(1, '2026-12-29', ['2027-01', '2027-02'])],
+      28,
+      31,
+      '2026-12-20',
+    );
+
+    expect(mudanca).toMatchObject({ de: '2027-01', para: '2026-12' });
+    expect(mudanca?.parcelas.map((p) => p.competencia)).toEqual(['2026-12', '2027-01']);
+  });
+
+  it('fechamento 31 em fevereiro usa o último dia do mês', () => {
+    expect(
+      recalcularFechamento([compra(1, '2027-02-28', ['2027-03'])], 28, 31, '2027-02-10'),
+    ).toEqual([]);
+  });
+
+  it('a fatura aberta é calculada pelo dia antigo', () => {
+    const [mudanca] = recalcularFechamento(
+      [compra(1, '2026-10-27', ['2026-10'])],
+      25,
+      28,
+      '2026-10-26',
+    );
+
+    expect(mudanca).toBeUndefined();
   });
 });

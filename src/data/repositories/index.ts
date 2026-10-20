@@ -1,5 +1,6 @@
 import type { Competencia, DataLocal } from '@/domain/competencia';
 import type { DadosNovaCompra } from '@/domain/compras';
+import type { CompraParaRecalculo, MudancaDeFatura } from '@/domain/faturas';
 import type { Centavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
 
@@ -10,12 +11,14 @@ export interface Cartao {
   diaVencimento: number;
   limiteCentavos: Centavos;
   cor: string;
+  ativo: boolean;
 }
 
 export interface Categoria {
   id: number;
   nome: string;
   icone: string;
+  ativo: boolean;
 }
 
 export interface Terceiro {
@@ -33,6 +36,16 @@ export interface Cadastro<T extends { id: number }> {
   atualizar(id: number, dados: Partial<Novo<T>>): Promise<void>;
   excluir(id: number): Promise<void>;
   restaurar(id: number): Promise<void>;
+  possuiCompras(id: number): Promise<boolean>;
+}
+
+export interface CartoesRepository extends Cadastro<Cartao> {
+  comprasParaRecalculo(id: number): Promise<CompraParaRecalculo[]>;
+  atualizarComParcelas(
+    id: number,
+    cartao: Novo<Cartao>,
+    mudancas: readonly MudancaDeFatura[],
+  ): Promise<void>;
 }
 
 export interface ParcelaDoMes {
@@ -58,7 +71,7 @@ export interface ComprasRepository {
 }
 
 export interface Repositorios {
-  cartoes: Cadastro<Cartao>;
+  cartoes: CartoesRepository;
   categorias: Cadastro<Categoria>;
   terceiros: Cadastro<Terceiro>;
   compras: ComprasRepository;

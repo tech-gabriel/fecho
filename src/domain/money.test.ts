@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertCentavos, dividirComResto, somar } from './money';
+import { assertCentavos, dividirComResto, lerReais, somar } from './money';
 
 describe('assertCentavos', () => {
   it.each([0, 1, -250, 123_456_789])('aceita o inteiro %d', (valor) => {
@@ -45,5 +45,22 @@ describe('dividirComResto', () => {
 
   it.each([0, -1, 1.5])('rejeita %d partes', (n) => {
     expect(() => dividirComResto(100, n)).toThrow();
+  });
+});
+
+describe('lerReais', () => {
+  it.each([
+    ['1.234,56', 123_456],
+    ['1234,5', 123_450],
+    ['R$ 10', 1_000],
+    ['  5.000  ', 500_000],
+    ['0', 0],
+    ['0,07', 7],
+  ])('lê %s como %d centavos', (texto, centavos) => {
+    expect(lerReais(texto)).toBe(centavos);
+  });
+
+  it.each(['', 'abc', '-5', '1,234', '12.34', '1.2345,00', '10,'])('recusa %s', (texto) => {
+    expect(() => lerReais(texto)).toThrow(RangeError);
   });
 });

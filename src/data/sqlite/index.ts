@@ -1,9 +1,11 @@
 import { type NovaCompraPreparada, prepararNovaCompra } from '@/domain/compras';
+import type { CompraParaRecalculo } from '@/domain/faturas';
 import { assertCentavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
 import {
   type Cadastro,
   type Cartao,
+  type CartoesRepository,
   type Categoria,
   type ComprasRepository,
   type Novo,
@@ -21,7 +23,16 @@ export interface Banco {
   ): Promise<{ rowsAffected: number; lastInsertId?: number }>;
 }
 
-export type SalvarCompraAtomica = (compra: NovaCompraPreparada) => Promise<number>;
+export interface ParcelaMovida {
+  compraId: number;
+  numero: number;
+  competencia: string;
+}
+
+export interface ComandosAtomicos {
+  salvarCompra(compra: NovaCompraPreparada): Promise<number>;
+  atualizarCartao(id: number, cartao: Novo<Cartao>, parcelas: ParcelaMovida[]): Promise<void>;
+}
 
 type Linha = Record<string, unknown>;
 
@@ -29,6 +40,7 @@ interface Mapeamento<T> {
   entidade: string;
   tabela: string;
   colunas: Record<keyof Novo<T>, string>;
+  usoSql: string;
   ler(linha: Linha): T;
   gravar?: Partial<Record<keyof Novo<T>, (valor: unknown) => unknown>>;
 }
@@ -77,13 +89,89 @@ function cadastroSqlite<T extends { id: number }>(banco: Banco, m: Mapeamento<T>
       ]),
     restaurar: (id) =>
       exigirLinha(id, `UPDATE ${m.tabela} SET deleted_at = NULL WHERE id = ?`, [id]),
+    possuiCompras: async (id) => {
+      const linhas = await banco.select<Linha[]>(`SELECT EXISTS (${m.usoSql}) AS usado`, [id]);
+      return Boolean(linhas[0]?.usado);
+    },
   };
 }
 
 const numero = (v: unknown) => Number(v);
 const booleano = (v: unknown) => (v ? 1 : 0);
 
-function comprasSqlite(banco: Banco, salvarAtomica: SalvarCompraAtomica): ComprasRepository {
+function cartoesSqlite(banco: Banco, comandos: ComandosAtomicos): CartoesRepository {
+  const cadastro = cadastroSqlite<Cartao>(banco, {
+    entidade: 'Cartão',
+    tabela: 'cartoes',
+    colunas: {
+      nome: 'nome',
+      diaFechamento: 'dia_fechamento',
+      diaVencimento: 'dia_vencimento',
+      limiteCentavos: 'limite_centavos',
+      cor: 'cor',
+      ativo: 'ativo',
+    },
+    usoSql: 'SELECT 1 FROM compras WHERE cartao_id = ?',
+    gravar: { ativo: booleano },
+    ler: (l) => ({
+      id: numero(l.id),
+      nome: String(l.nome),
+      diaFechamento: numero(l.dia_fechamento),
+      diaVencimento: numero(l.dia_vencimento),
+      limiteCentavos: assertCentavos(numero(l.limite_centavos)),
+      cor: String(l.cor),
+      ativo: Boolean(l.ativo),
+    }),
+  });
+
+  return {
+    ...cadastro,
+    comprasParaRecalculo: async (id) => {
+      const linhas = await banco.select<Linha[]>(
+        `SELECT c.id, c.descricao, c.data_compra, p.numero, p.competencia
+         FROM compras c JOIN parcelas p ON p.compra_id = c.id
+         WHERE c.cartao_id = ? AND c.deleted_at IS NULL
+         ORDER BY c.id, p.numero`,
+        [id],
+      );
+      const compras = new Map<number, CompraParaRecalculo>();
+      for (const l of linhas) {
+        const compraId = numero(l.id);
+        const compra = compras.get(compraId) ?? {
+          compraId,
+          descricao: String(l.descricao),
+          dataCompra: String(l.data_compra),
+          parcelas: [],
+        };
+        compras.set(compraId, {
+          ...compra,
+          parcelas: [
+            ...compra.parcelas,
+            { numero: numero(l.numero), competencia: String(l.competencia) },
+          ],
+        });
+      }
+      return [...compras.values()];
+    },
+    atualizarComParcelas: async (id, cartao, mudancas) => {
+      const [existe] = await banco.select<Linha[]>(
+        'SELECT 1 FROM cartoes WHERE id = ? AND deleted_at IS NULL',
+        [id],
+      );
+      if (!existe) throw new RegistroNaoEncontrado('Cartão', id);
+      await comandos.atualizarCartao(
+        id,
+        cartao,
+        mudancas.flatMap((m) => m.parcelas.map((p) => ({ compraId: m.compraId, ...p }))),
+      );
+    },
+  };
+}
+
+function comprasSqlite(
+  banco: Banco,
+  salvarAtomica: ComandosAtomicos['salvarCompra'],
+): ComprasRepository {
   const exigirLinha = async (id: number, sql: string, params: unknown[]) => {
     const { rowsAffected } = await banco.execute(sql, params);
     if (rowsAffected === 0) throw new RegistroNaoEncontrado('Compra', id);
@@ -148,40 +236,27 @@ function comprasSqlite(banco: Banco, salvarAtomica: SalvarCompraAtomica): Compra
   };
 }
 
-export function criarRepositoriosSqlite(
-  banco: Banco,
-  salvarCompraAtomica: SalvarCompraAtomica,
-): Repositorios {
+export function criarRepositoriosSqlite(banco: Banco, comandos: ComandosAtomicos): Repositorios {
   return {
-    cartoes: cadastroSqlite<Cartao>(banco, {
-      entidade: 'Cartão',
-      tabela: 'cartoes',
-      colunas: {
-        nome: 'nome',
-        diaFechamento: 'dia_fechamento',
-        diaVencimento: 'dia_vencimento',
-        limiteCentavos: 'limite_centavos',
-        cor: 'cor',
-      },
-      ler: (l) => ({
-        id: numero(l.id),
-        nome: String(l.nome),
-        diaFechamento: numero(l.dia_fechamento),
-        diaVencimento: numero(l.dia_vencimento),
-        limiteCentavos: assertCentavos(numero(l.limite_centavos)),
-        cor: String(l.cor),
-      }),
-    }),
+    cartoes: cartoesSqlite(banco, comandos),
     categorias: cadastroSqlite<Categoria>(banco, {
       entidade: 'Categoria',
       tabela: 'categorias',
-      colunas: { nome: 'nome', icone: 'icone' },
-      ler: (l) => ({ id: numero(l.id), nome: String(l.nome), icone: String(l.icone) }),
+      colunas: { nome: 'nome', icone: 'icone', ativo: 'ativo' },
+      usoSql: 'SELECT 1 FROM compras WHERE categoria_id = ?',
+      gravar: { ativo: booleano },
+      ler: (l) => ({
+        id: numero(l.id),
+        nome: String(l.nome),
+        icone: String(l.icone),
+        ativo: Boolean(l.ativo),
+      }),
     }),
     terceiros: cadastroSqlite<Terceiro>(banco, {
       entidade: 'Terceiro',
       tabela: 'terceiros',
       colunas: { nome: 'nome', cor: 'cor', ativo: 'ativo' },
+      usoSql: 'SELECT 1 FROM rateios WHERE terceiro_id = ?',
       gravar: { ativo: booleano },
       ler: (l) => ({
         id: numero(l.id),
@@ -190,6 +265,6 @@ export function criarRepositoriosSqlite(
         ativo: Boolean(l.ativo),
       }),
     }),
-    compras: comprasSqlite(banco, salvarCompraAtomica),
+    compras: comprasSqlite(banco, (compra) => comandos.salvarCompra(compra)),
   };
 }

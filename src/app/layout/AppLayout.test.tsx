@@ -2,12 +2,19 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { criarRepositoriosEmMemoria } from '@/data/memory';
+import { RepositoriosProvider } from '../repositorios';
 import { rotas } from '../router';
 import { useApp } from '../store';
 
-function abrir(caminho = '/') {
+async function abrir(caminho = '/') {
   const router = createMemoryRouter(rotas, { initialEntries: [caminho] });
-  render(<RouterProvider router={router} />);
+  render(
+    <RepositoriosProvider criar={() => Promise.resolve(criarRepositoriosEmMemoria())}>
+      <RouterProvider router={router} />
+    </RepositoriosProvider>,
+  );
+  await screen.findByRole('heading', { level: 1 });
   return router;
 }
 
@@ -26,8 +33,8 @@ afterEach(() => {
 });
 
 describe('layout base', () => {
-  it('abre no Dashboard com a navegação principal', () => {
-    abrir();
+  it('abre no Dashboard com a navegação principal', async () => {
+    await abrir();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Principal' });
@@ -35,8 +42,8 @@ describe('layout base', () => {
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('navega pela sidebar e mostra título e legenda da página', () => {
-    abrir();
+  it('navega pela sidebar e mostra título e legenda da página', async () => {
+    await abrir();
 
     fireEvent.click(screen.getByRole('link', { name: 'Empréstimos' }));
 
@@ -50,8 +57,8 @@ describe('layout base', () => {
     );
   });
 
-  it('troca o mês pelos botões e pelos atalhos', () => {
-    abrir();
+  it('troca o mês pelos botões e pelos atalhos', async () => {
+    await abrir();
     expect(screen.getByText('Outubro 2026')).toBeInTheDocument();
     expect(screen.getByText('Fecha em 11 dias')).toBeInTheDocument();
 
@@ -68,8 +75,8 @@ describe('layout base', () => {
     expect(screen.getByText('Outubro 2026')).toBeInTheDocument();
   });
 
-  it('recolhe a sidebar com Ctrl+B e guarda a preferência', () => {
-    abrir();
+  it('recolhe a sidebar com Ctrl+B e guarda a preferência', async () => {
+    await abrir();
 
     teclar('b');
 
@@ -83,7 +90,7 @@ describe('layout base', () => {
   });
 
   it('vai para as telas com Ctrl+1…8 e Ctrl+, e volta com Alt+←', async () => {
-    const router = abrir();
+    const router = await abrir();
 
     teclar('3');
     expect(router.state.location.pathname).toBe('/lancamentos');
@@ -95,8 +102,8 @@ describe('layout base', () => {
     });
   });
 
-  it('ignora atalhos enquanto o foco está num campo', () => {
-    abrir();
+  it('ignora atalhos enquanto o foco está num campo', async () => {
+    await abrir();
     const campo = document.createElement('input');
     document.body.append(campo);
 
@@ -106,16 +113,16 @@ describe('layout base', () => {
     campo.remove();
   });
 
-  it('mostra as ações ainda indisponíveis como desabilitadas', () => {
-    abrir();
+  it('mostra as ações ainda indisponíveis como desabilitadas', async () => {
+    await abrir();
 
     for (const nome of [/Buscar/, 'Alertas', /Nova compra/, /Bloquear/]) {
       expect(screen.getByRole('button', { name: nome })).toHaveAttribute('aria-disabled', 'true');
     }
   });
 
-  it('redireciona caminhos desconhecidos para o Dashboard', () => {
-    const router = abrir('/nao-existe');
+  it('redireciona caminhos desconhecidos para o Dashboard', async () => {
+    const router = await abrir('/nao-existe');
 
     expect(router.state.location.pathname).toBe('/');
   });
