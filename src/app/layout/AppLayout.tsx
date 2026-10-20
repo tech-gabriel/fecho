@@ -1,7 +1,5 @@
 import { useRef } from 'react';
 import { Outlet, useLocation } from 'react-router';
-import { Toaster } from '@/components/ui/sonner';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { EditarCompra } from '@/features/nova-compra/EditarCompra';
 import { NovaCompra } from '@/features/nova-compra/NovaCompra';
 import { DURACAO, MOVIMENTO, gsap, useGSAP } from '@/lib/gsap';
@@ -32,7 +30,7 @@ export function AppLayout() {
   );
 
   return (
-    <TooltipProvider delayDuration={300}>
+    <>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
         <main className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden p-6">
@@ -44,7 +42,6 @@ export function AppLayout() {
       </div>
       <NovaCompra />
       <EditarCompra />
-      <Toaster />
-    </TooltipProvider>
+    </>
   );
 }
