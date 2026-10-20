@@ -1,6 +1,7 @@
 import type { Competencia, DataLocal } from '@/domain/competencia';
 import type { DadosNovaCompra } from '@/domain/compras';
 import type { Parcela } from '@/domain/parcelas';
+import type { ServicoDeBackup } from '../backup';
 import type { CompraParaRecalculo, MudancaDeFatura } from '@/domain/faturas';
 import type { Centavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
@@ -107,9 +108,15 @@ export type ReceitasRepository = Omit<Cadastro<Receita>, 'possuiCompras'>;
 
 export interface Preferencias {
   limiteRendaComprometida: number;
+  backupAutomatico: boolean;
+  ultimoBackup: string | null;
 }
 
-export const PREFERENCIAS_PADRAO: Preferencias = { limiteRendaComprometida: 30 };
+export const PREFERENCIAS_PADRAO: Preferencias = {
+  limiteRendaComprometida: 30,
+  backupAutomatico: true,
+  ultimoBackup: null,
+};
 
 export interface PreferenciasRepository {
   ler(): Promise<Preferencias>;
@@ -124,6 +131,7 @@ export interface Repositorios {
   faturas: FaturasRepository;
   receitas: ReceitasRepository;
   preferencias: PreferenciasRepository;
+  backup: ServicoDeBackup;
 }
 
 export class RegistroNaoEncontrado extends Error {

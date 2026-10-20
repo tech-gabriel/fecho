@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import { backupIndisponivel } from '../backup';
 import { contratoDosRepositorios } from '../contrato.suite';
 import { criarRepositoriosSqlite } from '.';
 import { bancoDeTeste } from './node-sqlite';
 
 contratoDosRepositorios('sqlite', async () => {
   const { banco, comandos } = bancoDeTeste();
-  return criarRepositoriosSqlite(banco, comandos);
+  return criarRepositoriosSqlite(banco, comandos, backupIndisponivel);
 });
 
 describe('sqlite', () => {
   it('grava exclusão lógica em vez de apagar a linha', async () => {
     const { banco, comandos, db } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, comandos);
+    const repos = criarRepositoriosSqlite(banco, comandos, backupIndisponivel);
     const id = await repos.categorias.criar({
       nome: 'Mercado',
       icone: 'shopping-cart',
@@ -26,13 +27,13 @@ describe('sqlite', () => {
 
   it('atualizar sem campos não faz nada', async () => {
     const { banco, comandos } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, comandos);
+    const repos = criarRepositoriosSqlite(banco, comandos, backupIndisponivel);
     await expect(repos.categorias.atualizar(9999, {})).resolves.toBeUndefined();
   });
 
   it('grava a observação da compra', async () => {
     const { banco, comandos, db } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, comandos);
+    const repos = criarRepositoriosSqlite(banco, comandos, backupIndisponivel);
     const cartao = await repos.cartoes.criar({
       nome: 'Roxo',
       diaFechamento: 28,
@@ -62,7 +63,7 @@ describe('sqlite', () => {
 
   it('a transação desfaz tudo quando uma parcela é recusada pelo banco', async () => {
     const { banco, comandos, db } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, comandos);
+    const repos = criarRepositoriosSqlite(banco, comandos, backupIndisponivel);
     const cartao = await repos.cartoes.criar({
       nome: 'Roxo',
       diaFechamento: 28,
