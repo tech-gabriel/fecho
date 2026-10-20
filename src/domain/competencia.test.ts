@@ -6,6 +6,7 @@ import {
   dataNaCompetencia,
   diaDe,
   diasEntre,
+  legendaDoMes,
   somarMeses,
   ultimoDia,
 } from './competencia';
@@ -92,5 +93,28 @@ describe('diasEntre', () => {
     expect(diasEntre('2026-11-05', '2026-10-31')).toBe(-5);
     expect(diasEntre('2026-10-19', '2026-10-19')).toBe(0);
     expect(diasEntre('2028-02-28', '2028-03-01')).toBe(2);
+  });
+});
+
+describe('legendaDoMes', () => {
+  it('conta os dias até o último dia do mês atual', () => {
+    expect(legendaDoMes('2026-10', '2026-10-20')).toEqual({ tipo: 'atual', diasParaFechar: 11 });
+  });
+
+  it('fecha hoje no último dia do mês', () => {
+    expect(legendaDoMes('2026-12', '2026-12-31')).toEqual({ tipo: 'atual', diasParaFechar: 0 });
+  });
+
+  it('usa o 29 de fevereiro em ano bissexto', () => {
+    expect(legendaDoMes('2028-02', '2028-02-01')).toEqual({ tipo: 'atual', diasParaFechar: 28 });
+  });
+
+  it.each([
+    ['2026-11', 'futuro'],
+    ['2027-01', 'futuro'],
+    ['2026-09', 'passado'],
+    ['2025-12', 'passado'],
+  ])('classifica %s como %s visto de 2026-10-20', (c, tipo) => {
+    expect(legendaDoMes(c, '2026-10-20')).toEqual({ tipo });
   });
 });
