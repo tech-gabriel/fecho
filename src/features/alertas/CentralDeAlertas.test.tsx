@@ -197,3 +197,27 @@ describe('Notificação do Windows', () => {
     expect(vi.mocked(notificarNoWindows)).not.toHaveBeenCalled();
   });
 });
+
+describe('Alerta de assinatura', () => {
+  it('avisa na véspera e leva para Assinaturas', async () => {
+    await repos.assinaturas.criar({
+      nome: 'Nuvem 2 TB',
+      cartaoId: ids.roxo,
+      categoriaId: null,
+      valorCentavos: 2_940,
+      dia: 3,
+      rateios: [],
+      ativa: true,
+      inicio: '2026-11',
+    });
+    const router = await abrir();
+
+    const central = await abrirSino();
+    fireEvent.click(
+      central.getByRole('button', { name: /Amanhã: Nuvem 2 TB, R\$\s29,40 no Cartão Roxo/ }),
+    );
+
+    await screen.findByRole('heading', { level: 1, name: 'Assinaturas' });
+    expect(router.state.location.pathname).toBe('/assinaturas');
+  });
+});

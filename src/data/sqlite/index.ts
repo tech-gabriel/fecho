@@ -1,9 +1,11 @@
+import { chaveDaCobranca } from '@/domain/assinaturas';
 import { type NovaCompraPreparada, prepararNovaCompra } from '@/domain/compras';
 import type { CompraParaRecalculo } from '@/domain/faturas';
 import type { ServicoDeBackup } from '../backup';
 import { assertCentavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
 import {
+  type Assinatura,
   type Cadastro,
   type Cartao,
   type CartoesRepository,
@@ -518,5 +520,42 @@ export function criarRepositoriosSqlite(
       }),
     }),
     compras: comprasSqlite(banco, comandos),
+    assinaturas: {
+      ...cadastroSqlite<Assinatura>(banco, {
+        entidade: 'Assinatura',
+        tabela: 'assinaturas',
+        colunas: {
+          nome: 'nome',
+          cartaoId: 'cartao_id',
+          categoriaId: 'categoria_id',
+          valorCentavos: 'valor_centavos',
+          dia: 'dia',
+          rateios: 'rateios',
+          ativa: 'ativa',
+          inicio: 'inicio',
+        },
+        usoSql: 'SELECT 1 FROM compras WHERE assinatura_id = ?',
+        gravar: { ativa: booleano, rateios: (v) => JSON.stringify(v) },
+        ler: (l) => ({
+          id: numero(l.id),
+          nome: String(l.nome),
+          cartaoId: numero(l.cartao_id),
+          categoriaId: l.categoria_id === null ? null : numero(l.categoria_id),
+          valorCentavos: assertCentavos(numero(l.valor_centavos)),
+          dia: numero(l.dia),
+          rateios: JSON.parse(String(l.rateios)) as Rateio[],
+          ativa: Boolean(l.ativa),
+          inicio: String(l.inicio),
+        }),
+      }),
+      geradas: async () => {
+        const linhas = await banco.select<Linha[]>(
+          'SELECT assinatura_id, assinatura_mes FROM compras WHERE assinatura_id IS NOT NULL',
+        );
+        return linhas.map((l) =>
+          chaveDaCobranca(numero(l.assinatura_id), String(l.assinatura_mes)),
+        );
+      },
+    },
   };
 }

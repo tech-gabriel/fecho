@@ -4,6 +4,7 @@ import { Dashboard } from '@/features/dashboard/Dashboard';
 import { Faturas } from '@/features/faturas/Faturas';
 import { Lancamentos } from '@/features/lancamentos/Lancamentos';
 import { AReceber } from '@/features/receber/AReceber';
+import { Assinaturas } from '@/features/assinaturas/Assinaturas';
 import { EmBreve } from './EmBreve';
 import { AppLayout } from './layout/AppLayout';
 import { Raiz } from './layout/Raiz';
@@ -15,6 +16,7 @@ const TELAS: Record<string, () => React.ReactNode> = {
   '/faturas': Faturas,
   '/lancamentos': Lancamentos,
   '/receber': AReceber,
+  '/assinaturas': Assinaturas,
 };
 
 export const rotas: RouteObject[] = [

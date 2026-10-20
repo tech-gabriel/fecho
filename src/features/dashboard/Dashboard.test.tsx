@@ -130,7 +130,7 @@ describe('Dashboard', () => {
       name: 'Renda comprometida nos próximos 6 meses',
     });
     expect(within(tabela).getByRole('row', { name: /Novembro 2026/ })).toHaveTextContent(
-      'R$ 588,259%',
+      'R$ 588,25R$ 0,009%',
     );
     const vencimentos = screen.getByRole('region', { name: 'Próximos vencimentos' });
     expect(
@@ -141,6 +141,30 @@ describe('Dashboard', () => {
     expect(within(vencimentos).getAllByRole('listitem')[0]).toHaveTextContent('Atrasada');
     expect(within(vencimentos).getByRole('status')).toHaveTextContent(
       'Faltam R$ 428,25 de Ana para fechar a fatura do Cartão Roxo',
+    );
+  });
+
+  it('projeta a minha parte das assinaturas nos meses seguintes', async () => {
+    await repos.assinaturas.criar({
+      nome: 'Nuvem 2 TB',
+      cartaoId: ids.roxo,
+      categoriaId: null,
+      valorCentavos: 2_940,
+      dia: 25,
+      rateios: [
+        { terceiroId: null, percentual: 50 },
+        { terceiroId: ids.ana, percentual: 50 },
+      ],
+      ativa: true,
+      inicio: '2026-10',
+    });
+    await abrir();
+
+    const tabela = await screen.findByRole('table', {
+      name: 'Renda comprometida nos próximos 6 meses',
+    });
+    expect(within(tabela).getByRole('row', { name: /Novembro 2026/ })).toHaveTextContent(
+      /R\$\s588,25R\$\s14,70/,
     );
   });
 

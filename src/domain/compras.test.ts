@@ -26,6 +26,8 @@ describe('prepararNovaCompra', () => {
       dataCompra: '2026-10-19',
       recorrente: false,
       observacao: null,
+      assinaturaId: null,
+      assinaturaMes: null,
     });
     expect(rateios).toEqual([]);
     expect(parcelas.map((p) => [p.numero, p.competencia, p.valorCentavos])).toEqual([
@@ -197,5 +199,15 @@ describe('previaDaCompra', () => {
       porTerceiro: new Map([[7, 10_825]]),
     });
     expect(previa[5]?.competencia).toBe('2027-03');
+  });
+});
+
+describe('prepararNovaCompra com assinatura', () => {
+  it('leva a assinatura e o mês da cobrança para a compra', () => {
+    const { compra } = prepararNovaCompra(
+      { ...base, assinatura: { id: 4, mes: '2026-10' } },
+      cartaoRoxo,
+    );
+    expect(compra).toMatchObject({ assinaturaId: 4, assinaturaMes: '2026-10' });
   });
 });

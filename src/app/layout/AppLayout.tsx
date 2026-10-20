@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { Outlet, useLocation } from 'react-router';
+import { GeradorDeCobrancas } from '@/features/assinaturas/GeradorDeCobrancas';
 import { EditarCompra } from '@/features/nova-compra/EditarCompra';
 import { NovaCompra } from '@/features/nova-compra/NovaCompra';
 import { DURACAO, MOVIMENTO, gsap, useGSAP } from '@/lib/gsap';
@@ -42,6 +43,7 @@ export function AppLayout() {
       </div>
       <NovaCompra />
       <EditarCompra />
+      <GeradorDeCobrancas />
     </>
   );
 }

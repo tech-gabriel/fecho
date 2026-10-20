@@ -37,6 +37,7 @@ import {
   sugerirCategoria,
   type ModoDaCompra,
 } from '@/domain/compras';
+import { competenciaDe, diaDe } from '@/domain/competencia';
 import { competenciaDaCompra } from '@/domain/faturas';
 import { lerReais } from '@/domain/money';
 import { formatarDecimal, nomeDoMes } from '@/lib/formato';
@@ -207,21 +208,50 @@ export function NovaCompra() {
   const dados = useDadosDoFormulario(aberta);
 
   const salvar = async (compra: CompraDoFormulario, abrirOutra: boolean) => {
-    const compraId = await repos.compras.salvar(compra);
+    const assinaturaId = compra.recorrente ? await criarAssinatura(compra) : null;
+    let compraId: number;
+    try {
+      compraId = await repos.compras.salvar(
+        assinaturaId === null
+          ? compra
+          : { ...compra, assinatura: { id: assinaturaId, mes: competenciaDe(compra.dataCompra) } },
+      );
+    } catch (erro) {
+      if (assinaturaId !== null) await repos.assinaturas.excluir(assinaturaId);
+      throw erro;
+    }
     gravarUltimoCartao(compra.cartaoId);
     dadosMudaram();
-    toast.success('Compra registrada', {
-      action: {
-        label: 'Desfazer',
-        onClick: () =>
-          void executar(async () => {
-            await repos.compras.excluir(compraId);
-            dadosMudaram();
-          }),
+    toast.success(
+      assinaturaId === null
+        ? 'Compra registrada'
+        : 'Compra registrada. A cobrança entra sozinha todo mês.',
+      {
+        action: {
+          label: 'Desfazer',
+          onClick: () =>
+            void executar(async () => {
+              await repos.compras.excluir(compraId);
+              if (assinaturaId !== null) await repos.assinaturas.excluir(assinaturaId);
+              dadosMudaram();
+            }),
+        },
       },
-    });
+    );
     if (!abrirOutra) fechar();
   };
+
+  const criarAssinatura = (compra: CompraDoFormulario) =>
+    repos.assinaturas.criar({
+      nome: compra.descricao.trim(),
+      cartaoId: compra.cartaoId,
+      categoriaId: compra.categoriaId,
+      valorCentavos: compra.valorTotal,
+      dia: diaDe(compra.dataCompra),
+      rateios: [...compra.rateios],
+      ativa: true,
+      inicio: competenciaDe(compra.dataCompra),
+    });
 
   return (
     <Dialog
@@ -245,7 +275,9 @@ export function NovaCompra() {
               modo="nova"
               dados={dados}
               inicial={
-                preenchida ? entradaDaCompra({ ...preenchida, dataCompra: hojeLocal() }) : undefined
+                preenchida
+                  ? entradaDaCompra({ ...preenchida, dataCompra: hojeLocal(), recorrente: false })
+                  : undefined
               }
               onSalvar={salvar}
               onCancelar={fechar}
@@ -541,26 +573,36 @@ export function FormularioDeCompra({
               className={maisOpcoes ? 'rotate-180 transition-transform' : 'transition-transform'}
             />
             Mais opções
-            <span className="font-normal text-ink-muted">· repetir todo mês, observação</span>
+            <span className="font-normal text-ink-muted">
+              {nova ? '· repetir todo mês, observação' : '· observação'}
+            </span>
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="flex flex-col gap-4 pt-2">
-          <div className="flex items-center gap-2">
-            <Controller
-              control={control}
-              name="recorrente"
-              render={({ field }) => (
-                <Checkbox
-                  id={`${id}-recorrente`}
-                  checked={field.value}
-                  onCheckedChange={(marcado) => {
-                    field.onChange(marcado === true);
-                  }}
-                />
-              )}
-            />
-            <Label htmlFor={`${id}-recorrente`}>Repetir todo mês</Label>
-          </div>
+          {nova && (
+            <div className="flex items-start gap-2">
+              <Controller
+                control={control}
+                name="recorrente"
+                render={({ field }) => (
+                  <Checkbox
+                    id={`${id}-recorrente`}
+                    aria-describedby={`${id}-recorrente-dica`}
+                    checked={field.value}
+                    onCheckedChange={(marcado) => {
+                      field.onChange(marcado === true);
+                    }}
+                  />
+                )}
+              />
+              <div className="flex flex-col gap-0.5">
+                <Label htmlFor={`${id}-recorrente`}>Repetir todo mês</Label>
+                <span id={`${id}-recorrente-dica`} className="text-xs text-ink-muted">
+                  Cria uma assinatura: a cobrança entra sozinha todo mês.
+                </span>
+              </div>
+            </div>
+          )}
           <Campo id={`${id}-observacao`} rotulo="Observação">
             <Textarea id={`${id}-observacao`} rows={2} {...register('observacao')} />
           </Campo>
