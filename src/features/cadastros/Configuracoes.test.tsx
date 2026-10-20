@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { toast } from 'sonner';
@@ -240,5 +240,24 @@ describe('Configurações › cadastros', () => {
 
     expect(await screen.findByText('Limite salvo')).toBeInTheDocument();
     expect(await repos.preferencias.ler()).toMatchObject({ limiteRendaComprometida: 40 });
+  });
+
+  it('edita a mensagem de cobrança com variáveis e chave Pix e mostra a prévia', async () => {
+    await abrir();
+
+    const mensagem = await screen.findByLabelText('Mensagem');
+    fireEvent.change(mensagem, { target: { value: 'Oi {nome}, ' } });
+    (mensagem as HTMLTextAreaElement).setSelectionRange(11, 11);
+    fireEvent.click(screen.getByRole('button', { name: '{valor}' }));
+    fireEvent.change(screen.getByLabelText('Chave Pix'), { target: { value: 'eu@pix' } });
+    fireEvent.blur(screen.getByLabelText('Chave Pix'));
+
+    expect(await screen.findByText('Oi Ana, R$ 320,00')).toBeInTheDocument();
+    await waitFor(async () => {
+      expect(await repos.preferencias.ler()).toMatchObject({
+        modeloCobranca: 'Oi {nome}, {valor}',
+        chavePix: 'eu@pix',
+      });
+    });
   });
 });
