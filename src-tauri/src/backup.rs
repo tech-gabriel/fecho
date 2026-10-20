@@ -52,9 +52,8 @@ pub async fn copiar(pool: &SqlitePool, destino: &Path) -> Result<(), String> {
     if destino.exists() {
         fs::remove_file(destino).map_err(|erro| erro.to_string())?;
     }
-    // VACUUM INTO com parâmetro ligado termina sem erro e sem gravar o arquivo; o caminho vai literal.
-    let caminho = destino.to_string_lossy().replace('\'', "''");
-    sqlx::query(&format!("VACUUM INTO '{caminho}'"))
+    sqlx::query("VACUUM INTO ?")
+        .bind(destino.to_string_lossy().to_string())
         .execute(pool)
         .await
         .map_err(|erro| erro.to_string())?;
@@ -200,11 +199,17 @@ mod testes {
         pasta
     }
 
+    // Banco em arquivo: com sqlite::memory: o VACUUM INTO herda o modo memória e não grava nada.
     fn banco_com_versao(versao: i64) -> SqlitePool {
+        let arquivo = pasta_temporaria("origem").join("fecho.db");
         tauri::async_runtime::block_on(async {
             let pool = SqlitePoolOptions::new()
                 .max_connections(1)
-                .connect("sqlite::memory:")
+                .connect_with(
+                    SqliteConnectOptions::new()
+                        .filename(&arquivo)
+                        .create_if_missing(true),
+                )
                 .await
                 .unwrap();
             for migration in crate::MIGRATIONS_SQL {
