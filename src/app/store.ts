@@ -28,18 +28,24 @@ interface EstadoApp {
   competencia: Competencia;
   sidebarRecolhida: boolean;
   novaCompraAberta: boolean;
+  versaoDosDados: number;
+  legendaDaPagina: string | null;
   voltarMes: () => void;
   avancarMes: () => void;
   irParaHoje: () => void;
   alternarSidebar: () => void;
   abrirNovaCompra: () => void;
   fecharNovaCompra: () => void;
+  dadosMudaram: () => void;
+  definirLegenda: (legenda: string | null) => void;
 }
 
 export const useApp = create<EstadoApp>()((set) => ({
   competencia: competenciaDe(hojeLocal()),
   sidebarRecolhida: lerSidebarRecolhida(),
   novaCompraAberta: false,
+  versaoDosDados: 0,
+  legendaDaPagina: null,
   voltarMes: () => {
     set((s) => ({ competencia: somarMeses(s.competencia, -1) }));
   },
@@ -60,5 +66,11 @@ export const useApp = create<EstadoApp>()((set) => ({
   },
   fecharNovaCompra: () => {
     set({ novaCompraAberta: false });
+  },
+  dadosMudaram: () => {
+    set((s) => ({ versaoDosDados: s.versaoDosDados + 1 }));
+  },
+  definirLegenda: (legendaDaPagina) => {
+    set({ legendaDaPagina });
   },
 }));

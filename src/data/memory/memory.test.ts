@@ -19,5 +19,6 @@ describe('dados fictícios', () => {
     ]);
     const outubro = await repos.compras.parcelasDaCompetencia('2026-10');
     expect(outubro.some((p) => p.rateios.length > 0)).toBe(true);
+    expect((await repos.faturas.pagamentos()).every((p) => p.competencia === '2026-09')).toBe(true);
   });
 });
