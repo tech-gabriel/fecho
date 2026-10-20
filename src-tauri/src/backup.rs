@@ -240,6 +240,15 @@ mod testes {
         fs::write(&destino, "arquivo antigo").unwrap();
 
         tauri::async_runtime::block_on(copiar(&banco_com_versao(5), &destino)).unwrap();
+        eprintln!(
+            "diagnostico copia: existe={} tamanho={:?} pasta={:?}",
+            destino.exists(),
+            fs::metadata(&destino).map(|m| m.len()),
+            fs::read_dir(&pasta).map(|d| d
+                .filter_map(|e| e.ok())
+                .map(|e| e.file_name())
+                .collect::<Vec<_>>())
+        );
         let info = tauri::async_runtime::block_on(inspecionar(&destino, 5)).unwrap();
 
         assert_eq!((info.compras, info.versao), (1, 5));
