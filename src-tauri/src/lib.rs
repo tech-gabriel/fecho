@@ -1,10 +1,31 @@
+mod compras;
+
+use tauri_plugin_sql::{Migration, MigrationKind};
+
+pub(crate) const MIGRATION_1: &str =
+    include_str!("../../src/data/migrations/0001_cadastros_e_compras.sql");
+
+fn migrations() -> Vec<Migration> {
+    vec![Migration {
+        version: 1,
+        description: "cadastros_e_compras",
+        sql: MIGRATION_1,
+        kind: MigrationKind::Up,
+    }]
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(
+            tauri_plugin_sql::Builder::default()
+                .add_migrations(compras::BANCO, migrations())
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
+        .invoke_handler(tauri::generate_handler![compras::salvar_compra])
         .run(tauri::generate_context!())
         .expect("falha ao iniciar o Fechô");
 }
