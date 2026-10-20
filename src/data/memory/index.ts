@@ -8,6 +8,7 @@ import {
   type PagamentoDeFatura,
   PREFERENCIAS_PADRAO,
   type Preferencias,
+  type Movimento,
   type Receita,
   type Categoria,
   type ComprasRepository,
@@ -112,27 +113,12 @@ function comprasEmMemoria(
       );
       return preparadas.map(gravar);
     },
-    parcelasDaCompetencia: async (competencia) =>
-      parcelas
-        .filter((p) => p.competencia === competencia && !buscar(p.compraId).excluido)
-        .map((p): ParcelaDoMes => {
-          const compra = buscar(p.compraId);
-          return {
-            parcelaId: p.id,
-            compraId: compra.id,
-            numero: p.numero,
-            numParcelas: compra.numParcelas,
-            competencia: p.competencia,
-            valorCentavos: p.valorCentavos,
-            descricao: compra.descricao,
-            dataCompra: compra.dataCompra,
-            cartaoId: compra.cartaoId,
-            categoriaId: compra.categoriaId,
-            recorrente: compra.recorrente,
-            rateios: compra.rateios.map((r) => ({ ...r })),
-          };
-        })
-        .sort((a, b) => a.dataCompra.localeCompare(b.dataCompra) || a.parcelaId - b.parcelaId),
+    parcelasDaCompetencia: async (competencia) => lerParcelas((p) => p.competencia === competencia),
+    parcelasDeTerceiros: async (ate) =>
+      lerParcelas(
+        (p) =>
+          p.competencia <= ate && buscar(p.compraId).rateios.some((r) => r.terceiroId !== null),
+      ),
     ultimasCategorias: async () =>
       compras
         .filter((c) => !c.excluido && c.categoriaId !== null)
@@ -175,6 +161,29 @@ function comprasEmMemoria(
     },
   };
   return repositorio;
+
+  function lerParcelas(filtro: (p: ParcelaGravada) => boolean): ParcelaDoMes[] {
+    return parcelas
+      .filter((p) => filtro(p) && !buscar(p.compraId).excluido)
+      .map((p): ParcelaDoMes => {
+        const compra = buscar(p.compraId);
+        return {
+          parcelaId: p.id,
+          compraId: compra.id,
+          numero: p.numero,
+          numParcelas: compra.numParcelas,
+          competencia: p.competencia,
+          valorCentavos: p.valorCentavos,
+          descricao: compra.descricao,
+          dataCompra: compra.dataCompra,
+          cartaoId: compra.cartaoId,
+          categoriaId: compra.categoriaId,
+          recorrente: compra.recorrente,
+          rateios: compra.rateios.map((r) => ({ ...r })),
+        };
+      })
+      .sort((a, b) => a.dataCompra.localeCompare(b.dataCompra) || a.parcelaId - b.parcelaId);
+  }
 }
 
 export function criarRepositoriosEmMemoria(): Repositorios {
@@ -221,8 +230,51 @@ export function criarRepositoriosEmMemoria(): Repositorios {
     p.cartaoId === cartaoId && p.competencia === competencia;
 
   let preferencias: Preferencias = { ...PREFERENCIAS_PADRAO };
+  const cadastroTerceiros = cadastroEmMemoria<Terceiro>('Terceiro', (id) =>
+    compras.some((c) => c.rateios.some((r) => r.terceiroId === id)),
+  );
+  const movimentos: (Movimento & { excluido: boolean })[] = [];
+  const movimento = (id: number) => {
+    const achado = movimentos.find((m) => m.id === id);
+    if (!achado) throw new RegistroNaoEncontrado('Movimento', id);
+    return achado;
+  };
+  const novoMovimento = (m: Omit<Movimento, 'id'>) => {
+    cadastroTerceiros.vigente(m.terceiroId);
+    const id = movimentos.length + 1;
+    movimentos.push({
+      ...m,
+      id,
+      abatimentos: m.abatimentos.map((a) => ({ ...a })),
+      excluido: false,
+    });
+    return id;
+  };
 
   return {
+    receber: {
+      movimentos: async () =>
+        movimentos
+          .filter((m) => !m.excluido)
+          .map((m) => ({
+            id: m.id,
+            terceiroId: m.terceiroId,
+            tipo: m.tipo,
+            valorCentavos: m.valorCentavos,
+            data: m.data,
+            competencia: m.competencia,
+            abatimentos: m.abatimentos.map((a) => ({ ...a })),
+          })),
+      registrarDeposito: async (deposito) => novoMovimento({ ...deposito, tipo: 'deposito' }),
+      registrarCobranca: async (cobranca) =>
+        novoMovimento({ ...cobranca, tipo: 'cobranca', abatimentos: [] }),
+      excluir: async (id) => {
+        movimento(id).excluido = true;
+      },
+      restaurar: async (id) => {
+        movimento(id).excluido = false;
+      },
+    },
     backup: backupIndisponivel,
     receitas: cadastroEmMemoria<Receita>('Receita', () => false),
     preferencias: {
@@ -251,9 +303,7 @@ export function criarRepositoriosEmMemoria(): Repositorios {
     categorias: cadastroEmMemoria<Categoria>('Categoria', (id) =>
       compras.some((c) => c.categoriaId === id),
     ),
-    terceiros: cadastroEmMemoria<Terceiro>('Terceiro', (id) =>
-      compras.some((c) => c.rateios.some((r) => r.terceiroId === id)),
-    ),
+    terceiros: cadastroTerceiros,
     compras: comprasEmMemoria(compras, parcelas, (id) => cadastroCartoes.vigente(id)),
   };
 }

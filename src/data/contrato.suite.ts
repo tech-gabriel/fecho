@@ -234,21 +234,92 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
       });
 
       it('lê o limite padrão e grava o escolhido', async () => {
-        expect(await repos.preferencias.ler()).toEqual({
+        expect(await repos.preferencias.ler()).toMatchObject({
           limiteRendaComprometida: 30,
           backupAutomatico: true,
           ultimoBackup: null,
+          chavePix: '',
         });
         await repos.preferencias.gravar({ limiteRendaComprometida: 40 });
         await repos.preferencias.gravar({
           backupAutomatico: false,
           ultimoBackup: '2026-10-20T11:12:00.000Z',
         });
-        expect(await repos.preferencias.ler()).toEqual({
+        expect(await repos.preferencias.ler()).toMatchObject({
           limiteRendaComprometida: 40,
           backupAutomatico: false,
           ultimoBackup: '2026-10-20T11:12:00.000Z',
         });
+      });
+    });
+
+    describe('a receber', () => {
+      it('registra depósito com abatimentos, cobrança, e exclui/restaura', async () => {
+        const id = await repos.compras.salvar(
+          compra({ rateios: [{ terceiroId: ana, percentual: 100 }] }),
+        );
+        const deposito = await repos.receber.registrarDeposito({
+          terceiroId: ana,
+          valorCentavos: 30_000,
+          data: '2026-10-20',
+          competencia: '2026-10',
+          abatimentos: [{ compraId: id, numero: 1, valor: 21_650 }],
+        });
+        const cobranca = await repos.receber.registrarCobranca({
+          terceiroId: ana,
+          valorCentavos: 43_300,
+          data: '2026-10-21',
+          competencia: '2026-10',
+        });
+
+        expect(await repos.receber.movimentos()).toEqual([
+          {
+            id: deposito,
+            terceiroId: ana,
+            tipo: 'deposito',
+            valorCentavos: 30_000,
+            data: '2026-10-20',
+            competencia: '2026-10',
+            abatimentos: [{ compraId: id, numero: 1, valor: 21_650 }],
+          },
+          {
+            id: cobranca,
+            terceiroId: ana,
+            tipo: 'cobranca',
+            valorCentavos: 43_300,
+            data: '2026-10-21',
+            competencia: '2026-10',
+            abatimentos: [],
+          },
+        ]);
+
+        await repos.receber.excluir(deposito);
+        expect((await repos.receber.movimentos()).map((m) => m.tipo)).toEqual(['cobranca']);
+        await repos.receber.restaurar(deposito);
+        expect(await repos.receber.movimentos()).toHaveLength(2);
+        await expect(repos.receber.excluir(9999)).rejects.toThrow('não encontrado');
+        await expect(
+          repos.receber.registrarDeposito({
+            terceiroId: 9999,
+            valorCentavos: 1,
+            data: '2026-10-20',
+            competencia: '2026-10',
+            abatimentos: [],
+          }),
+        ).rejects.toThrow('não encontrado');
+      });
+
+      it('lista as parcelas com terceiros até o mês', async () => {
+        await repos.compras.salvar(compra({ descricao: 'Minha' }));
+        await repos.compras.salvar(
+          compra({ descricao: 'Da Ana', rateios: [{ terceiroId: ana, percentual: 100 }] }),
+        );
+
+        const ate = await repos.compras.parcelasDeTerceiros('2026-11');
+        expect(ate.map((p) => [p.descricao, p.competencia])).toEqual([
+          ['Da Ana', '2026-10'],
+          ['Da Ana', '2026-11'],
+        ]);
       });
     });
 

@@ -1,6 +1,7 @@
 mod backup;
 mod cartoes;
 mod compras;
+mod receber;
 
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -11,14 +12,16 @@ const MIGRATION_3: &str = include_str!("../../src/data/migrations/0003_observaca
 const MIGRATION_4: &str = include_str!("../../src/data/migrations/0004_faturas.sql");
 const MIGRATION_5: &str =
     include_str!("../../src/data/migrations/0005_receitas_e_preferencias.sql");
+const MIGRATION_6: &str = include_str!("../../src/data/migrations/0006_movimentos.sql");
 
 #[cfg(test)]
-pub(crate) const MIGRATIONS_SQL: [&str; 5] = [
+pub(crate) const MIGRATIONS_SQL: [&str; 6] = [
     MIGRATION_1,
     MIGRATION_2,
     MIGRATION_3,
     MIGRATION_4,
     MIGRATION_5,
+    MIGRATION_6,
 ];
 
 fn migrations() -> Vec<Migration> {
@@ -53,6 +56,12 @@ fn migrations() -> Vec<Migration> {
             sql: MIGRATION_5,
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 6,
+            description: "movimentos",
+            sql: MIGRATION_6,
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -80,6 +89,7 @@ pub fn run() {
             compras::importar_compras,
             compras::substituir_compra,
             cartoes::atualizar_cartao,
+            receber::registrar_deposito,
             backup::caminhos_de_dados,
             backup::exportar_backup,
             backup::backup_automatico,
