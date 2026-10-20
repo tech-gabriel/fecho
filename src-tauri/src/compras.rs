@@ -57,12 +57,23 @@ pub async fn inserir_compra(
     .await?
     .last_insert_rowid();
 
+    inserir_filhos(&mut tx, compra_id, rateios, parcelas).await?;
+    tx.commit().await?;
+    Ok(compra_id)
+}
+
+async fn inserir_filhos(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    compra_id: i64,
+    rateios: &[Rateio],
+    parcelas: &[Parcela],
+) -> Result<(), sqlx::Error> {
     for rateio in rateios {
         sqlx::query("INSERT INTO rateios (compra_id, terceiro_id, percentual) VALUES (?, ?, ?)")
             .bind(compra_id)
             .bind(rateio.terceiro_id)
             .bind(rateio.percentual)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
     }
 
@@ -74,12 +85,52 @@ pub async fn inserir_compra(
         .bind(parcela.numero)
         .bind(&parcela.competencia)
         .bind(parcela.valor_centavos)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     }
+    Ok(())
+}
 
-    tx.commit().await?;
-    Ok(compra_id)
+pub async fn trocar_compra(
+    pool: &SqlitePool,
+    id: i64,
+    compra: &Compra,
+    rateios: &[Rateio],
+    parcelas: &[Parcela],
+) -> Result<(), sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    let alteradas = sqlx::query(
+        "UPDATE compras SET cartao_id = ?, descricao = ?, categoria_id = ?, valor_total_centavos = ?,
+           num_parcelas = ?, data_compra = ?, recorrente = ?, observacao = ?
+         WHERE id = ? AND deleted_at IS NULL",
+    )
+    .bind(compra.cartao_id)
+    .bind(&compra.descricao)
+    .bind(compra.categoria_id)
+    .bind(compra.valor_total_centavos)
+    .bind(compra.num_parcelas)
+    .bind(&compra.data_compra)
+    .bind(compra.recorrente)
+    .bind(&compra.observacao)
+    .bind(id)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+    if alteradas == 0 {
+        return Err(sqlx::Error::RowNotFound);
+    }
+
+    sqlx::query("DELETE FROM rateios WHERE compra_id = ?")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM parcelas WHERE compra_id = ?")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    inserir_filhos(&mut tx, id, rateios, parcelas).await?;
+    tx.commit().await
 }
 
 #[tauri::command]
@@ -94,6 +145,23 @@ pub async fn salvar_compra(
         return Err("Banco de dados não carregado".into());
     };
     inserir_compra(pool, &compra, &rateios, &parcelas)
+        .await
+        .map_err(|erro| erro.to_string())
+}
+
+#[tauri::command]
+pub async fn substituir_compra(
+    bancos: State<'_, DbInstances>,
+    id: i64,
+    compra: Compra,
+    rateios: Vec<Rateio>,
+    parcelas: Vec<Parcela>,
+) -> Result<(), String> {
+    let bancos = bancos.0.read().await;
+    let Some(DbPool::Sqlite(pool)) = bancos.get(BANCO) else {
+        return Err("Banco de dados não carregado".into());
+    };
+    trocar_compra(pool, id, &compra, &rateios, &parcelas)
         .await
         .map_err(|erro| erro.to_string())
 }
@@ -216,6 +284,44 @@ mod testes {
 
         assert!(resultado.is_err());
         assert_eq!(contar(&pool, "compras"), 0);
+    }
+
+    #[test]
+    fn substitui_compra_rateios_e_parcelas() {
+        let pool = banco();
+        let rateios = [Rateio {
+            terceiro_id: Some(1),
+            percentual: 100,
+        }];
+        let id =
+            tauri::async_runtime::block_on(inserir_compra(&pool, &compra(), &rateios, &parcelas()))
+                .unwrap();
+        let mut nova = compra();
+        nova.descricao = "Tênis novo".into();
+
+        tauri::async_runtime::block_on(trocar_compra(&pool, id, &nova, &[], &parcelas()[..2]))
+            .unwrap();
+
+        assert_eq!(contar(&pool, "rateios"), 0);
+        assert_eq!(contar(&pool, "parcelas"), 2);
+    }
+
+    #[test]
+    fn substituir_desfaz_tudo_em_erro_e_recusa_compra_inexistente() {
+        let pool = banco();
+        let id = tauri::async_runtime::block_on(inserir_compra(&pool, &compra(), &[], &parcelas()))
+            .unwrap();
+        let mut invalidas = parcelas();
+        invalidas[0].numero = 99;
+
+        let resultado =
+            tauri::async_runtime::block_on(trocar_compra(&pool, id, &compra(), &[], &invalidas));
+        let inexistente =
+            tauri::async_runtime::block_on(trocar_compra(&pool, 42, &compra(), &[], &parcelas()));
+
+        assert!(resultado.is_err());
+        assert_eq!(contar(&pool, "parcelas"), 3);
+        assert!(matches!(inexistente, Err(sqlx::Error::RowNotFound)));
     }
 
     #[test]
