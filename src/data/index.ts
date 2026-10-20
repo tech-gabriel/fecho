@@ -23,6 +23,7 @@ export async function criarRepositorios(): Promise<Repositorios> {
     {
       salvarCompra: (preparada) => invoke<number>('salvar_compra', { ...preparada }),
       importarCompras: (compras) => invoke<number[]>('importar_compras', { compras }),
+      registrarDeposito: (deposito) => invoke<number>('registrar_deposito', { deposito }),
       substituirCompra: (id, preparada) =>
         invoke<undefined>('substituir_compra', { id, ...preparada }),
       atualizarCartao: (id, cartao, parcelas) =>

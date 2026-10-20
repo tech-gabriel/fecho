@@ -77,7 +77,7 @@ export async function semearDadosFicticios(repos: Repositorios) {
       rateios,
     });
 
-  await compra(roxo, 'Tênis de corrida', compras, 129_900, 6, '2026-10-02', [
+  const tenis = await compra(roxo, 'Tênis de corrida', compras, 129_900, 6, '2026-10-02', [
     { terceiroId: null, percentual: 50 },
     { terceiroId: ana, percentual: 50 },
   ]);
@@ -123,5 +123,13 @@ export async function semearDadosFicticios(repos: Repositorios) {
     competencia: '2026-10',
     competenciaFim: null,
     recorrente: false,
+  });
+
+  await repos.receber.registrarDeposito({
+    terceiroId: ana,
+    valorCentavos: 10_825,
+    data: '2026-10-15',
+    competencia: '2026-10',
+    abatimentos: [{ compraId: tenis, numero: 1, valor: 10_825 }],
   });
 }

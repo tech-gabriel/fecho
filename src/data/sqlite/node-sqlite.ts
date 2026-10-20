@@ -1,6 +1,6 @@
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import type { NovaCompraPreparada } from '@/domain/compras';
-import type { Cartao, Novo } from '../repositories';
+import type { Cartao, Novo, NovoDeposito } from '../repositories';
 import { migrations } from '../migrations';
 import type { Banco, ComandosAtomicos, ParcelaMovida } from '.';
 
@@ -82,6 +82,22 @@ export function bancoDeTeste() {
       }),
     );
 
+  const registrarDeposito = async (deposito: NovoDeposito) =>
+    transacao(() => {
+      const { lastInsertRowid } = db
+        .prepare(
+          `INSERT INTO movimentos (terceiro_id, tipo, valor_centavos, data, competencia)
+           VALUES (?, 'deposito', ?, ?, ?)`,
+        )
+        .run(deposito.terceiroId, deposito.valorCentavos, deposito.data, deposito.competencia);
+      for (const a of deposito.abatimentos) {
+        db.prepare(
+          'INSERT INTO abatimentos (movimento_id, compra_id, numero, valor_centavos) VALUES (?, ?, ?, ?)',
+        ).run(lastInsertRowid, a.compraId, a.numero, a.valor);
+      }
+      return Number(lastInsertRowid);
+    });
+
   const substituirCompra = async (id: number, preparada: NovaCompraPreparada) => {
     transacao(() => {
       const { changes } = db
@@ -133,6 +149,7 @@ export function bancoDeTeste() {
   const comandos: ComandosAtomicos = {
     salvarCompra,
     importarCompras,
+    registrarDeposito,
     substituirCompra,
     atualizarCartao,
   };
