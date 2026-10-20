@@ -52,8 +52,9 @@ pub async fn copiar(pool: &SqlitePool, destino: &Path) -> Result<(), String> {
     if destino.exists() {
         fs::remove_file(destino).map_err(|erro| erro.to_string())?;
     }
-    sqlx::query("VACUUM INTO ?")
-        .bind(destino.to_string_lossy().to_string())
+    // VACUUM INTO com parâmetro ligado termina sem erro e sem gravar o arquivo; o caminho vai literal.
+    let caminho = destino.to_string_lossy().replace('\'', "''");
+    sqlx::query(&format!("VACUUM INTO '{caminho}'"))
         .execute(pool)
         .await
         .map_err(|erro| erro.to_string())?;
@@ -84,17 +85,11 @@ pub async fn inspecionar(origem: &Path, versao_do_app: i64) -> Result<InfoDoBack
         .read_only(true)
         .connect()
         .await
-        .map_err(|erro| {
-            eprintln!("diagnostico inspecionar: {erro}");
-            NAO_E_BACKUP.to_string()
-        })?;
+        .map_err(|_| NAO_E_BACKUP.to_string())?;
     let versao: Option<i64> = sqlx::query_scalar("SELECT max(version) FROM _sqlx_migrations")
         .fetch_one(&mut conexao)
         .await
-        .map_err(|erro| {
-            eprintln!("diagnostico inspecionar: {erro}");
-            NAO_E_BACKUP.to_string()
-        })?;
+        .map_err(|_| NAO_E_BACKUP.to_string())?;
     let versao = versao.ok_or_else(|| NAO_E_BACKUP.to_string())?;
     if versao > versao_do_app {
         return Err(MAIS_NOVO.into());
@@ -102,10 +97,7 @@ pub async fn inspecionar(origem: &Path, versao_do_app: i64) -> Result<InfoDoBack
     let compras: i64 = sqlx::query_scalar("SELECT count(*) FROM compras WHERE deleted_at IS NULL")
         .fetch_one(&mut conexao)
         .await
-        .map_err(|erro| {
-            eprintln!("diagnostico inspecionar: {erro}");
-            NAO_E_BACKUP.to_string()
-        })?;
+        .map_err(|_| NAO_E_BACKUP.to_string())?;
     let modificado_em = fs::metadata(origem)
         .and_then(|m| m.modified())
         .ok()
@@ -240,19 +232,21 @@ mod testes {
         fs::write(&destino, "arquivo antigo").unwrap();
 
         tauri::async_runtime::block_on(copiar(&banco_com_versao(5), &destino)).unwrap();
-        eprintln!(
-            "diagnostico copia: existe={} tamanho={:?} pasta={:?}",
-            destino.exists(),
-            fs::metadata(&destino).map(|m| m.len()),
-            fs::read_dir(&pasta).map(|d| d
-                .filter_map(|e| e.ok())
-                .map(|e| e.file_name())
-                .collect::<Vec<_>>())
-        );
         let info = tauri::async_runtime::block_on(inspecionar(&destino, 5)).unwrap();
 
         assert_eq!((info.compras, info.versao), (1, 5));
         assert!(info.modificado_em > 0);
+    }
+
+    #[test]
+    fn copia_para_caminho_com_apostrofo() {
+        let pasta = pasta_temporaria("apostrofo").join("pasta d'água");
+        fs::create_dir_all(&pasta).unwrap();
+        let destino = pasta.join("backup de d'Ávila.db");
+
+        tauri::async_runtime::block_on(copiar(&banco_com_versao(5), &destino)).unwrap();
+
+        assert!(destino.exists());
     }
 
     #[test]
