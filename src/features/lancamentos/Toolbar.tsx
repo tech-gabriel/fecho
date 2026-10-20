@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import { ChevronDown, Columns3, Search, Upload, X } from 'lucide-react';
 import { cn } from 'cn';
-import { Dica, EM_BREVE } from '@/app/layout/apoio';
+import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -224,12 +224,12 @@ export function Toolbar({
         </PopoverContent>
       </Popover>
 
-      <Dica texto={EM_BREVE}>
-        <Button variant="outline" size="sm" aria-disabled="true">
+      <Button variant="outline" size="sm" asChild>
+        <Link to="/importar">
           <Upload strokeWidth={1.75} />
           Importar .xlsx
-        </Button>
-      </Dica>
+        </Link>
+      </Button>
     </div>
   );
 }

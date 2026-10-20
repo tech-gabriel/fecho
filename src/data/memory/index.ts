@@ -96,6 +96,16 @@ function comprasEmMemoria(
 
   const repositorio: ComprasRepository = {
     salvar: async (dados) => gravar(prepararNovaCompra(dados, cartaoVigente(dados.cartaoId))),
+    listar: async () =>
+      compras
+        .filter((c) => !c.excluido)
+        .map((c) => ({
+          id: c.id,
+          dataCompra: c.dataCompra,
+          cartaoId: c.cartaoId,
+          descricao: c.descricao,
+          valorTotal: c.valorTotalCentavos,
+        })),
     importar: async (lista) => {
       const preparadas = lista.map((dados) =>
         prepararNovaCompra(dados, cartaoVigente(dados.cartaoId)),

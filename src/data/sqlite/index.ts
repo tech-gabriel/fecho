@@ -193,6 +193,19 @@ function comprasSqlite(banco: Banco, comandos: ComandosAtomicos): ComprasReposit
         prepararNovaCompra(dados, { diaFechamento: numero(cartao.dia_fechamento) }),
       );
     },
+    listar: async () => {
+      const linhas = await banco.select<Linha[]>(
+        `SELECT id, data_compra, cartao_id, descricao, valor_total_centavos FROM compras
+         WHERE deleted_at IS NULL ORDER BY id`,
+      );
+      return linhas.map((l) => ({
+        id: numero(l.id),
+        dataCompra: String(l.data_compra),
+        cartaoId: numero(l.cartao_id),
+        descricao: String(l.descricao),
+        valorTotal: assertCentavos(numero(l.valor_total_centavos)),
+      }));
+    },
     importar: async (lista) => {
       const dias = new Map<number, number>();
       const preparadas: NovaCompraPreparada[] = [];

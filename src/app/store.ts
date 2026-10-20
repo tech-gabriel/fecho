@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { DadosNovaCompra } from '@/domain/compras';
+import type { PlanilhaLida } from '@/features/importacao/lerPlanilha';
 import { competenciaDe, somarMeses, type Competencia, type DataLocal } from '@/domain/competencia';
 
 const CHAVE_SIDEBAR = 'fecho:sidebar-recolhida';
@@ -33,6 +34,7 @@ interface EstadoApp {
   compraEmEdicao: number | null;
   versaoDosDados: number;
   legendaDaPagina: string | null;
+  planilhaArrastada: PlanilhaLida | null;
   voltarMes: () => void;
   avancarMes: () => void;
   irParaHoje: () => void;
@@ -43,6 +45,7 @@ interface EstadoApp {
   fecharNovaCompra: () => void;
   dadosMudaram: () => void;
   definirLegenda: (legenda: string | null) => void;
+  receberPlanilha: (planilha: PlanilhaLida | null) => void;
 }
 
 export const useApp = create<EstadoApp>()((set) => ({
@@ -53,6 +56,7 @@ export const useApp = create<EstadoApp>()((set) => ({
   compraEmEdicao: null,
   versaoDosDados: 0,
   legendaDaPagina: null,
+  planilhaArrastada: null,
   voltarMes: () => {
     set((s) => ({ competencia: somarMeses(s.competencia, -1) }));
   },
@@ -85,5 +89,8 @@ export const useApp = create<EstadoApp>()((set) => ({
   },
   definirLegenda: (legendaDaPagina) => {
     set({ legendaDaPagina });
+  },
+  receberPlanilha: (planilhaArrastada) => {
+    set({ planilhaArrastada });
   },
 }));
