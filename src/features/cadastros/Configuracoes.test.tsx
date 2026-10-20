@@ -260,4 +260,20 @@ describe('Configurações › cadastros', () => {
       });
     });
   });
+
+  it('liga e desliga cada tipo de alerta; o Windows só vale no app instalado', async () => {
+    await abrir();
+
+    const alertas = within(secao('Alertas'));
+    const fechamento = await alertas.findByRole('switch', { name: 'Cartão fecha em breve' });
+    expect(fechamento).toBeChecked();
+    fireEvent.click(fechamento);
+
+    await waitFor(async () => {
+      expect((await repos.preferencias.ler()).alertasDesligados).toEqual(['fechamento']);
+    });
+    expect(fechamento).not.toBeChecked();
+    expect(alertas.getByRole('switch', { name: 'Avisar também pelo Windows' })).toBeDisabled();
+    expect(alertas.getByText('Só no app instalado')).toBeInTheDocument();
+  });
 });

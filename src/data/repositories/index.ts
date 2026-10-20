@@ -5,6 +5,7 @@ import type { ServicoDeBackup } from '../backup';
 import type { CompraParaRecalculo, MudancaDeFatura } from '@/domain/faturas';
 import type { Centavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
+import type { TipoDeAlerta } from '@/domain/alertas';
 
 export interface Cartao {
   id: number;
@@ -123,6 +124,10 @@ export interface Preferencias {
   ultimoBackup: string | null;
   modeloCobranca: string;
   chavePix: string;
+  alertasDesligados: TipoDeAlerta[];
+  alertasLidos: string[];
+  alertasNotificados: string[];
+  notificarNoWindows: boolean;
 }
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
@@ -132,6 +137,10 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   modeloCobranca:
     'Oi, {nome}! Faltam {valor} das suas compras no meu {cartão}, que vence em {vencimento}. Meu Pix: {pix}',
   chavePix: '',
+  alertasDesligados: [],
+  alertasLidos: [],
+  alertasNotificados: [],
+  notificarNoWindows: true,
 };
 
 export interface PreferenciasRepository {

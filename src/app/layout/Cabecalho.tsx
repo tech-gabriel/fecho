@@ -1,5 +1,6 @@
-import { Bell, Plus, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CentralDeAlertas } from '@/features/alertas/CentralDeAlertas';
 import { usePaginaAtual } from '../paginas';
 import { useApp } from '../store';
 import { Dica, EM_BREVE, Kbd } from './apoio';
@@ -32,11 +33,7 @@ export function Cabecalho() {
             <Kbd className="bg-soft">Ctrl K</Kbd>
           </Button>
         </Dica>
-        <Dica texto={EM_BREVE}>
-          <Button variant="outline" size="icon" aria-disabled="true" aria-label="Alertas">
-            <Bell strokeWidth={1.75} />
-          </Button>
-        </Dica>
+        <CentralDeAlertas />
         <Button
           aria-keyshortcuts="Control+N"
           className="pr-2 font-semibold"
