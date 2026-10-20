@@ -396,7 +396,7 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         await repos.compras.substituir(
           id,
           compra({ dataCompra: '2026-10-26', descricao: 'Renomeada' }),
-          { manterParcelas: true },
+          { parcelas: (await repos.compras.buscar(id)).parcelas },
         );
 
         const [outubro] = await repos.compras.parcelasDaCompetencia('2026-10');

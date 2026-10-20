@@ -76,11 +76,7 @@ export interface ComprasRepository {
   parcelasDaCompetencia(competencia: Competencia): Promise<ParcelaDoMes[]>;
   ultimasCategorias(): Promise<{ descricao: string; categoriaId: number }[]>;
   buscar(id: number): Promise<CompraGravada>;
-  substituir(
-    id: number,
-    dados: DadosNovaCompra,
-    opcoes?: { manterParcelas?: boolean },
-  ): Promise<void>;
+  substituir(id: number, dados: DadosNovaCompra, opcoes?: { parcelas?: Parcela[] }): Promise<void>;
   excluir(id: number): Promise<void>;
   restaurar(id: number): Promise<void>;
 }

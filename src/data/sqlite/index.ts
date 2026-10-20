@@ -277,7 +277,7 @@ function comprasSqlite(banco: Banco, comandos: ComandosAtomicos): ComprasReposit
       };
     },
     substituir: async function (id, dados, opcoes) {
-      const atual = await this.buscar(id);
+      await this.buscar(id);
       const [cartao] = await banco.select<Linha[]>(
         'SELECT dia_fechamento FROM cartoes WHERE id = ? AND deleted_at IS NULL',
         [dados.cartaoId],
@@ -286,7 +286,7 @@ function comprasSqlite(banco: Banco, comandos: ComandosAtomicos): ComprasReposit
       const preparada = prepararNovaCompra(dados, { diaFechamento: numero(cartao.dia_fechamento) });
       await comandos.substituirCompra(id, {
         ...preparada,
-        parcelas: opcoes?.manterParcelas ? atual.parcelas : preparada.parcelas,
+        parcelas: opcoes?.parcelas ?? preparada.parcelas,
       });
     },
     excluir: (id) =>

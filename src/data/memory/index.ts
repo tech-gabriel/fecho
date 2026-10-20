@@ -137,7 +137,7 @@ function comprasEmMemoria(
     substituir: async (id, dados, opcoes) => {
       const atual = vigente(id);
       const preparada = prepararNovaCompra(dados, cartaoVigente(dados.cartaoId));
-      const novas = opcoes?.manterParcelas ? parcelasDa(id) : preparada.parcelas;
+      const novas = opcoes?.parcelas ?? preparada.parcelas;
       Object.assign(atual, preparada.compra, { rateios: preparada.rateios });
       for (let i = parcelas.length - 1; i >= 0; i--) {
         if (parcelas[i]?.compraId === id) parcelas.splice(i, 1);

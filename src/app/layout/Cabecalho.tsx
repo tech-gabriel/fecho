@@ -40,7 +40,9 @@ export function Cabecalho() {
         <Button
           aria-keyshortcuts="Control+N"
           className="pr-2 font-semibold"
-          onClick={abrirNovaCompra}
+          onClick={() => {
+            abrirNovaCompra();
+          }}
         >
           <Plus strokeWidth={2} />
           Nova compra

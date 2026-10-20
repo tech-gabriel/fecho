@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { DadosNovaCompra } from '@/domain/compras';
 import { competenciaDe, somarMeses, type Competencia, type DataLocal } from '@/domain/competencia';
 
 const CHAVE_SIDEBAR = 'fecho:sidebar-recolhida';
@@ -28,13 +29,17 @@ interface EstadoApp {
   competencia: Competencia;
   sidebarRecolhida: boolean;
   novaCompraAberta: boolean;
+  novaCompraPreenchida: DadosNovaCompra | null;
+  compraEmEdicao: number | null;
   versaoDosDados: number;
   legendaDaPagina: string | null;
   voltarMes: () => void;
   avancarMes: () => void;
   irParaHoje: () => void;
   alternarSidebar: () => void;
-  abrirNovaCompra: () => void;
+  abrirNovaCompra: (preenchida?: DadosNovaCompra) => void;
+  editarCompra: (id: number) => void;
+  fecharEdicao: () => void;
   fecharNovaCompra: () => void;
   dadosMudaram: () => void;
   definirLegenda: (legenda: string | null) => void;
@@ -44,6 +49,8 @@ export const useApp = create<EstadoApp>()((set) => ({
   competencia: competenciaDe(hojeLocal()),
   sidebarRecolhida: lerSidebarRecolhida(),
   novaCompraAberta: false,
+  novaCompraPreenchida: null,
+  compraEmEdicao: null,
   versaoDosDados: 0,
   legendaDaPagina: null,
   voltarMes: () => {
@@ -61,11 +68,17 @@ export const useApp = create<EstadoApp>()((set) => ({
       return { sidebarRecolhida: !s.sidebarRecolhida };
     });
   },
-  abrirNovaCompra: () => {
-    set({ novaCompraAberta: true });
+  abrirNovaCompra: (preenchida) => {
+    set({ novaCompraAberta: true, novaCompraPreenchida: preenchida ?? null });
   },
   fecharNovaCompra: () => {
     set({ novaCompraAberta: false });
+  },
+  editarCompra: (compraEmEdicao) => {
+    set({ compraEmEdicao });
+  },
+  fecharEdicao: () => {
+    set({ compraEmEdicao: null });
   },
   dadosMudaram: () => {
     set((s) => ({ versaoDosDados: s.versaoDosDados + 1 }));
