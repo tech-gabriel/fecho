@@ -85,6 +85,7 @@ export interface ComprasRepository {
     }[]
   >;
   parcelasDaCompetencia(competencia: Competencia): Promise<ParcelaDoMes[]>;
+  parcelasDeTerceiros(ate: Competencia): Promise<ParcelaDoMes[]>;
   ultimasCategorias(): Promise<{ descricao: string; categoriaId: number }[]>;
   buscar(id: number): Promise<CompraGravada>;
   substituir(id: number, dados: DadosNovaCompra, opcoes?: { parcelas?: Parcela[] }): Promise<void>;
@@ -120,17 +121,49 @@ export interface Preferencias {
   limiteRendaComprometida: number;
   backupAutomatico: boolean;
   ultimoBackup: string | null;
+  modeloCobranca: string;
+  chavePix: string;
 }
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
   limiteRendaComprometida: 30,
   backupAutomatico: true,
   ultimoBackup: null,
+  modeloCobranca:
+    'Oi, {nome}! Faltam {valor} das suas compras no meu {cartão}, que vence em {vencimento}. Meu Pix: {pix}',
+  chavePix: '',
 };
 
 export interface PreferenciasRepository {
   ler(): Promise<Preferencias>;
   gravar(preferencias: Partial<Preferencias>): Promise<void>;
+}
+
+export interface AbatimentoGravado {
+  compraId: number;
+  numero: number;
+  valor: Centavos;
+}
+
+export interface Movimento {
+  id: number;
+  terceiroId: number;
+  tipo: 'deposito' | 'cobranca';
+  valorCentavos: Centavos;
+  data: DataLocal;
+  competencia: Competencia;
+  abatimentos: AbatimentoGravado[];
+}
+
+export type NovoDeposito = Omit<Movimento, 'id' | 'tipo'>;
+export type NovaCobranca = Omit<Movimento, 'id' | 'tipo' | 'abatimentos'>;
+
+export interface ReceberRepository {
+  movimentos(): Promise<Movimento[]>;
+  registrarDeposito(deposito: NovoDeposito): Promise<number>;
+  registrarCobranca(cobranca: NovaCobranca): Promise<number>;
+  excluir(id: number): Promise<void>;
+  restaurar(id: number): Promise<void>;
 }
 
 export interface Repositorios {
@@ -142,6 +175,7 @@ export interface Repositorios {
   receitas: ReceitasRepository;
   preferencias: PreferenciasRepository;
   backup: ServicoDeBackup;
+  receber: ReceberRepository;
 }
 
 export class RegistroNaoEncontrado extends Error {

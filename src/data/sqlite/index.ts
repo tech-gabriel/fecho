@@ -11,7 +11,10 @@ import {
   PREFERENCIAS_PADRAO,
   type Preferencias,
   type PreferenciasRepository,
+  type Movimento,
+  type NovoDeposito,
   type Receita,
+  type ReceberRepository,
   type Categoria,
   type ComprasRepository,
   type Novo,
@@ -38,6 +41,7 @@ export interface ParcelaMovida {
 export interface ComandosAtomicos {
   salvarCompra(compra: NovaCompraPreparada): Promise<number>;
   importarCompras(compras: NovaCompraPreparada[]): Promise<number[]>;
+  registrarDeposito(deposito: NovoDeposito): Promise<number>;
   substituirCompra(id: number, compra: NovaCompraPreparada): Promise<void>;
   atualizarCartao(id: number, cartao: Novo<Cartao>, parcelas: ParcelaMovida[]): Promise<void>;
 }
@@ -177,6 +181,46 @@ function cartoesSqlite(banco: Banco, comandos: ComandosAtomicos): CartoesReposit
 }
 
 function comprasSqlite(banco: Banco, comandos: ComandosAtomicos): ComprasRepository {
+  const lerParcelas = async (onde: string, params: unknown[]) => {
+    const linhas = await banco.select<Linha[]>(
+      `SELECT p.id AS parcela_id, p.compra_id, p.numero, p.competencia, p.valor_centavos,
+              c.num_parcelas, c.descricao, c.data_compra, c.cartao_id, c.categoria_id, c.recorrente
+       FROM parcelas p JOIN compras c ON c.id = p.compra_id
+       WHERE ${onde} AND c.deleted_at IS NULL
+       ORDER BY c.data_compra, p.id`,
+      params,
+    );
+    const ids = [...new Set(linhas.map((l) => numero(l.compra_id)))];
+    const rateios =
+      ids.length === 0
+        ? []
+        : await banco.select<Linha[]>(
+            `SELECT compra_id, terceiro_id, percentual FROM rateios
+               WHERE compra_id IN (${ids.map(() => '?').join(', ')}) ORDER BY rowid`,
+            ids,
+          );
+
+    return linhas.map((l): ParcelaDoMes => ({
+      parcelaId: numero(l.parcela_id),
+      compraId: numero(l.compra_id),
+      numero: numero(l.numero),
+      numParcelas: numero(l.num_parcelas),
+      competencia: String(l.competencia),
+      valorCentavos: assertCentavos(numero(l.valor_centavos)),
+      descricao: String(l.descricao),
+      dataCompra: String(l.data_compra),
+      cartaoId: numero(l.cartao_id),
+      categoriaId: l.categoria_id === null ? null : numero(l.categoria_id),
+      recorrente: Boolean(l.recorrente),
+      rateios: rateios
+        .filter((r) => numero(r.compra_id) === numero(l.compra_id))
+        .map((r): Rateio => ({
+          terceiroId: r.terceiro_id === null ? null : numero(r.terceiro_id),
+          percentual: numero(r.percentual),
+        })),
+    }));
+  };
+
   const exigirLinha = async (id: number, sql: string, params: unknown[]) => {
     const { rowsAffected } = await banco.execute(sql, params);
     if (rowsAffected === 0) throw new RegistroNaoEncontrado('Compra', id);
@@ -224,45 +268,12 @@ function comprasSqlite(banco: Banco, comandos: ComandosAtomicos): ComprasReposit
       }
       return comandos.importarCompras(preparadas);
     },
-    parcelasDaCompetencia: async (competencia) => {
-      const linhas = await banco.select<Linha[]>(
-        `SELECT p.id AS parcela_id, p.compra_id, p.numero, p.competencia, p.valor_centavos,
-                c.num_parcelas, c.descricao, c.data_compra, c.cartao_id, c.categoria_id, c.recorrente
-         FROM parcelas p JOIN compras c ON c.id = p.compra_id
-         WHERE p.competencia = ? AND c.deleted_at IS NULL
-         ORDER BY c.data_compra, p.id`,
-        [competencia],
-      );
-      const ids = [...new Set(linhas.map((l) => numero(l.compra_id)))];
-      const rateios =
-        ids.length === 0
-          ? []
-          : await banco.select<Linha[]>(
-              `SELECT compra_id, terceiro_id, percentual FROM rateios
-               WHERE compra_id IN (${ids.map(() => '?').join(', ')}) ORDER BY rowid`,
-              ids,
-            );
-
-      return linhas.map((l): ParcelaDoMes => ({
-        parcelaId: numero(l.parcela_id),
-        compraId: numero(l.compra_id),
-        numero: numero(l.numero),
-        numParcelas: numero(l.num_parcelas),
-        competencia: String(l.competencia),
-        valorCentavos: assertCentavos(numero(l.valor_centavos)),
-        descricao: String(l.descricao),
-        dataCompra: String(l.data_compra),
-        cartaoId: numero(l.cartao_id),
-        categoriaId: l.categoria_id === null ? null : numero(l.categoria_id),
-        recorrente: Boolean(l.recorrente),
-        rateios: rateios
-          .filter((r) => numero(r.compra_id) === numero(l.compra_id))
-          .map((r): Rateio => ({
-            terceiroId: r.terceiro_id === null ? null : numero(r.terceiro_id),
-            percentual: numero(r.percentual),
-          })),
-      }));
-    },
+    parcelasDaCompetencia: (competencia) => lerParcelas('p.competencia = ?', [competencia]),
+    parcelasDeTerceiros: (ate) =>
+      lerParcelas(
+        'p.competencia <= ? AND EXISTS (SELECT 1 FROM rateios r WHERE r.compra_id = c.id AND r.terceiro_id IS NOT NULL)',
+        [ate],
+      ),
     ultimasCategorias: async () => {
       const linhas = await banco.select<Linha[]>(
         `SELECT descricao, categoria_id FROM compras
@@ -390,6 +401,64 @@ function preferenciasSqlite(banco: Banco): PreferenciasRepository {
   };
 }
 
+function receberSqlite(banco: Banco, comandos: ComandosAtomicos): ReceberRepository {
+  const exigirLinha = async (id: number, sql: string, params: unknown[]) => {
+    const { rowsAffected } = await banco.execute(sql, params);
+    if (rowsAffected === 0) throw new RegistroNaoEncontrado('Movimento', id);
+  };
+  return {
+    movimentos: async () => {
+      const [linhas, abatimentos] = await Promise.all([
+        banco.select<Linha[]>(
+          `SELECT id, terceiro_id, tipo, valor_centavos, data, competencia FROM movimentos
+           WHERE deleted_at IS NULL ORDER BY data, id`,
+        ),
+        banco.select<Linha[]>(
+          'SELECT movimento_id, compra_id, numero, valor_centavos FROM abatimentos',
+        ),
+      ]);
+      return linhas.map((l): Movimento => ({
+        id: numero(l.id),
+        terceiroId: numero(l.terceiro_id),
+        tipo: l.tipo === 'cobranca' ? 'cobranca' : 'deposito',
+        valorCentavos: assertCentavos(numero(l.valor_centavos)),
+        data: String(l.data),
+        competencia: String(l.competencia),
+        abatimentos: abatimentos
+          .filter((a) => numero(a.movimento_id) === numero(l.id))
+          .map((a) => ({
+            compraId: numero(a.compra_id),
+            numero: numero(a.numero),
+            valor: assertCentavos(numero(a.valor_centavos)),
+          })),
+      }));
+    },
+    registrarDeposito: async (deposito) => {
+      const [existe] = await banco.select<Linha[]>(
+        'SELECT 1 FROM terceiros WHERE id = ? AND deleted_at IS NULL',
+        [deposito.terceiroId],
+      );
+      if (!existe) throw new RegistroNaoEncontrado('Terceiro', deposito.terceiroId);
+      return comandos.registrarDeposito(deposito);
+    },
+    registrarCobranca: async ({ terceiroId, valorCentavos, data, competencia }) => {
+      const { lastInsertId } = await banco.execute(
+        `INSERT INTO movimentos (terceiro_id, tipo, valor_centavos, data, competencia)
+         VALUES (?, 'cobranca', ?, ?, ?)`,
+        [terceiroId, valorCentavos, data, competencia],
+      );
+      return Number(lastInsertId);
+    },
+    excluir: (id) =>
+      exigirLinha(id, 'UPDATE movimentos SET deleted_at = ? WHERE id = ?', [
+        new Date().toISOString(),
+        id,
+      ]),
+    restaurar: (id) =>
+      exigirLinha(id, 'UPDATE movimentos SET deleted_at = NULL WHERE id = ?', [id]),
+  };
+}
+
 export function criarRepositoriosSqlite(
   banco: Banco,
   comandos: ComandosAtomicos,
@@ -397,6 +466,7 @@ export function criarRepositoriosSqlite(
 ): Repositorios {
   return {
     backup,
+    receber: receberSqlite(banco, comandos),
     cartoes: cartoesSqlite(banco, comandos),
     faturas: faturasSqlite(banco),
     preferencias: preferenciasSqlite(banco),

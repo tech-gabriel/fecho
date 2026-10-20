@@ -18,6 +18,7 @@ import { FormCartao, FormCategoria, FormPessoa } from './formularios';
 import { CORES_DE_CARTAO, iconeDaCategoria } from './opcoes';
 import { executar, SecaoCadastro } from './SecaoCadastro';
 import { SecaoBackup } from './SecaoBackup';
+import { SecaoCobranca } from './SecaoCobranca';
 import { SecaoPlanejamento } from './SecaoPlanejamento';
 
 const SECOES = [
@@ -25,6 +26,7 @@ const SECOES = [
   { ancora: 'pessoas', rotulo: 'Pessoas' },
   { ancora: 'categorias', rotulo: 'Categorias' },
   { ancora: 'planejamento', rotulo: 'Planejamento' },
+  { ancora: 'cobranca', rotulo: 'Cobrança' },
   { ancora: 'dados', rotulo: 'Dados e backup' },
 ];
 
@@ -181,6 +183,7 @@ export function Configuracoes() {
         />
 
         <SecaoPlanejamento />
+        <SecaoCobranca />
         <SecaoBackup />
       </div>
 

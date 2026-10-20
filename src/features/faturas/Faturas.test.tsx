@@ -113,7 +113,10 @@ describe('Faturas', () => {
     expect(await screen.findByText('Total da fatura')).toBeInTheDocument();
     expect(screen.getByText('R$ 595,55')).toBeInTheDocument();
     expect(screen.getByText('R$ 428,25')).toBeInTheDocument();
-    expect(screen.getByText('Ana R$ 428,25')).toBeInTheDocument();
+    expect(screen.getByText('Faltam R$ 428,25')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Faltam R$ 428,25 de Ana para fechar a fatura do Cartão RoxoVer em A receber',
+    );
     expect(
       screen.getByText(/Fecha 28\/10 · Vence 05\/11 · limite usado 20% de R\$ 5\.000,00/),
     ).toBeInTheDocument();
@@ -131,6 +134,27 @@ describe('Faturas', () => {
     expect(within(screen.getByRole('table')).queryAllByRole('row', { name: /Ana/ })).toHaveLength(
       0,
     );
+  });
+
+  it('quando a pessoa deposita tudo, some o alerta e o tile diz que todos depositaram', async () => {
+    const parcelas = await repos.compras.parcelasDeTerceiros('2026-10');
+    await repos.receber.registrarDeposito({
+      terceiroId: ids.ana,
+      valorCentavos: 42_825,
+      data: '2026-10-19',
+      competencia: '2026-10',
+      abatimentos: parcelas
+        .filter((p) => p.cartaoId === ids.roxo && p.rateios.some((r) => r.terceiroId === ids.ana))
+        .map((p) => ({
+          compraId: p.compraId,
+          numero: p.numero,
+          valor: p.descricao === 'Tênis' ? 10_825 : 32_000,
+        })),
+    });
+    await abrir();
+
+    expect(await screen.findByText('Todos já depositaram')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('marca como paga e desfaz', async () => {

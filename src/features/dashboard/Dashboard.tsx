@@ -16,6 +16,7 @@ import { hojeLocal, useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
 import type {
   Cartao,
+  Movimento,
   PagamentoDeFatura,
   ParcelaDoMes,
   Preferencias,
@@ -27,6 +28,7 @@ import { linhasPorDono, resumoDaFatura } from '@/domain/faturas';
 import { receitasDoMes, rendaComprometida, resumoDoMes } from '@/domain/resumo';
 import { montarFaturas } from '@/features/faturas/Faturas';
 import { dataCurta } from '@/features/faturas/ListaDeCartoes';
+import { faltaNaFatura, montarSituacoes } from '@/features/receber/situacoes';
 import { formatarComSinal, formatarMoeda, nomeDoMes } from '@/lib/formato';
 import { DURACAO, MOVIMENTO, gsap, useGSAP } from '@/lib/gsap';
 import { DialogRenda } from './DialogRenda';
@@ -42,6 +44,8 @@ interface Dados {
   pagamentos: PagamentoDeFatura[];
   receitas: Receita[];
   preferencias: Preferencias;
+  deTerceiros: ParcelaDoMes[];
+  movimentos: Movimento[];
 }
 
 const MESES_DO_GRAFICO = 6;
@@ -116,11 +120,35 @@ export function Dashboard() {
       repos.faturas.pagamentos(),
       repos.receitas.listar(),
       repos.preferencias.ler(),
-    ]).then(([cartoes, terceiros, parcelas, futuras, pagamentos, receitas, preferencias]) => {
-      if (montado) {
-        setDados({ cartoes, terceiros, parcelas, futuras, pagamentos, receitas, preferencias });
-      }
-    });
+      repos.compras.parcelasDeTerceiros(competencia),
+      repos.receber.movimentos(),
+    ]).then(
+      ([
+        cartoes,
+        terceiros,
+        parcelas,
+        futuras,
+        pagamentos,
+        receitas,
+        preferencias,
+        deTerceiros,
+        movimentos,
+      ]) => {
+        if (montado) {
+          setDados({
+            cartoes,
+            terceiros,
+            parcelas,
+            futuras,
+            pagamentos,
+            receitas,
+            preferencias,
+            deTerceiros,
+            movimentos,
+          });
+        }
+      },
+    );
     return () => {
       montado = false;
     };
@@ -176,11 +204,15 @@ export function Dashboard() {
   );
 
   const mes = nomeDoMes(competencia).split(' ')[0] ?? '';
-  const nome = (id: number) => dados.terceiros.find((t) => t.id === id)?.nome ?? '';
-  const porPessoa = [...resumo.porTerceiro].map(
-    ([id, valor]) => `${nome(id)} ${formatarMoeda(valor)}`,
-  );
-  const pessoas = [...resumo.porTerceiro.keys()].map(nome);
+  const situacoes = montarSituacoes({ ...dados, parcelas: dados.deTerceiros, competencia, hoje });
+  const faltaDoMes = faturas
+    .flatMap((f) => faltaNaFatura(situacoes, f.cartao.id, competencia))
+    .reduce((soma, f) => soma + f.falta, 0);
+  const depositadoDoMes = resumo.deTerceiros - faltaDoMes;
+  const percentual =
+    resumo.deTerceiros > 0 ? Math.round((depositadoDoMes / resumo.deTerceiros) * 100) : 0;
+  const devedores = situacoes.filter((s) => s.falta > 0);
+  const aReceber = devedores.reduce((soma, s) => soma + s.falta, 0);
   const temFaturas = faturas.some((f) => f.resumo.total > 0);
   const legendaDoCaixa = !temFaturas
     ? `Nenhuma fatura em ${mes}`
@@ -261,11 +293,30 @@ export function Dashboard() {
               <span className="flex-1">Reembolso de terceiros</span>
               <span className="tabular-nums">{formatarMoeda(resumo.deTerceiros)}</span>
             </span>
-            <span className="text-[13px]">
-              {porPessoa.length > 0
-                ? `Nas faturas de ${mes}: ${porPessoa.join(' · ')}`
-                : `Nenhuma compra de outras pessoas em ${mes}`}
-            </span>
+            {resumo.deTerceiros > 0 ? (
+              <>
+                <div
+                  role="progressbar"
+                  aria-label="Reembolso já depositado"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percentual}
+                  className="my-1 h-2 overflow-hidden rounded-full bg-on-brand/15"
+                >
+                  <div
+                    className="h-full rounded-full bg-on-brand"
+                    style={{ width: `${String(percentual)}%` }}
+                  />
+                </div>
+                <span className="text-[13px] tabular-nums">
+                  {percentual}% · {formatarMoeda(depositadoDoMes)} de{' '}
+                  {formatarMoeda(resumo.deTerceiros)} já depositados
+                  {faltaDoMes > 0 && ` · faltam ${formatarMoeda(faltaDoMes)}`}
+                </span>
+              </>
+            ) : (
+              <span className="text-[13px]">Nenhuma compra de outras pessoas em {mes}</span>
+            )}
           </div>
         </section>
 
@@ -318,9 +369,13 @@ export function Dashboard() {
             rotulo="A receber"
             icone={HandCoins}
             corDoIcone="text-info"
-            centavos={resumo.deTerceiros}
-            legenda={pessoas.length > 0 ? listaDeNomes(pessoas) : 'Ninguém te deve nada neste mês'}
-            envolver={link('/lancamentos?ver=terceiros')}
+            centavos={aReceber}
+            legenda={
+              devedores.length > 0
+                ? listaDeNomes(devedores.map((s) => s.terceiro.nome))
+                : 'Ninguém te deve nada neste mês'
+            }
+            envolver={link('/receber')}
           />
         </div>
       </div>
@@ -333,7 +388,12 @@ export function Dashboard() {
           />
         </div>
         <div className="cartao-do-dashboard">
-          <ProximosVencimentos faturas={faturas} hoje={hoje} />
+          <ProximosVencimentos
+            faturas={faturas}
+            situacoes={situacoes}
+            preferencias={dados.preferencias}
+            hoje={hoje}
+          />
         </div>
       </div>
 
