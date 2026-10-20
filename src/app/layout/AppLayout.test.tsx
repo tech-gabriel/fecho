@@ -116,7 +116,7 @@ describe('layout base', () => {
   it('mostra as ações ainda indisponíveis como desabilitadas', async () => {
     await abrir();
 
-    for (const nome of [/Buscar/, 'Alertas', /Nova compra/, /Bloquear/]) {
+    for (const nome of [/Buscar/, 'Alertas', /Bloquear/]) {
       expect(screen.getByRole('button', { name: nome })).toHaveAttribute('aria-disabled', 'true');
     }
   });

@@ -98,7 +98,7 @@ mod testes {
                 .connect("sqlite::memory:")
                 .await
                 .unwrap();
-            for migration in [crate::MIGRATION_1, crate::MIGRATION_2] {
+            for migration in crate::MIGRATIONS_SQL {
                 sqlx::raw_sql(migration).execute(&pool).await.unwrap();
             }
             sqlx::raw_sql(

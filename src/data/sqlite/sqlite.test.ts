@@ -30,6 +30,36 @@ describe('sqlite', () => {
     await expect(repos.categorias.atualizar(9999, {})).resolves.toBeUndefined();
   });
 
+  it('grava a observação da compra', async () => {
+    const { banco, comandos, db } = bancoDeTeste();
+    const repos = criarRepositoriosSqlite(banco, comandos);
+    const cartao = await repos.cartoes.criar({
+      nome: 'Roxo',
+      diaFechamento: 28,
+      diaVencimento: 5,
+      limiteCentavos: 0,
+      cor: '#8B5CF6',
+      ativo: true,
+    });
+
+    const id = await repos.compras.salvar({
+      cartaoId: cartao,
+      descricao: 'Livro',
+      categoriaId: null,
+      valorTotal: 5_000,
+      numParcelas: 1,
+      dataCompra: '2026-10-19',
+      recorrente: true,
+      rateios: [],
+      observacao: ' presente da Ana ',
+    });
+
+    expect(db.prepare('SELECT observacao, recorrente FROM compras WHERE id = ?').get(id)).toEqual({
+      observacao: 'presente da Ana',
+      recorrente: 1,
+    });
+  });
+
   it('a transação desfaz tudo quando uma parcela é recusada pelo banco', async () => {
     const { banco, comandos, db } = bancoDeTeste();
     const repos = criarRepositoriosSqlite(banco, comandos);
@@ -52,6 +82,7 @@ describe('sqlite', () => {
           numParcelas: 1,
           dataCompra: '2026-10-19',
           recorrente: false,
+          observacao: null,
         },
         rateios: [],
         parcelas: [{ numero: 99, competencia: '2026-10', valorCentavos: 100 }],
