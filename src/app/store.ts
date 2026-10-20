@@ -27,15 +27,19 @@ function gravarSidebarRecolhida(recolhida: boolean) {
 interface EstadoApp {
   competencia: Competencia;
   sidebarRecolhida: boolean;
+  novaCompraAberta: boolean;
   voltarMes: () => void;
   avancarMes: () => void;
   irParaHoje: () => void;
   alternarSidebar: () => void;
+  abrirNovaCompra: () => void;
+  fecharNovaCompra: () => void;
 }
 
 export const useApp = create<EstadoApp>()((set) => ({
   competencia: competenciaDe(hojeLocal()),
   sidebarRecolhida: lerSidebarRecolhida(),
+  novaCompraAberta: false,
   voltarMes: () => {
     set((s) => ({ competencia: somarMeses(s.competencia, -1) }));
   },
@@ -50,5 +54,11 @@ export const useApp = create<EstadoApp>()((set) => ({
       gravarSidebarRecolhida(!s.sidebarRecolhida);
       return { sidebarRecolhida: !s.sidebarRecolhida };
     });
+  },
+  abrirNovaCompra: () => {
+    set({ novaCompraAberta: true });
+  },
+  fecharNovaCompra: () => {
+    set({ novaCompraAberta: false });
   },
 }));
