@@ -1,6 +1,8 @@
+mod backup;
 mod cartoes;
 mod compras;
 
+use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 const MIGRATION_1: &str = include_str!("../../src/data/migrations/0001_cadastros_e_compras.sql");
@@ -54,9 +56,17 @@ fn migrations() -> Vec<Migration> {
     ]
 }
 
+pub(crate) fn versao_do_banco() -> i64 {
+    i64::try_from(migrations().len()).unwrap_or(i64::MAX)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            backup::aplicar_restauracao_pendente(&app.path().app_config_dir()?)?;
+            Ok(())
+        })
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations(compras::BANCO, migrations())
@@ -68,7 +78,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             compras::salvar_compra,
             compras::substituir_compra,
-            cartoes::atualizar_cartao
+            cartoes::atualizar_cartao,
+            backup::caminhos_de_dados,
+            backup::exportar_backup,
+            backup::backup_automatico,
+            backup::inspecionar_backup,
+            backup::restaurar_backup
         ])
         .run(tauri::generate_context!())
         .expect("falha ao iniciar o Fechô");

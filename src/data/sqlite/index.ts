@@ -1,5 +1,6 @@
 import { type NovaCompraPreparada, prepararNovaCompra } from '@/domain/compras';
 import type { CompraParaRecalculo } from '@/domain/faturas';
+import type { ServicoDeBackup } from '../backup';
 import { assertCentavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
 import {
@@ -8,6 +9,7 @@ import {
   type CartoesRepository,
   type FaturasRepository,
   PREFERENCIAS_PADRAO,
+  type Preferencias,
   type PreferenciasRepository,
   type Receita,
   type Categoria,
@@ -340,22 +342,29 @@ function preferenciasSqlite(banco: Banco): PreferenciasRepository {
   return {
     ler: async () => {
       const linhas = await banco.select<Linha[]>('SELECT chave, valor FROM preferencias');
-      const salvas = Object.fromEntries(linhas.map((l) => [String(l.chave), Number(l.valor)]));
+      const salvas = Object.fromEntries(
+        linhas.map((l) => [String(l.chave), JSON.parse(String(l.valor)) as unknown]),
+      ) as Partial<Preferencias>;
       return { ...PREFERENCIAS_PADRAO, ...salvas };
     },
     gravar: async (mudanca) => {
       for (const [chave, valor] of Object.entries(mudanca)) {
         await banco.execute(
           'INSERT INTO preferencias (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor',
-          [chave, String(valor)],
+          [chave, JSON.stringify(valor)],
         );
       }
     },
   };
 }
 
-export function criarRepositoriosSqlite(banco: Banco, comandos: ComandosAtomicos): Repositorios {
+export function criarRepositoriosSqlite(
+  banco: Banco,
+  comandos: ComandosAtomicos,
+  backup: ServicoDeBackup,
+): Repositorios {
   return {
+    backup,
     cartoes: cartoesSqlite(banco, comandos),
     faturas: faturasSqlite(banco),
     preferencias: preferenciasSqlite(banco),
