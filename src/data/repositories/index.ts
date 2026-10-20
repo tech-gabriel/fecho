@@ -74,6 +74,7 @@ export interface CompraGravada extends DadosNovaCompra {
 
 export interface ComprasRepository {
   salvar(dados: DadosNovaCompra): Promise<number>;
+  importar(compras: readonly DadosNovaCompra[]): Promise<number[]>;
   parcelasDaCompetencia(competencia: Competencia): Promise<ParcelaDoMes[]>;
   ultimasCategorias(): Promise<{ descricao: string; categoriaId: number }[]>;
   buscar(id: number): Promise<CompraGravada>;

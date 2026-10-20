@@ -85,15 +85,22 @@ function comprasEmMemoria(
       .sort((a, b) => a.numero - b.numero)
       .map(({ numero, competencia, valorCentavos }) => ({ numero, competencia, valorCentavos }));
 
+  const gravar = (preparada: ReturnType<typeof prepararNovaCompra>) => {
+    const id = compras.length + 1;
+    compras.push({ ...preparada.compra, id, rateios: preparada.rateios, excluido: false });
+    for (const parcela of preparada.parcelas) {
+      parcelas.push({ ...parcela, id: proximaParcela++, compraId: id });
+    }
+    return id;
+  };
+
   const repositorio: ComprasRepository = {
-    salvar: async (dados) => {
-      const preparada = prepararNovaCompra(dados, cartaoVigente(dados.cartaoId));
-      const id = compras.length + 1;
-      compras.push({ ...preparada.compra, id, rateios: preparada.rateios, excluido: false });
-      for (const parcela of preparada.parcelas) {
-        parcelas.push({ ...parcela, id: proximaParcela++, compraId: id });
-      }
-      return id;
+    salvar: async (dados) => gravar(prepararNovaCompra(dados, cartaoVigente(dados.cartaoId))),
+    importar: async (lista) => {
+      const preparadas = lista.map((dados) =>
+        prepararNovaCompra(dados, cartaoVigente(dados.cartaoId)),
+      );
+      return preparadas.map(gravar);
     },
     parcelasDaCompetencia: async (competencia) =>
       parcelas

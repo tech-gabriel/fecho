@@ -37,6 +37,7 @@ export interface ParcelaMovida {
 
 export interface ComandosAtomicos {
   salvarCompra(compra: NovaCompraPreparada): Promise<number>;
+  importarCompras(compras: NovaCompraPreparada[]): Promise<number[]>;
   substituirCompra(id: number, compra: NovaCompraPreparada): Promise<void>;
   atualizarCartao(id: number, cartao: Novo<Cartao>, parcelas: ParcelaMovida[]): Promise<void>;
 }
@@ -191,6 +192,24 @@ function comprasSqlite(banco: Banco, comandos: ComandosAtomicos): ComprasReposit
       return comandos.salvarCompra(
         prepararNovaCompra(dados, { diaFechamento: numero(cartao.dia_fechamento) }),
       );
+    },
+    importar: async (lista) => {
+      const dias = new Map<number, number>();
+      const preparadas: NovaCompraPreparada[] = [];
+      for (const dados of lista) {
+        if (!dias.has(dados.cartaoId)) {
+          const [cartao] = await banco.select<Linha[]>(
+            'SELECT dia_fechamento FROM cartoes WHERE id = ? AND deleted_at IS NULL',
+            [dados.cartaoId],
+          );
+          if (!cartao) throw new RegistroNaoEncontrado('Cartão', dados.cartaoId);
+          dias.set(dados.cartaoId, numero(cartao.dia_fechamento));
+        }
+        preparadas.push(
+          prepararNovaCompra(dados, { diaFechamento: dias.get(dados.cartaoId) ?? 1 }),
+        );
+      }
+      return comandos.importarCompras(preparadas);
     },
     parcelasDaCompetencia: async (competencia) => {
       const linhas = await banco.select<Linha[]>(

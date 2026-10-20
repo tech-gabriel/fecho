@@ -77,6 +77,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             compras::salvar_compra,
+            compras::importar_compras,
             compras::substituir_compra,
             cartoes::atualizar_cartao,
             backup::caminhos_de_dados,

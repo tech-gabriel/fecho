@@ -40,7 +40,17 @@ pub async fn inserir_compra(
     parcelas: &[Parcela],
 ) -> Result<i64, sqlx::Error> {
     let mut tx = pool.begin().await?;
+    let compra_id = inserir_na_transacao(&mut tx, compra, rateios, parcelas).await?;
+    tx.commit().await?;
+    Ok(compra_id)
+}
 
+async fn inserir_na_transacao(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    compra: &Compra,
+    rateios: &[Rateio],
+    parcelas: &[Parcela],
+) -> Result<i64, sqlx::Error> {
     let compra_id = sqlx::query(
         "INSERT INTO compras (cartao_id, descricao, categoria_id, valor_total_centavos,
            num_parcelas, data_compra, recorrente, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -53,13 +63,47 @@ pub async fn inserir_compra(
     .bind(&compra.data_compra)
     .bind(compra.recorrente)
     .bind(&compra.observacao)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?
     .last_insert_rowid();
 
-    inserir_filhos(&mut tx, compra_id, rateios, parcelas).await?;
-    tx.commit().await?;
+    inserir_filhos(tx, compra_id, rateios, parcelas).await?;
     Ok(compra_id)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompraPreparada {
+    pub compra: Compra,
+    pub rateios: Vec<Rateio>,
+    pub parcelas: Vec<Parcela>,
+}
+
+pub async fn importar(
+    pool: &SqlitePool,
+    compras: &[CompraPreparada],
+) -> Result<Vec<i64>, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    let mut ids = Vec::with_capacity(compras.len());
+    for item in compras {
+        ids.push(inserir_na_transacao(&mut tx, &item.compra, &item.rateios, &item.parcelas).await?);
+    }
+    tx.commit().await?;
+    Ok(ids)
+}
+
+#[tauri::command]
+pub async fn importar_compras(
+    bancos: State<'_, DbInstances>,
+    compras: Vec<CompraPreparada>,
+) -> Result<Vec<i64>, String> {
+    let bancos = bancos.0.read().await;
+    let Some(DbPool::Sqlite(pool)) = bancos.get(BANCO) else {
+        return Err("Banco de dados não carregado".into());
+    };
+    importar(pool, &compras)
+        .await
+        .map_err(|erro| erro.to_string())
 }
 
 async fn inserir_filhos(
@@ -322,6 +366,33 @@ mod testes {
         assert!(resultado.is_err());
         assert_eq!(contar(&pool, "parcelas"), 3);
         assert!(matches!(inexistente, Err(sqlx::Error::RowNotFound)));
+    }
+
+    #[test]
+    fn importa_todas_as_compras_ou_nenhuma() {
+        let pool = banco();
+        let preparada = |numero_errado: bool| {
+            let mut lista = parcelas();
+            if numero_errado {
+                lista[0].numero = 99;
+            }
+            CompraPreparada {
+                compra: compra(),
+                rateios: vec![],
+                parcelas: lista,
+            }
+        };
+
+        let ids =
+            tauri::async_runtime::block_on(importar(&pool, &[preparada(false), preparada(false)]))
+                .unwrap();
+        let falha =
+            tauri::async_runtime::block_on(importar(&pool, &[preparada(false), preparada(true)]));
+
+        assert_eq!(ids.len(), 2);
+        assert!(falha.is_err());
+        assert_eq!(contar(&pool, "compras"), 2);
+        assert_eq!(contar(&pool, "parcelas"), 6);
     }
 
     #[test]
