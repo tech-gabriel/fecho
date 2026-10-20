@@ -1,6 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
+import { createHashRouter } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
+import { RepositoriosProvider } from './app/repositorios';
+import { rotas } from './app/router';
 import '@fontsource-variable/inter';
 import './styles/globals.css';
 
@@ -14,6 +17,8 @@ temaEscuro.addEventListener('change', aplicarTema);
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <RepositoriosProvider>
+      <RouterProvider router={createHashRouter(rotas)} />
+    </RepositoriosProvider>
   </StrictMode>,
 );
