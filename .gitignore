@@ -1,0 +1,30 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.log
+*.local
+.env
+.env.*
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+src-tauri/target/
+src-tauri/gen/
+
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+.mcp.json
+
+# documentação nunca entra no repositório
+*.md
+*.mdx
+docs/
+
+Especificações do app de finanças/
+Documentação/
