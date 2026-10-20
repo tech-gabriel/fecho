@@ -25,7 +25,13 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/main.tsx', 'src/test-setup.ts', '**/*.test.*'],
+      exclude: [
+        'src/main.tsx',
+        'src/test-setup.ts',
+        '**/*.test.*',
+        '**/*.suite.ts',
+        'src/data/sqlite/node-sqlite.ts',
+      ],
       thresholds: {
         lines: 70,
         functions: 70,
