@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { precisoTerEmCaixa, saldoReal } from './resumo';
+import {
+  precisoTerEmCaixa,
+  receitasDoMes,
+  rendaComprometida,
+  resumoDoMes,
+  saldoReal,
+} from './resumo';
 
 describe('saldoReal', () => {
   it('é receitas menos minhas parcelas, despesas fixas e parcelas de empréstimos tomados', () => {
@@ -55,5 +61,83 @@ describe('precisoTerEmCaixa', () => {
       jaDepositado: 0,
       faltaDepositar: 0,
     });
+  });
+});
+
+describe('receitasDoMes', () => {
+  const salario = { competencia: '2026-01', competenciaFim: null, recorrente: true };
+  const freela = { competencia: '2026-10', competenciaFim: null, recorrente: false };
+  const antigo = { competencia: '2025-06', competenciaFim: '2025-12', recorrente: true };
+
+  it('inclui recorrentes vigentes e avulsas do próprio mês', () => {
+    expect(receitasDoMes([salario, freela, antigo], '2026-10')).toEqual([salario, freela]);
+    expect(receitasDoMes([salario, freela, antigo], '2026-11')).toEqual([salario]);
+  });
+
+  it('respeita início e fim da recorrente, inclusive na virada do ano', () => {
+    expect(receitasDoMes([antigo], '2025-05')).toEqual([]);
+    expect(receitasDoMes([antigo], '2025-12')).toEqual([antigo]);
+    expect(receitasDoMes([antigo], '2026-01')).toEqual([]);
+  });
+});
+
+describe('resumoDoMes', () => {
+  const linhas = [
+    { parcelaId: 1, dono: null, valorCentavos: 48_730 },
+    { parcelaId: 2, dono: 7, valorCentavos: 32_000 },
+    { parcelaId: 3, dono: null, valorCentavos: 10_825 },
+    { parcelaId: 3, dono: 7, valorCentavos: 10_825 },
+  ];
+
+  it('calcula renda, gastos, saldo, terceiros e o que falta pagar', () => {
+    expect(
+      resumoDoMes({
+        receitas: [650_000, 70_000],
+        linhas,
+        faturas: [
+          { total: 102_380, vencimento: '2026-11-05', paga: false },
+          { total: 63_000, vencimento: '2026-10-10', paga: false },
+          { total: 14_010, vencimento: '2026-10-28', paga: true },
+          { total: 0, vencimento: '2026-11-20', paga: false },
+        ],
+      }),
+    ).toEqual({
+      renda: 720_000,
+      meusGastos: 59_555,
+      saldoReal: 660_445,
+      deTerceiros: 42_825,
+      porTerceiro: new Map([[7, 42_825]]),
+      precisoTerEmCaixa: 165_380,
+      faturasAbertas: 2,
+      ultimoVencimento: '2026-11-05',
+    });
+  });
+
+  it('sem faturas abertas não há vencimento', () => {
+    const resumo = resumoDoMes({
+      receitas: [],
+      linhas: [],
+      faturas: [{ total: 1_000, vencimento: '2026-10-10', paga: true }],
+    });
+    expect(resumo).toMatchObject({
+      precisoTerEmCaixa: 0,
+      faturasAbertas: 0,
+      ultimoVencimento: null,
+      saldoReal: 0,
+    });
+  });
+});
+
+describe('rendaComprometida', () => {
+  it('calcula o percentual da renda e devolve null sem renda', () => {
+    expect(
+      rendaComprometida([
+        { competencia: '2026-11', minhasParcelas: 221_000, renda: 720_000 },
+        { competencia: '2026-12', minhasParcelas: 10_000, renda: 0 },
+      ]),
+    ).toEqual([
+      { competencia: '2026-11', valor: 221_000, percentual: 30.69 },
+      { competencia: '2026-12', valor: 10_000, percentual: null },
+    ]);
   });
 });

@@ -227,4 +227,18 @@ describe('Configurações › cadastros', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
     expect(await screen.findByRole('row', { name: /Bruno/ })).toBeInTheDocument();
   });
+
+  it('salva o limite de renda comprometida e recusa valor inválido', async () => {
+    await abrir();
+
+    const campo = await screen.findByLabelText('Limite de renda comprometida');
+    expect(campo).toHaveValue('30');
+    fireEvent.change(campo, { target: { value: '0' } });
+    expect(screen.getByText('Use um número de 1 a 100')).toBeInTheDocument();
+    fireEvent.change(campo, { target: { value: '40' } });
+    fireEvent.blur(campo);
+
+    expect(await screen.findByText('Limite salvo')).toBeInTheDocument();
+    expect(await repos.preferencias.ler()).toEqual({ limiteRendaComprometida: 40 });
+  });
 });

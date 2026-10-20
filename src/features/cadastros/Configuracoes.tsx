@@ -17,11 +17,13 @@ import { formatarMoeda, nomeDoMes } from '@/lib/formato';
 import { FormCartao, FormCategoria, FormPessoa } from './formularios';
 import { CORES_DE_CARTAO, iconeDaCategoria } from './opcoes';
 import { executar, SecaoCadastro } from './SecaoCadastro';
+import { SecaoPlanejamento } from './SecaoPlanejamento';
 
 const SECOES = [
   { ancora: 'cartoes', rotulo: 'Cartões' },
   { ancora: 'pessoas', rotulo: 'Pessoas' },
   { ancora: 'categorias', rotulo: 'Categorias' },
+  { ancora: 'planejamento', rotulo: 'Planejamento' },
 ];
 
 const dia = (n: number) => `Dia ${String(n).padStart(2, '0')}`;
@@ -175,6 +177,8 @@ export function Configuracoes() {
           colunas={[]}
           Formulario={FormCategoria}
         />
+
+        <SecaoPlanejamento />
       </div>
 
       <Dialog

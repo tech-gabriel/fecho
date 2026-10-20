@@ -24,7 +24,9 @@ describe('migrations', () => {
       'compras',
       'faturas',
       'parcelas',
+      'preferencias',
       'rateios',
+      'receitas',
       'terceiros',
     ]);
   });

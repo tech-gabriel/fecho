@@ -6,6 +6,9 @@ import {
   type Cartao,
   type CartoesRepository,
   type PagamentoDeFatura,
+  PREFERENCIAS_PADRAO,
+  type Preferencias,
+  type Receita,
   type Categoria,
   type ComprasRepository,
   type Novo,
@@ -199,7 +202,16 @@ export function criarRepositoriosEmMemoria(): Repositorios {
   const mesmaFatura = (p: PagamentoDeFatura, cartaoId: number, competencia: string) =>
     p.cartaoId === cartaoId && p.competencia === competencia;
 
+  let preferencias: Preferencias = { ...PREFERENCIAS_PADRAO };
+
   return {
+    receitas: cadastroEmMemoria<Receita>('Receita', () => false),
+    preferencias: {
+      ler: async () => ({ ...preferencias }),
+      gravar: async (mudanca) => {
+        preferencias = { ...preferencias, ...mudanca };
+      },
+    },
     faturas: {
       pagamentos: async () =>
         pagamentos

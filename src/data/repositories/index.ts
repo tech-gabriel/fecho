@@ -94,12 +94,36 @@ export interface FaturasRepository {
   desmarcar(cartaoId: number, competencia: Competencia): Promise<void>;
 }
 
+export interface Receita {
+  id: number;
+  descricao: string;
+  valorCentavos: Centavos;
+  competencia: Competencia;
+  competenciaFim: Competencia | null;
+  recorrente: boolean;
+}
+
+export type ReceitasRepository = Omit<Cadastro<Receita>, 'possuiCompras'>;
+
+export interface Preferencias {
+  limiteRendaComprometida: number;
+}
+
+export const PREFERENCIAS_PADRAO: Preferencias = { limiteRendaComprometida: 30 };
+
+export interface PreferenciasRepository {
+  ler(): Promise<Preferencias>;
+  gravar(preferencias: Partial<Preferencias>): Promise<void>;
+}
+
 export interface Repositorios {
   cartoes: CartoesRepository;
   categorias: Cadastro<Categoria>;
   terceiros: Cadastro<Terceiro>;
   compras: ComprasRepository;
   faturas: FaturasRepository;
+  receitas: ReceitasRepository;
+  preferencias: PreferenciasRepository;
 }
 
 export class RegistroNaoEncontrado extends Error {
