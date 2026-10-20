@@ -40,7 +40,11 @@ interface Dados {
 
 export type Filtro = 'meu' | 'terceiros' | 'todos';
 
-function montarFaturas(dados: Dados, competencia: Competencia, hoje: DataLocal) {
+export function montarFaturas(
+  dados: Pick<Dados, 'cartoes' | 'parcelas' | 'pagamentos'>,
+  competencia: Competencia,
+  hoje: DataLocal,
+) {
   return dados.cartoes.flatMap((cartao): FaturaDoCartao[] => {
     const parcelas = dados.parcelas.filter((p) => p.cartaoId === cartao.id);
     if (!cartao.ativo && parcelas.length === 0) return [];

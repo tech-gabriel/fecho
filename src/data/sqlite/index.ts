@@ -7,6 +7,9 @@ import {
   type Cartao,
   type CartoesRepository,
   type FaturasRepository,
+  PREFERENCIAS_PADRAO,
+  type PreferenciasRepository,
+  type Receita,
   type Categoria,
   type ComprasRepository,
   type Novo,
@@ -333,10 +336,50 @@ function faturasSqlite(banco: Banco): FaturasRepository {
   };
 }
 
+function preferenciasSqlite(banco: Banco): PreferenciasRepository {
+  return {
+    ler: async () => {
+      const linhas = await banco.select<Linha[]>('SELECT chave, valor FROM preferencias');
+      const salvas = Object.fromEntries(linhas.map((l) => [String(l.chave), Number(l.valor)]));
+      return { ...PREFERENCIAS_PADRAO, ...salvas };
+    },
+    gravar: async (mudanca) => {
+      for (const [chave, valor] of Object.entries(mudanca)) {
+        await banco.execute(
+          'INSERT INTO preferencias (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor',
+          [chave, String(valor)],
+        );
+      }
+    },
+  };
+}
+
 export function criarRepositoriosSqlite(banco: Banco, comandos: ComandosAtomicos): Repositorios {
   return {
     cartoes: cartoesSqlite(banco, comandos),
     faturas: faturasSqlite(banco),
+    preferencias: preferenciasSqlite(banco),
+    receitas: cadastroSqlite<Receita>(banco, {
+      entidade: 'Receita',
+      tabela: 'receitas',
+      colunas: {
+        descricao: 'descricao',
+        valorCentavos: 'valor_centavos',
+        competencia: 'competencia',
+        competenciaFim: 'competencia_fim',
+        recorrente: 'recorrente',
+      },
+      usoSql: 'SELECT 1 WHERE 0 = ?',
+      gravar: { recorrente: booleano },
+      ler: (l) => ({
+        id: numero(l.id),
+        descricao: String(l.descricao),
+        valorCentavos: assertCentavos(numero(l.valor_centavos)),
+        competencia: String(l.competencia),
+        competenciaFim: typeof l.competencia_fim === 'string' ? l.competencia_fim : null,
+        recorrente: Boolean(l.recorrente),
+      }),
+    }),
     categorias: cadastroSqlite<Categoria>(banco, {
       entidade: 'Categoria',
       tabela: 'categorias',

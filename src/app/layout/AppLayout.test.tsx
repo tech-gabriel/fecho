@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,6 +17,8 @@ async function abrir(caminho = '/') {
   await screen.findByRole('heading', { level: 1 });
   return router;
 }
+
+const seletor = () => within(screen.getByRole('group', { name: 'Mês de referência' }));
 
 const teclar = (key: string, extra: Partial<KeyboardEventInit> = {}) =>
   fireEvent.keyDown(window, { key, ctrlKey: true, ...extra });
@@ -59,20 +61,20 @@ describe('layout base', () => {
 
   it('troca o mês pelos botões e pelos atalhos', async () => {
     await abrir();
-    expect(screen.getByText('Outubro 2026')).toBeInTheDocument();
+    expect(seletor().getByText('Outubro 2026')).toBeInTheDocument();
     expect(screen.getByText('Fecha em 11 dias')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Próximo mês' }));
-    expect(screen.getByText('Novembro 2026')).toBeInTheDocument();
+    expect(seletor().getByText('Novembro 2026')).toBeInTheDocument();
     expect(screen.getByText('Previsto')).toBeInTheDocument();
 
     teclar('ArrowLeft');
     teclar('ArrowLeft');
-    expect(screen.getByText('Setembro 2026')).toBeInTheDocument();
+    expect(seletor().getByText('Setembro 2026')).toBeInTheDocument();
     expect(screen.getByText('Em aberto')).toBeInTheDocument();
 
     teclar('Home');
-    expect(screen.getByText('Outubro 2026')).toBeInTheDocument();
+    expect(seletor().getByText('Outubro 2026')).toBeInTheDocument();
   });
 
   it('recolhe a sidebar com Ctrl+B e guarda a preferência', async () => {
@@ -109,7 +111,7 @@ describe('layout base', () => {
 
     fireEvent.keyDown(campo, { key: 'ArrowRight', ctrlKey: true });
 
-    expect(screen.getByText('Outubro 2026')).toBeInTheDocument();
+    expect(seletor().getByText('Outubro 2026')).toBeInTheDocument();
     campo.remove();
   });
 

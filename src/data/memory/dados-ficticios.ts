@@ -109,4 +109,19 @@ export async function semearDadosFicticios(repos: Repositorios) {
       });
     }
   }
+
+  await repos.receitas.criar({
+    descricao: 'Salário',
+    valorCentavos: 650_000,
+    competencia: '2026-01',
+    competenciaFim: null,
+    recorrente: true,
+  });
+  await repos.receitas.criar({
+    descricao: 'Freela',
+    valorCentavos: 70_000,
+    competencia: '2026-10',
+    competenciaFim: null,
+    recorrente: false,
+  });
 }
