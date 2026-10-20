@@ -15,6 +15,7 @@ pub struct Compra {
     pub num_parcelas: i64,
     pub data_compra: String,
     pub recorrente: bool,
+    pub observacao: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -42,7 +43,7 @@ pub async fn inserir_compra(
 
     let compra_id = sqlx::query(
         "INSERT INTO compras (cartao_id, descricao, categoria_id, valor_total_centavos,
-           num_parcelas, data_compra, recorrente) VALUES (?, ?, ?, ?, ?, ?, ?)",
+           num_parcelas, data_compra, recorrente, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(compra.cartao_id)
     .bind(&compra.descricao)
@@ -51,6 +52,7 @@ pub async fn inserir_compra(
     .bind(compra.num_parcelas)
     .bind(&compra.data_compra)
     .bind(compra.recorrente)
+    .bind(&compra.observacao)
     .execute(&mut *tx)
     .await?
     .last_insert_rowid();
@@ -108,10 +110,9 @@ mod testes {
                 .connect("sqlite::memory:")
                 .await
                 .unwrap();
-            sqlx::raw_sql(crate::MIGRATION_1)
-                .execute(&pool)
-                .await
-                .unwrap();
+            for migration in crate::MIGRATIONS_SQL {
+                sqlx::raw_sql(migration).execute(&pool).await.unwrap();
+            }
             sqlx::query(
                 "INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento, cor) VALUES ('Roxo', 28, 5, '#8B5CF6')",
             )
@@ -145,6 +146,7 @@ mod testes {
             num_parcelas: 3,
             data_compra: "2026-10-19".into(),
             recorrente: false,
+            observacao: Some("presente".into()),
         }
     }
 

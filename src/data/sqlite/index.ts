@@ -227,6 +227,17 @@ function comprasSqlite(
           })),
       }));
     },
+    ultimasCategorias: async () => {
+      const linhas = await banco.select<Linha[]>(
+        `SELECT descricao, categoria_id FROM compras
+         WHERE deleted_at IS NULL AND categoria_id IS NOT NULL
+         ORDER BY id DESC LIMIT 500`,
+      );
+      return linhas.map((l) => ({
+        descricao: String(l.descricao),
+        categoriaId: numero(l.categoria_id),
+      }));
+    },
     excluir: (id) =>
       exigirLinha(id, 'UPDATE compras SET deleted_at = ? WHERE id = ?', [
         new Date().toISOString(),
