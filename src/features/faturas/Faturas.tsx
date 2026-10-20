@@ -4,7 +4,14 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
-import type { Cartao, Categoria, PagamentoDeFatura, ParcelaDoMes, Terceiro } from '@/data';
+import type {
+  Cartao,
+  Categoria,
+  Movimento,
+  PagamentoDeFatura,
+  ParcelaDoMes,
+  Terceiro,
+} from '@/data';
 import type { Competencia, DataLocal } from '@/domain/competencia';
 import {
   datasDaFatura,
@@ -14,6 +21,7 @@ import {
   type LinhaDaFatura,
   type StatusDaFatura,
 } from '@/domain/faturas';
+import { faltaNaFatura, montarSituacoes } from '@/features/receber/situacoes';
 import { nomeDoMes } from '@/lib/formato';
 import { DetalheDaFatura } from './DetalheDaFatura';
 import { dataCurta, ListaDeCartoes } from './ListaDeCartoes';
@@ -36,6 +44,8 @@ interface Dados {
   terceiros: Terceiro[];
   parcelas: ParcelaDoMes[];
   pagamentos: PagamentoDeFatura[];
+  deTerceiros: ParcelaDoMes[];
+  movimentos: Movimento[];
 }
 
 export type Filtro = 'meu' | 'terceiros' | 'todos';
@@ -101,8 +111,12 @@ export function Faturas() {
       repos.terceiros.listar(),
       repos.compras.parcelasDaCompetencia(competencia),
       repos.faturas.pagamentos(),
-    ]).then(([cartoes, categorias, terceiros, parcelas, pagamentos]) => {
-      if (montado) setDados({ cartoes, categorias, terceiros, parcelas, pagamentos });
+      repos.compras.parcelasDeTerceiros(competencia),
+      repos.receber.movimentos(),
+    ]).then(([cartoes, categorias, terceiros, parcelas, pagamentos, deTerceiros, movimentos]) => {
+      if (montado) {
+        setDados({ cartoes, categorias, terceiros, parcelas, pagamentos, deTerceiros, movimentos });
+      }
     });
     return () => {
       montado = false;
@@ -139,6 +153,12 @@ export function Faturas() {
 
   const idEscolhido = Number(busca.get('cartao'));
   const escolhida = faturas.find((f) => f.cartao.id === idEscolhido) ?? faturas[0];
+  const situacoes = montarSituacoes({
+    ...dados,
+    parcelas: dados.deTerceiros,
+    competencia,
+    hoje,
+  });
   const ver = busca.get('ver');
   const filtro: Filtro = ver === 'meu' || ver === 'terceiros' ? ver : 'todos';
 
@@ -168,6 +188,7 @@ export function Faturas() {
           fatura={escolhida}
           categorias={dados.categorias}
           terceiros={dados.terceiros}
+          faltas={faltaNaFatura(situacoes, escolhida.cartao.id, competencia)}
           filtro={filtro}
           hoje={hoje}
           onFiltro={(novo) => {

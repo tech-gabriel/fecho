@@ -110,7 +110,9 @@ describe('Dashboard', () => {
     expect(caixa()).toHaveTextContent('R$ 1.503,80');
     expect(caixa()).toHaveTextContent('até 05/11');
     expect(caixa()).toHaveTextContent('para pagar as 2 faturas abertas de Outubro');
-    expect(caixa()).toHaveTextContent('Nas faturas de Outubro: Ana R$ 428,25');
+    expect(caixa()).toHaveTextContent(
+      '0% · R$ 0,00 de R$ 428,25 já depositados · faltam R$ 428,25',
+    );
     expect(screen.getByRole('button', { name: /Renda/ })).toHaveTextContent(
       'R$ 7.200,00Salário + Freela',
     );
@@ -118,6 +120,7 @@ describe('Dashboard', () => {
     expect(kpi(/Meus gastos/)).toHaveAttribute('href', '/lancamentos?ver=meu');
     expect(kpi(/Saldo real/)).toHaveTextContent('R$ 6.124,45');
     expect(kpi(/A receber/)).toHaveTextContent('R$ 428,25Ana');
+    expect(kpi(/A receber/)).toHaveAttribute('href', '/receber');
   });
 
   it('mostra a renda comprometida e os próximos vencimentos', async () => {
@@ -136,6 +139,26 @@ describe('Dashboard', () => {
         .map((l) => l.textContent),
     ).toEqual([expect.stringContaining('Cartão Azul'), expect.stringContaining('Cartão Roxo')]);
     expect(within(vencimentos).getAllByRole('listitem')[0]).toHaveTextContent('Atrasada');
+    expect(within(vencimentos).getByRole('status')).toHaveTextContent(
+      'Faltam R$ 428,25 de Ana para fechar a fatura do Cartão Roxo',
+    );
+  });
+
+  it('Recebi no alerta registra o depósito e completa a barra do reembolso', async () => {
+    await abrir();
+
+    const vencimentos = await screen.findByRole('region', { name: 'Próximos vencimentos' });
+    fireEvent.click(within(vencimentos).getByRole('button', { name: 'Recebi' }));
+
+    expect(await screen.findByText('Depósito de R$ 428,25 registrado')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar', { name: 'Reembolso já depositado' })).toHaveAttribute(
+        'aria-valuenow',
+        '100',
+      );
+    });
+    expect(within(vencimentos).queryByRole('status')).not.toBeInTheDocument();
+    expect(kpi(/A receber/)).toHaveTextContent('Ninguém te deve nada neste mês');
   });
 
   it('com as faturas pagas não há nada a separar', async () => {

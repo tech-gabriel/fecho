@@ -1,5 +1,5 @@
 import { CreditCard, Ellipsis, Layers, Repeat, TriangleAlert, UserRound } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useRepositorios } from '@/app/repositorios';
 import { useApp } from '@/app/store';
@@ -40,6 +40,7 @@ export function DetalheDaFatura({
   fatura,
   categorias,
   terceiros,
+  faltas,
   filtro,
   hoje,
   onFiltro,
@@ -47,6 +48,7 @@ export function DetalheDaFatura({
   fatura: FaturaDoCartao;
   categorias: Categoria[];
   terceiros: Terceiro[];
+  faltas: { terceiro: Terceiro; falta: number }[];
   filtro: Filtro;
   hoje: DataLocal;
   onFiltro: (filtro: Filtro) => void;
@@ -115,9 +117,13 @@ export function DetalheDaFatura({
       ? ` · limite usado ${Math.round((resumo.total / cartao.limiteCentavos) * 100)}% de ${formatarMoeda(cartao.limiteCentavos)}`
       : '';
   const depoisDoPagamento = pagamento ? resumo.total - pagamento.valorPagoCentavos : 0;
-  const porPessoa = [...resumo.porTerceiro]
-    .map(([id, valor]) => `${nome(id)} ${formatarMoeda(valor)}`)
-    .join(' · ');
+  const faltaTotal = faltas.reduce((soma, f) => soma + f.falta, 0);
+  const legendaDeTerceiros =
+    resumo.total === resumo.meu
+      ? 'Nenhuma compra de outras pessoas'
+      : faltaTotal > 0
+        ? `Faltam ${formatarMoeda(faltaTotal)}`
+        : 'Todos já depositaram';
 
   const parcela = (id: number) => fatura.parcelas.find((p) => p.parcelaId === id);
   const linhas = fatura.linhas
@@ -185,13 +191,39 @@ export function DetalheDaFatura({
           </p>
         )}
 
+        {!pagamento &&
+          faltas.map(({ terceiro, falta }) => (
+            <p
+              key={terceiro.id}
+              role="status"
+              className="flex items-center gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning-text"
+            >
+              <TriangleAlert
+                size={16}
+                strokeWidth={1.75}
+                aria-hidden
+                className="flex-none text-warning"
+              />
+              <span className="flex-1">
+                Faltam {formatarMoeda(falta)} de {terceiro.nome} para fechar a fatura do{' '}
+                {cartao.nome}
+              </span>
+              <Link
+                to={`/receber?pessoa=${String(terceiro.id)}`}
+                className="font-semibold text-warning-text underline underline-offset-2"
+              >
+                Ver em A receber
+              </Link>
+            </p>
+          ))}
+
         <div className="grid grid-cols-3 gap-4">
           <Tile rotulo="Total da fatura" valor={formatarMoeda(resumo.total)} />
           <Tile rotulo="É seu" valor={formatarMoeda(resumo.meu)} />
           <Tile
             rotulo="De terceiros"
             valor={formatarMoeda(resumo.total - resumo.meu)}
-            legenda={porPessoa || 'Nenhuma compra de outras pessoas'}
+            legenda={legendaDeTerceiros}
           />
         </div>
       </div>
