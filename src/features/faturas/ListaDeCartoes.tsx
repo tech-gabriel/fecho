@@ -45,6 +45,14 @@ export function SeloDeStatus({ status, texto }: { status: StatusDaFatura; texto?
   );
 }
 
+export function destinoDaTecla(tecla: string, indice: number, tamanho: number) {
+  if (tecla === 'ArrowDown') return indice + 1;
+  if (tecla === 'ArrowUp') return indice - 1;
+  if (tecla === 'Home') return 0;
+  if (tecla === 'End') return tamanho - 1;
+  return null;
+}
+
 export function quando(fatura: FaturaDoCartao, hoje: DataLocal) {
   if (fatura.parcelas.length === 0)
     return `Sem compras em ${nomeDoMes(fatura.competencia).split(' ')[0]}`;
@@ -73,16 +81,7 @@ export function ListaDeCartoes({
   const total = faturas.reduce((soma, f) => soma + f.resumo.total, 0);
 
   const mover = (e: KeyboardEvent, indice: number) => {
-    const destino =
-      e.key === 'ArrowDown'
-        ? indice + 1
-        : e.key === 'ArrowUp'
-          ? indice - 1
-          : e.key === 'Home'
-            ? 0
-            : e.key === 'End'
-              ? faturas.length - 1
-              : null;
+    const destino = destinoDaTecla(e.key, indice, faturas.length);
     const fatura = destino === null ? undefined : faturas[destino];
     if (destino === null || !fatura) return;
     e.preventDefault();
