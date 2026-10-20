@@ -7,6 +7,7 @@ export async function semearDadosFicticios(repos: Repositorios) {
     diaVencimento: 5,
     limiteCentavos: 500_000,
     cor: '#8B5CF6',
+    ativo: true,
   });
   const azul = await repos.cartoes.criar({
     nome: 'Cartão Azul',
@@ -14,6 +15,7 @@ export async function semearDadosFicticios(repos: Repositorios) {
     diaVencimento: 10,
     limiteCentavos: 800_000,
     cor: '#3B82F6',
+    ativo: true,
   });
   const verdeAgua = await repos.cartoes.criar({
     nome: 'Cartão Verde-água',
@@ -21,13 +23,34 @@ export async function semearDadosFicticios(repos: Repositorios) {
     diaVencimento: 28,
     limiteCentavos: 300_000,
     cor: '#14B8A6',
+    ativo: true,
   });
 
-  const mercado = await repos.categorias.criar({ nome: 'Mercado', icone: 'shopping-cart' });
-  const restaurante = await repos.categorias.criar({ nome: 'Restaurante', icone: 'utensils' });
-  const transporte = await repos.categorias.criar({ nome: 'Transporte', icone: 'car' });
-  const compras = await repos.categorias.criar({ nome: 'Compras', icone: 'shopping-bag' });
-  const assinaturas = await repos.categorias.criar({ nome: 'Assinaturas', icone: 'repeat' });
+  const mercado = await repos.categorias.criar({
+    nome: 'Mercado',
+    icone: 'shopping-cart',
+    ativo: true,
+  });
+  const restaurante = await repos.categorias.criar({
+    nome: 'Restaurante',
+    icone: 'utensils',
+    ativo: true,
+  });
+  const transporte = await repos.categorias.criar({
+    nome: 'Transporte',
+    icone: 'car',
+    ativo: true,
+  });
+  const compras = await repos.categorias.criar({
+    nome: 'Compras',
+    icone: 'shopping-bag',
+    ativo: true,
+  });
+  const assinaturas = await repos.categorias.criar({
+    nome: 'Assinaturas',
+    icone: 'repeat',
+    ativo: true,
+  });
 
   const ana = await repos.terceiros.criar({ nome: 'Ana', cor: '#2563EB', ativo: true });
   const bruno = await repos.terceiros.criar({ nome: 'Bruno', cor: '#2563EB', ativo: true });
