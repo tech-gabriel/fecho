@@ -84,11 +84,17 @@ pub async fn inspecionar(origem: &Path, versao_do_app: i64) -> Result<InfoDoBack
         .read_only(true)
         .connect()
         .await
-        .map_err(|_| NAO_E_BACKUP.to_string())?;
+        .map_err(|erro| {
+            eprintln!("diagnostico inspecionar: {erro}");
+            NAO_E_BACKUP.to_string()
+        })?;
     let versao: Option<i64> = sqlx::query_scalar("SELECT max(version) FROM _sqlx_migrations")
         .fetch_one(&mut conexao)
         .await
-        .map_err(|_| NAO_E_BACKUP.to_string())?;
+        .map_err(|erro| {
+            eprintln!("diagnostico inspecionar: {erro}");
+            NAO_E_BACKUP.to_string()
+        })?;
     let versao = versao.ok_or_else(|| NAO_E_BACKUP.to_string())?;
     if versao > versao_do_app {
         return Err(MAIS_NOVO.into());
@@ -96,7 +102,10 @@ pub async fn inspecionar(origem: &Path, versao_do_app: i64) -> Result<InfoDoBack
     let compras: i64 = sqlx::query_scalar("SELECT count(*) FROM compras WHERE deleted_at IS NULL")
         .fetch_one(&mut conexao)
         .await
-        .map_err(|_| NAO_E_BACKUP.to_string())?;
+        .map_err(|erro| {
+            eprintln!("diagnostico inspecionar: {erro}");
+            NAO_E_BACKUP.to_string()
+        })?;
     let modificado_em = fs::metadata(origem)
         .and_then(|m| m.modified())
         .ok()
