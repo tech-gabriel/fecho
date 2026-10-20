@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { Outlet, useLocation } from 'react-router';
+import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { DURACAO, MOVIMENTO, gsap, useGSAP } from '@/lib/gsap';
 import { useAtalhosGlobais } from '../useAtalhosGlobais';
@@ -37,6 +38,7 @@ export function AppLayout() {
           </div>
         </main>
       </div>
+      <Toaster />
     </TooltipProvider>
   );
 }

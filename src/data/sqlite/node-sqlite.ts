@@ -1,9 +1,10 @@
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import type { NovaCompraPreparada } from '@/domain/compras';
+import type { Cartao, Novo } from '../repositories';
 import { migrations } from '../migrations';
-import type { Banco } from '.';
+import type { Banco, ComandosAtomicos, ParcelaMovida } from '.';
 
-// Faz o papel do plugin SQL e do comando Rust `salvar_compra` nos testes, com o SQL real.
+// Faz o papel do plugin SQL e dos comandos Rust nos testes, com o SQL real.
 export function bancoDeTeste() {
   const db = new DatabaseSync(':memory:');
   for (const m of migrations) db.exec(m.sql);
@@ -54,5 +55,38 @@ export function bancoDeTeste() {
     }
   };
 
-  return { banco, salvarCompra, db };
+  const atualizarCartao = async (id: number, cartao: Novo<Cartao>, parcelas: ParcelaMovida[]) => {
+    db.exec('BEGIN');
+    try {
+      db.prepare(
+        `UPDATE cartoes SET nome = ?, dia_fechamento = ?, dia_vencimento = ?, limite_centavos = ?,
+           cor = ?, ativo = ? WHERE id = ?`,
+      ).run(
+        cartao.nome,
+        cartao.diaFechamento,
+        cartao.diaVencimento,
+        cartao.limiteCentavos,
+        cartao.cor,
+        cartao.ativo ? 1 : 0,
+        id,
+      );
+      for (const p of parcelas) {
+        const { changes } = db
+          .prepare(
+            `UPDATE parcelas SET competencia = ? WHERE compra_id = ? AND numero = ?
+               AND compra_id IN (SELECT id FROM compras WHERE cartao_id = ?)`,
+          )
+          .run(p.competencia, p.compraId, p.numero, id);
+        if (changes === 0)
+          throw new Error(`Parcela ${p.numero} da compra ${p.compraId} não existe`);
+      }
+      db.exec('COMMIT');
+    } catch (erro) {
+      db.exec('ROLLBACK');
+      throw erro;
+    }
+  };
+
+  const comandos: ComandosAtomicos = { salvarCompra, atualizarCartao };
+  return { banco, comandos, db };
 }

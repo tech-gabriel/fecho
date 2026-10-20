@@ -28,6 +28,25 @@ describe('migrations', () => {
     ]);
   });
 
+  it('criam as categorias padrão, ativas', () => {
+    const categorias = bancoMigrado()
+      .prepare('SELECT nome, ativo FROM categorias ORDER BY id')
+      .all();
+    expect(categorias.map((c) => c.nome)).toEqual([
+      'Mercado',
+      'Restaurante',
+      'Transporte',
+      'Casa',
+      'Saúde',
+      'Lazer',
+      'Compras',
+      'Assinaturas',
+      'Educação',
+      'Outros',
+    ]);
+    expect(categorias.every((c) => c.ativo === 1)).toBe(true);
+  });
+
   it('barram dados que o domínio nunca deveria gerar', () => {
     const db = bancoMigrado();
     expect(() => {

@@ -36,3 +36,57 @@ export function datasDaFatura(
     vencimento: dataNaCompetencia(mesDoVencimento, diaVencimento),
   };
 }
+
+export interface ParcelaParaRecalculo {
+  numero: number;
+  competencia: Competencia;
+}
+
+export interface CompraParaRecalculo {
+  compraId: number;
+  descricao: string;
+  dataCompra: DataLocal;
+  parcelas: readonly ParcelaParaRecalculo[];
+}
+
+export interface MudancaDeFatura {
+  compraId: number;
+  descricao: string;
+  de: Competencia;
+  para: Competencia;
+  parcelas: ParcelaParaRecalculo[];
+}
+
+function mesesEntre(de: Competencia, para: Competencia): number {
+  const total = (c: Competencia) => Number(c.slice(0, 4)) * 12 + Number(c.slice(5, 7));
+  return total(para) - total(de);
+}
+
+export function recalcularFechamento(
+  compras: readonly CompraParaRecalculo[],
+  diaAntigo: number,
+  diaNovo: number,
+  hoje: DataLocal,
+): MudancaDeFatura[] {
+  const faturaAberta = competenciaDaCompra(hoje, diaAntigo);
+
+  return compras.flatMap((compra) => {
+    const de = compra.parcelas.find((p) => p.numero === 1)?.competencia;
+    if (!de || de < faturaAberta) return [];
+    const para = competenciaDaCompra(compra.dataCompra, diaNovo);
+    if (para === de) return [];
+    const delta = mesesEntre(de, para);
+    return [
+      {
+        compraId: compra.compraId,
+        descricao: compra.descricao,
+        de,
+        para,
+        parcelas: compra.parcelas.map((p) => ({
+          numero: p.numero,
+          competencia: somarMeses(p.competencia, delta),
+        })),
+      },
+    ];
+  });
+}
