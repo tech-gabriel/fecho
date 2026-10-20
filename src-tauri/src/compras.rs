@@ -303,8 +303,7 @@ mod testes {
             ..compra()
         };
 
-        tauri::async_runtime::block_on(inserir_compra(&pool, &cobranca, &[], &parcelas()))
-            .unwrap();
+        tauri::async_runtime::block_on(inserir_compra(&pool, &cobranca, &[], &parcelas())).unwrap();
         let repetida =
             tauri::async_runtime::block_on(inserir_compra(&pool, &cobranca, &[], &parcelas()));
 
