@@ -10,7 +10,12 @@ export default defineConfig({
     locale: 'pt-BR',
     timezoneId: 'America/Sao_Paulo',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+    },
+  ],
   webServer: {
     command: 'pnpm dev',
     url: 'http://localhost:1420',
