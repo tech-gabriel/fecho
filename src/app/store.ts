@@ -38,6 +38,7 @@ interface EstadoApp {
   voltarMes: () => void;
   avancarMes: () => void;
   irParaHoje: () => void;
+  irParaCompetencia: (competencia: Competencia) => void;
   alternarSidebar: () => void;
   abrirNovaCompra: (preenchida?: DadosNovaCompra) => void;
   editarCompra: (id: number) => void;
@@ -62,6 +63,9 @@ export const useApp = create<EstadoApp>()((set) => ({
   },
   avancarMes: () => {
     set((s) => ({ competencia: somarMeses(s.competencia, 1) }));
+  },
+  irParaCompetencia: (competencia) => {
+    set({ competencia });
   },
   irParaHoje: () => {
     set({ competencia: competenciaDe(hojeLocal()) });
