@@ -201,6 +201,43 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
       });
     });
 
+    describe('pagamento de faturas', () => {
+      const pagamento = {
+        cartaoId: 0,
+        competencia: '2026-10',
+        pagoEm: '2026-11-04',
+        valorPagoCentavos: 64_950,
+      };
+
+      it('marca, corrige e desmarca a fatura paga', async () => {
+        await repos.faturas.marcarComoPaga({ ...pagamento, cartaoId: cartaoRoxo });
+        await repos.faturas.marcarComoPaga({
+          ...pagamento,
+          cartaoId: cartaoRoxo,
+          valorPagoCentavos: 70_000,
+        });
+        await repos.faturas.marcarComoPaga({
+          ...pagamento,
+          cartaoId: cartaoRoxo,
+          competencia: '2026-11',
+        });
+
+        expect(await repos.faturas.pagamentos()).toEqual([
+          { ...pagamento, cartaoId: cartaoRoxo, valorPagoCentavos: 70_000 },
+          { ...pagamento, cartaoId: cartaoRoxo, competencia: '2026-11' },
+        ]);
+
+        await repos.faturas.desmarcar(cartaoRoxo, '2026-10');
+        expect((await repos.faturas.pagamentos()).map((p) => p.competencia)).toEqual(['2026-11']);
+      });
+
+      it('recusa cartão inexistente', async () => {
+        await expect(
+          repos.faturas.marcarComoPaga({ ...pagamento, cartaoId: 9999 }),
+        ).rejects.toThrow('não encontrado');
+      });
+    });
+
     describe('compras', () => {
       it('salva a compra com parcelas e rateio', async () => {
         const id = await repos.compras.salvar(

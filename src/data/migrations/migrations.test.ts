@@ -22,6 +22,7 @@ describe('migrations', () => {
       'cartoes',
       'categorias',
       'compras',
+      'faturas',
       'parcelas',
       'rateios',
       'terceiros',

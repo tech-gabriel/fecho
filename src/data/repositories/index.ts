@@ -71,11 +71,25 @@ export interface ComprasRepository {
   restaurar(id: number): Promise<void>;
 }
 
+export interface PagamentoDeFatura {
+  cartaoId: number;
+  competencia: Competencia;
+  pagoEm: DataLocal;
+  valorPagoCentavos: Centavos;
+}
+
+export interface FaturasRepository {
+  pagamentos(): Promise<PagamentoDeFatura[]>;
+  marcarComoPaga(pagamento: PagamentoDeFatura): Promise<void>;
+  desmarcar(cartaoId: number, competencia: Competencia): Promise<void>;
+}
+
 export interface Repositorios {
   cartoes: CartoesRepository;
   categorias: Cadastro<Categoria>;
   terceiros: Cadastro<Terceiro>;
   compras: ComprasRepository;
+  faturas: FaturasRepository;
 }
 
 export class RegistroNaoEncontrado extends Error {
