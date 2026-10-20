@@ -201,6 +201,45 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
       });
     });
 
+    describe('receitas e preferências', () => {
+      it('cria, encerra e exclui receitas', async () => {
+        const salario = await repos.receitas.criar({
+          descricao: 'Salário',
+          valorCentavos: 650_000,
+          competencia: '2026-01',
+          competenciaFim: null,
+          recorrente: true,
+        });
+        const freela = await repos.receitas.criar({
+          descricao: 'Freela',
+          valorCentavos: 70_000,
+          competencia: '2026-10',
+          competenciaFim: null,
+          recorrente: false,
+        });
+
+        await repos.receitas.atualizar(salario, { competenciaFim: '2026-09' });
+        await repos.receitas.excluir(freela);
+
+        expect(await repos.receitas.listar()).toEqual([
+          {
+            id: salario,
+            descricao: 'Salário',
+            valorCentavos: 650_000,
+            competencia: '2026-01',
+            competenciaFim: '2026-09',
+            recorrente: true,
+          },
+        ]);
+      });
+
+      it('lê o limite padrão e grava o escolhido', async () => {
+        expect(await repos.preferencias.ler()).toEqual({ limiteRendaComprometida: 30 });
+        await repos.preferencias.gravar({ limiteRendaComprometida: 40 });
+        expect(await repos.preferencias.ler()).toEqual({ limiteRendaComprometida: 40 });
+      });
+    });
+
     describe('pagamento de faturas', () => {
       const pagamento = {
         cartaoId: 0,

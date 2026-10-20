@@ -45,7 +45,7 @@ export function SeloDeStatus({ status, texto }: { status: StatusDaFatura; texto?
   );
 }
 
-function quando(fatura: FaturaDoCartao, hoje: DataLocal) {
+export function quando(fatura: FaturaDoCartao, hoje: DataLocal) {
   if (fatura.parcelas.length === 0)
     return `Sem compras em ${nomeDoMes(fatura.competencia).split(' ')[0]}`;
   if (fatura.pagamento) return `Paga em ${dataCurta(fatura.pagamento.pagoEm)}`;
