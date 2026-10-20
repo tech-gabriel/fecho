@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { ArrowRight, CreditCard, Shapes, UsersRound } from 'lucide-react';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal } from '@/app/store';
@@ -17,6 +18,7 @@ import { formatarMoeda, nomeDoMes } from '@/lib/formato';
 import { FormCartao, FormCategoria, FormPessoa } from './formularios';
 import { CORES_DE_CARTAO, iconeDaCategoria } from './opcoes';
 import { executar, SecaoCadastro } from './SecaoCadastro';
+import { SecaoAlertas } from './SecaoAlertas';
 import { SecaoBackup } from './SecaoBackup';
 import { SecaoCobranca } from './SecaoCobranca';
 import { SecaoPlanejamento } from './SecaoPlanejamento';
@@ -26,6 +28,7 @@ const SECOES = [
   { ancora: 'pessoas', rotulo: 'Pessoas' },
   { ancora: 'categorias', rotulo: 'Categorias' },
   { ancora: 'planejamento', rotulo: 'Planejamento' },
+  { ancora: 'alertas', rotulo: 'Alertas' },
   { ancora: 'cobranca', rotulo: 'Cobrança' },
   { ancora: 'dados', rotulo: 'Dados e backup' },
 ];
@@ -43,10 +46,39 @@ export function Configuracoes() {
   const repos = useRepositorios();
   const [previa, setPrevia] = useState<Previa | null>(null);
 
+  const [busca] = useSearchParams();
+  const secaoPedida = busca.get('secao');
+
   const irPara = (ancora: string) => {
     const reduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     document.getElementById(ancora)?.scrollIntoView({ behavior: reduzido ? 'auto' : 'smooth' });
   };
+
+  useEffect(() => {
+    const alvo = secaoPedida && document.getElementById(secaoPedida);
+    const conteudo = alvo && alvo.parentElement;
+    if (!alvo || !conteudo) return;
+    alvo.scrollIntoView();
+    // as seções de cima carregam depois e empurram o alvo; reposiciona até o usuário rolar
+    const observador = new ResizeObserver(() => {
+      alvo.scrollIntoView();
+    });
+    [...conteudo.children].forEach((filho) => {
+      observador.observe(filho);
+    });
+    const parar = () => {
+      observador.disconnect();
+    };
+    const prazo = setTimeout(parar, 1000);
+    conteudo.addEventListener('wheel', parar, { once: true });
+    window.addEventListener('keydown', parar, { once: true });
+    return () => {
+      clearTimeout(prazo);
+      parar();
+      conteudo.removeEventListener('wheel', parar);
+      window.removeEventListener('keydown', parar);
+    };
+  }, [secaoPedida]);
 
   const salvarCartao = async (item: Cartao, dados: Novo<Cartao>, concluir: () => void) => {
     const mudancas =
@@ -183,6 +215,7 @@ export function Configuracoes() {
         />
 
         <SecaoPlanejamento />
+        <SecaoAlertas />
         <SecaoCobranca />
         <SecaoBackup />
       </div>
