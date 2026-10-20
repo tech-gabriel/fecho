@@ -68,7 +68,13 @@ export function DetalheDaFatura({
         <p className="text-sm text-ink-muted">
           Nenhuma compra no {cartao.nome} em {mes}.
         </p>
-        <Button onClick={abrirNovaCompra}>Registrar compra</Button>
+        <Button
+          onClick={() => {
+            abrirNovaCompra();
+          }}
+        >
+          Registrar compra
+        </Button>
       </div>
     );
   }

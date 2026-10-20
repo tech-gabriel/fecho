@@ -29,8 +29,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { Cartao, Categoria, PagamentoDeFatura, Terceiro } from '@/data';
+import type { Cartao, Categoria, PagamentoDeFatura, Repositorios, Terceiro } from '@/data';
 import {
+  type DadosNovaCompra,
   previaDaCompra,
   rateioDaCompra,
   sugerirCategoria,
@@ -38,7 +39,7 @@ import {
 } from '@/domain/compras';
 import { competenciaDaCompra } from '@/domain/faturas';
 import { lerReais } from '@/domain/money';
-import { nomeDoMes } from '@/lib/formato';
+import { formatarDecimal, nomeDoMes } from '@/lib/formato';
 import { MAXIMO_DE_PARCELAS } from '@/domain/parcelas';
 import { atributosDeErro, Campo } from '@/features/cadastros/Campo';
 import { executar } from '@/features/cadastros/SecaoCadastro';
@@ -104,6 +105,31 @@ const esquema = z
   }));
 
 type Entrada = z.input<typeof esquema>;
+export type CompraDoFormulario = z.output<typeof esquema>;
+
+export function entradaDaCompra(compra: DadosNovaCompra): Entrada {
+  const pessoas = compra.rateios.flatMap((r) =>
+    r.terceiroId === null ? [] : [{ terceiroId: r.terceiroId, percentual: r.percentual }],
+  );
+  const modo: ModoDaCompra =
+    pessoas.length === 0
+      ? 'minha'
+      : pessoas.length === 1 && pessoas[0]?.percentual === 100
+        ? 'outra'
+        : 'dividida';
+  return {
+    valor: formatarDecimal(compra.valorTotal),
+    descricao: compra.descricao,
+    categoriaId: compra.categoriaId,
+    cartaoId: compra.cartaoId,
+    dataCompra: compra.dataCompra,
+    modo,
+    pessoas,
+    numParcelas: compra.numParcelas,
+    recorrente: compra.recorrente,
+    observacao: compra.observacao ?? '',
+  };
+}
 
 function calcularPrevia(
   valor: string,
@@ -127,7 +153,7 @@ function calcularPrevia(
   }
 }
 
-interface Dados {
+export interface DadosDoFormulario {
   cartoes: Cartao[];
   categorias: Categoria[];
   terceiros: Terceiro[];
@@ -135,36 +161,67 @@ interface Dados {
   pagamentos: PagamentoDeFatura[];
 }
 
-export function NovaCompra() {
-  const aberta = useApp((s) => s.novaCompraAberta);
-  const fechar = useApp((s) => s.fecharNovaCompra);
+async function carregarDados(repos: Repositorios, manter?: DadosNovaCompra) {
+  const [cartoes, categorias, terceiros, historico, pagamentos] = await Promise.all([
+    repos.cartoes.listar(),
+    repos.categorias.listar(),
+    repos.terceiros.listar(),
+    repos.compras.ultimasCategorias(),
+    repos.faturas.pagamentos(),
+  ]);
+  const usados = new Set(manter?.rateios.map((r) => r.terceiroId));
+  return {
+    cartoes: cartoes.filter((c) => c.ativo || c.id === manter?.cartaoId),
+    categorias: categorias.filter((c) => c.ativo || c.id === manter?.categoriaId),
+    terceiros: terceiros.filter((t) => t.ativo || usados.has(t.id)),
+    historico,
+    pagamentos,
+  };
+}
+
+export function useDadosDoFormulario(ativo: boolean, manter?: DadosNovaCompra) {
   const repos = useRepositorios();
-  const [dados, setDados] = useState<Dados | null>(null);
+  const [dados, setDados] = useState<DadosDoFormulario | null>(null);
 
   useEffect(() => {
-    if (!aberta) return;
+    if (!ativo) return;
     let montado = true;
-    void Promise.all([
-      repos.cartoes.listar(),
-      repos.categorias.listar(),
-      repos.terceiros.listar(),
-      repos.compras.ultimasCategorias(),
-      repos.faturas.pagamentos(),
-    ]).then(([cartoes, categorias, terceiros, historico, pagamentos]) => {
-      if (!montado) return;
-      setDados({
-        cartoes: cartoes.filter((c) => c.ativo),
-        categorias: categorias.filter((c) => c.ativo),
-        terceiros: terceiros.filter((t) => t.ativo),
-        historico,
-        pagamentos,
-      });
+    void carregarDados(repos, manter).then((carregados) => {
+      if (montado) setDados(carregados);
     });
     return () => {
       montado = false;
       setDados(null);
     };
-  }, [aberta, repos]);
+  }, [ativo, repos, manter]);
+
+  return dados;
+}
+
+export function NovaCompra() {
+  const aberta = useApp((s) => s.novaCompraAberta);
+  const preenchida = useApp((s) => s.novaCompraPreenchida);
+  const fechar = useApp((s) => s.fecharNovaCompra);
+  const dadosMudaram = useApp((s) => s.dadosMudaram);
+  const repos = useRepositorios();
+  const dados = useDadosDoFormulario(aberta);
+
+  const salvar = async (compra: CompraDoFormulario, abrirOutra: boolean) => {
+    const compraId = await repos.compras.salvar(compra);
+    gravarUltimoCartao(compra.cartaoId);
+    dadosMudaram();
+    toast.success('Compra registrada', {
+      action: {
+        label: 'Desfazer',
+        onClick: () =>
+          void executar(async () => {
+            await repos.compras.excluir(compraId);
+            dadosMudaram();
+          }),
+      },
+    });
+    if (!abrirOutra) fechar();
+  };
 
   return (
     <Dialog
@@ -180,7 +237,20 @@ export function NovaCompra() {
             Registre uma compra no cartão. Enter salva, Shift+Enter salva e abre outra.
           </DialogDescription>
         </DialogHeader>
-        {dados && (dados.cartoes.length === 0 ? <SemCartao /> : <Formulario dados={dados} />)}
+        {dados &&
+          (dados.cartoes.length === 0 ? (
+            <SemCartao />
+          ) : (
+            <FormularioDeCompra
+              modo="nova"
+              dados={dados}
+              inicial={
+                preenchida ? entradaDaCompra({ ...preenchida, dataCompra: hojeLocal() }) : undefined
+              }
+              onSalvar={salvar}
+              onCancelar={fechar}
+            />
+          ))}
       </DialogContent>
     </Dialog>
   );
@@ -208,13 +278,25 @@ function SemCartao() {
   );
 }
 
-function Formulario({ dados }: { dados: Dados }) {
+export function FormularioDeCompra({
+  modo: modoDoFormulario,
+  dados,
+  inicial,
+  competenciasAtuais = [],
+  onSalvar,
+  onCancelar,
+}: {
+  modo: 'nova' | 'edicao';
+  dados: DadosDoFormulario;
+  inicial?: Entrada | undefined;
+  competenciasAtuais?: string[];
+  onSalvar: (compra: CompraDoFormulario, abrirOutra: boolean) => Promise<void>;
+  onCancelar: () => void;
+}) {
   const id = useId();
-  const repos = useRepositorios();
-  const fechar = useApp((s) => s.fecharNovaCompra);
-  const dadosMudaram = useApp((s) => s.dadosMudaram);
   const hoje = hojeLocal();
-  const [categoriaAMao, setCategoriaAMao] = useState(false);
+  const nova = modoDoFormulario === 'nova';
+  const [categoriaAMao, setCategoriaAMao] = useState(inicial !== undefined);
   const [maisOpcoes, setMaisOpcoes] = useState(false);
 
   const ultimo = lerUltimoCartao();
@@ -240,7 +322,10 @@ function Formulario({ dados }: { dados: Dados }) {
     setValue,
     setFocus,
     formState: { errors, isSubmitted },
-  } = useForm({ resolver: zodResolver(esquema), defaultValues: vazio(cartaoInicial, hoje) });
+  } = useForm({
+    resolver: zodResolver(esquema),
+    defaultValues: inicial ?? vazio(cartaoInicial, hoje),
+  });
 
   const [valor, cartaoId, dataCompra, modo, pessoas, numParcelas, categoriaId] = useWatch({
     control,
@@ -249,32 +334,26 @@ function Formulario({ dados }: { dados: Dados }) {
   const cartao = dados.cartoes.find((c) => c.id === cartaoId);
   const revalidar = { shouldValidate: isSubmitted };
   const faturaDaCompra = cartao ? competenciaDaCompra(dataCompra, cartao.diaFechamento) : null;
-  const faturaPaga = dados.pagamentos.some(
-    (p) => p.cartaoId === cartaoId && p.competencia === faturaDaCompra,
-  );
+  const pagas = (cartao: number, competencias: (string | null)[]) =>
+    dados.pagamentos
+      .filter((p) => p.cartaoId === cartao && competencias.includes(p.competencia))
+      .map((p) => nomeDoMes(p.competencia).split(' ')[0] ?? '');
+  const aviso = nova
+    ? pagas(cartaoId, [faturaDaCompra]).length > 0 && cartao && faturaDaCompra
+      ? `A fatura de ${nomeDoMes(faturaDaCompra).split(' ')[0] ?? ''} do ${cartao.nome} já foi paga. A compra entra nela mesmo assim.`
+      : null
+    : pagas(inicial?.cartaoId ?? cartaoId, competenciasAtuais).length > 0
+      ? `Esta compra tem parcelas em faturas já pagas: ${pagas(inicial?.cartaoId ?? cartaoId, competenciasAtuais).join(', ')}. Alterar muda o total delas.`
+      : null;
 
   const previa = calcularPrevia(valor, cartao, numParcelas, dataCompra, modo, pessoas);
 
   const salvar = (abrirOutra: boolean) =>
     handleSubmit((compra) =>
       executar(async () => {
-        const compraId = await repos.compras.salvar(compra);
-        gravarUltimoCartao(compra.cartaoId);
-        dadosMudaram();
-        toast.success('Compra registrada', {
-          action: {
-            label: 'Desfazer',
-            onClick: () =>
-              void executar(async () => {
-                await repos.compras.excluir(compraId);
-                dadosMudaram();
-              }),
-          },
-        });
-        if (!abrirOutra) {
-          fechar();
-          return;
-        }
+        const outra = nova && abrirOutra;
+        await onSalvar(compra, outra);
+        if (!outra) return;
         reset(vazio(compra.cartaoId, compra.dataCompra));
         setCategoriaAMao(false);
         setMaisOpcoes(false);
@@ -488,7 +567,7 @@ function Formulario({ dados }: { dados: Dados }) {
         </CollapsibleContent>
       </Collapsible>
 
-      {faturaPaga && cartao && faturaDaCompra && (
+      {aviso && (
         <p
           role="status"
           className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning-text"
@@ -499,14 +578,15 @@ function Formulario({ dados }: { dados: Dados }) {
             aria-hidden
             className="mt-px flex-none text-warning"
           />
-          A fatura de {nomeDoMes(faturaDaCompra).split(' ')[0]} do {cartao.nome} já foi paga. A
-          compra entra nela mesmo assim.
+          {aviso}
         </p>
       )}
 
       <DialogFooter className="items-center">
-        <span className="flex-1 text-xs text-ink-muted">Shift+Enter salva e abre outra</span>
-        <Button type="button" variant="outline" onClick={fechar}>
+        <span className="flex-1 text-xs text-ink-muted">
+          {nova && 'Shift+Enter salva e abre outra'}
+        </span>
+        <Button type="button" variant="outline" onClick={onCancelar}>
           Cancelar
         </Button>
         <Button type="submit" className="pr-2 font-semibold">

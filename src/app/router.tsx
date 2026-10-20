@@ -1,9 +1,15 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { Configuracoes } from '@/features/cadastros/Configuracoes';
 import { Faturas } from '@/features/faturas/Faturas';
+import { Lancamentos } from '@/features/lancamentos/Lancamentos';
 import { EmBreve } from './EmBreve';
 import { AppLayout } from './layout/AppLayout';
 import { CONFIGURACOES, PAGINAS } from './paginas';
+
+const TELAS: Record<string, () => React.ReactNode> = {
+  '/faturas': Faturas,
+  '/lancamentos': Lancamentos,
+};
 
 export const rotas: RouteObject[] = [
   {
@@ -12,7 +18,7 @@ export const rotas: RouteObject[] = [
       ...PAGINAS.map((pagina) => ({
         path: pagina.caminho,
         handle: pagina,
-        Component: pagina.caminho === '/faturas' ? Faturas : EmBreve,
+        Component: TELAS[pagina.caminho] ?? EmBreve,
       })),
       { path: CONFIGURACOES.caminho, handle: CONFIGURACOES, Component: Configuracoes },
       { path: '*', element: <Navigate to="/" replace /> },
