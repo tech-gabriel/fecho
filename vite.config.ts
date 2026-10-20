@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -17,5 +17,22 @@ export default defineConfig({
     host: host || false,
     hmr: host ? { protocol: 'ws', host, port: 1421 } : undefined,
     watch: { ignored: ['**/src-tauri/**'] },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['src/test-setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.mjs'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
+      exclude: ['src/main.tsx', 'src/test-setup.ts', '**/*.test.*', 'scripts/release.mjs'],
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 70,
+        statements: 70,
+        'src/domain/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
+      },
+    },
   },
 });
