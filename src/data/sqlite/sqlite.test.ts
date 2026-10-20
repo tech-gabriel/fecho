@@ -1,0 +1,58 @@
+import { describe, expect, it } from 'vitest';
+import { contratoDosRepositorios } from '../contrato.suite';
+import { criarRepositoriosSqlite } from '.';
+import { bancoDeTeste } from './node-sqlite';
+
+contratoDosRepositorios('sqlite', async () => {
+  const { banco, salvarCompra } = bancoDeTeste();
+  return criarRepositoriosSqlite(banco, salvarCompra);
+});
+
+describe('sqlite', () => {
+  it('grava exclusão lógica em vez de apagar a linha', async () => {
+    const { banco, salvarCompra, db } = bancoDeTeste();
+    const repos = criarRepositoriosSqlite(banco, salvarCompra);
+    const id = await repos.categorias.criar({ nome: 'Mercado', icone: 'shopping-cart' });
+
+    await repos.categorias.excluir(id);
+
+    const linha = db.prepare('SELECT deleted_at FROM categorias WHERE id = ?').get(id);
+    expect(linha?.deleted_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('atualizar sem campos não faz nada', async () => {
+    const { banco, salvarCompra } = bancoDeTeste();
+    const repos = criarRepositoriosSqlite(banco, salvarCompra);
+    await expect(repos.categorias.atualizar(9999, {})).resolves.toBeUndefined();
+  });
+
+  it('a transação desfaz tudo quando uma parcela é recusada pelo banco', async () => {
+    const { banco, salvarCompra, db } = bancoDeTeste();
+    const repos = criarRepositoriosSqlite(banco, salvarCompra);
+    const cartao = await repos.cartoes.criar({
+      nome: 'Roxo',
+      diaFechamento: 28,
+      diaVencimento: 5,
+      limiteCentavos: 0,
+      cor: '#8B5CF6',
+    });
+
+    await expect(
+      salvarCompra({
+        compra: {
+          cartaoId: cartao,
+          descricao: 'X',
+          categoriaId: null,
+          valorTotalCentavos: 100,
+          numParcelas: 1,
+          dataCompra: '2026-10-19',
+          recorrente: false,
+        },
+        rateios: [],
+        parcelas: [{ numero: 99, competencia: '2026-10', valorCentavos: 100 }],
+      }),
+    ).rejects.toThrow();
+
+    expect(db.prepare('SELECT count(*) AS n FROM compras').get()?.n).toBe(0);
+  });
+});
