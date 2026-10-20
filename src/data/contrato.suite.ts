@@ -463,6 +463,38 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         await expect(repos.compras.buscar(9999)).rejects.toThrow('não encontrad');
       });
 
+      it('importa várias compras de uma vez, ou nenhuma', async () => {
+        const ids = await repos.compras.importar([
+          compra({ descricao: 'Mercado', numParcelas: 1 }),
+          compra({ descricao: 'TV', numParcelas: 2 }),
+        ]);
+        expect(ids).toHaveLength(2);
+        expect(
+          (await repos.compras.parcelasDaCompetencia('2026-10')).map((p) => p.descricao),
+        ).toEqual(['Mercado', 'TV']);
+
+        await expect(
+          repos.compras.importar([compra({ descricao: 'Ok' }), compra({ valorTotal: 0 })]),
+        ).rejects.toThrow('Digite um valor maior que zero');
+        expect(await repos.compras.parcelasDaCompetencia('2026-10')).toHaveLength(2);
+      });
+
+      it('lista o resumo das compras não excluídas', async () => {
+        const id = await repos.compras.salvar(compra());
+        const excluida = await repos.compras.salvar(compra({ descricao: 'Outra' }));
+        await repos.compras.excluir(excluida);
+
+        expect(await repos.compras.listar()).toEqual([
+          {
+            id,
+            dataCompra: '2026-10-19',
+            cartaoId: cartaoRoxo,
+            descricao: 'Tênis',
+            valorTotal: 64_950,
+          },
+        ]);
+      });
+
       it('recusa excluir compra inexistente', async () => {
         await expect(repos.compras.excluir(9999)).rejects.toThrow('não encontrado');
       });
