@@ -1,0 +1,93 @@
+:root {
+  --brand-500: #ff6000;
+  --brand-600: #ff5400;
+  --brand-700: #ff4800;
+  --on-brand: #1c1917;
+  --brand-text: #c2410c;
+  --brand-subtle: #fff1e6;
+  --accent-2: #ffaa00;
+
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --soft: #f5f5f4;
+  --border: #e7e5e4;
+  --border-strong: #8c857f;
+
+  --ink: #1c1917;
+  --ink-muted: #78716c;
+  --ink-muted-on-tint: #57534e;
+  --focus-ring: #c2410c;
+
+  --success: #16a34a;
+  --success-text: #15803d;
+  --success-bg: #dcfce7;
+  --danger: #dc2626;
+  --danger-text: #b91c1c;
+  --danger-bg: #fee2e2;
+  --warning: #f59e0b;
+  --warning-text: #b45309;
+  --warning-bg: #fef3c7;
+  --info: #2563eb;
+  --info-text: #1d4ed8;
+  --info-bg: #dbeafe;
+
+  --chart-1: #ff6d00;
+  --chart-2: #ff7900;
+  --chart-3: #ff8500;
+  --chart-4: #ff9100;
+  --chart-5: #ff9e00;
+
+  --cartao-roxo: #8b5cf6;
+  --cartao-indigo: #6366f1;
+  --cartao-azul: #3b82f6;
+  --cartao-ciano: #06b6d4;
+  --cartao-verde-agua: #14b8a6;
+  --cartao-rosa: #ec4899;
+  --cartao-grafite: #57534e;
+  --cartao-oliva: #65a30d;
+
+  --shadow-popover: 0 8px 24px rgb(12 10 9 / 0.16);
+  --shadow-toast: 0 8px 24px rgb(12 10 9 / 0.18);
+  --shadow-dialog: 0 24px 64px rgb(12 10 9 / 0.32);
+  --overlay: rgb(12 10 9 / 0.5);
+
+  --sidebar-width: 240px;
+  --sidebar-width-collapsed: 64px;
+  --row-height: 40px;
+  --control-height: 36px;
+}
+
+.dark {
+  --brand-500: #ff6d00;
+  --brand-600: #ff7900;
+  --brand-700: #ff8500;
+  --on-brand: #0c0a09;
+  --brand-text: #ff9100;
+  --brand-subtle: #2a1608;
+
+  --bg: #0c0a09;
+  --surface: #1c1917;
+  --surface-raised: #292524;
+  --soft: #292524;
+  --border: #292524;
+  --border-strong: #78716c;
+
+  --ink: #fafaf9;
+  --ink-muted: #a8a29e;
+  --ink-muted-on-tint: #a8a29e;
+  --focus-ring: #ff6d00;
+
+  --success: #4ade80;
+  --success-text: #4ade80;
+  --success-bg: #052e16;
+  --danger: #f87171;
+  --danger-text: #f87171;
+  --danger-bg: #450a0a;
+  --warning: #fbbf24;
+  --warning-text: #fbbf24;
+  --warning-bg: #451a03;
+  --info: #60a5fa;
+  --info-text: #60a5fa;
+  --info-bg: #172554;
+}
