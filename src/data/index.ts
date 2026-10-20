@@ -17,7 +17,9 @@ export async function criarRepositorios(): Promise<Repositorios> {
     import('./sqlite'),
   ]);
   const banco = await Database.load('sqlite:fecho.db');
-  return criarRepositoriosSqlite(banco, (preparada) =>
-    invoke<number>('salvar_compra', { ...preparada }),
-  );
+  return criarRepositoriosSqlite(banco, {
+    salvarCompra: (preparada) => invoke<number>('salvar_compra', { ...preparada }),
+    atualizarCartao: (id, cartao, parcelas) =>
+      invoke<undefined>('atualizar_cartao', { id, cartao, parcelas }),
+  });
 }

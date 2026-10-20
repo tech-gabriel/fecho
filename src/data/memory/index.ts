@@ -4,14 +4,23 @@ import type { Rateio } from '@/domain/terceiros';
 import {
   type Cadastro,
   type Cartao,
+  type CartoesRepository,
+  type Categoria,
   type ComprasRepository,
   type Novo,
   type ParcelaDoMes,
   RegistroNaoEncontrado,
   type Repositorios,
+  type Terceiro,
 } from '../repositories';
 
-function cadastroEmMemoria<T extends { id: number }>(entidade: string) {
+type CompraGravada = Compra & { id: number; rateios: Rateio[]; excluido: boolean };
+type ParcelaGravada = Parcela & { id: number; compraId: number };
+
+function cadastroEmMemoria<T extends { id: number }>(
+  entidade: string,
+  usadoEm: (id: number) => boolean,
+) {
   const linhas: T[] = [];
   const excluidos = new Set<number>();
   let proximoId = 1;
@@ -22,7 +31,7 @@ function cadastroEmMemoria<T extends { id: number }>(entidade: string) {
     return linha;
   };
 
-  const cadastro: Cadastro<T> & { ativo(id: number): T } = {
+  const cadastro: Cadastro<T> & { vigente(id: number): T } = {
     listar: () =>
       Promise.resolve(linhas.filter((l) => !excluidos.has(l.id)).map((l) => ({ ...l }))),
     criar: (novo: Novo<T>) => {
@@ -39,7 +48,8 @@ function cadastroEmMemoria<T extends { id: number }>(entidade: string) {
     restaurar: async (id) => {
       excluidos.delete(buscar(id).id);
     },
-    ativo: (id) => {
+    possuiCompras: async (id) => usadoEm(id),
+    vigente: (id) => {
       const linha = buscar(id);
       if (excluidos.has(id)) throw new RegistroNaoEncontrado(entidade, id);
       return linha;
@@ -48,10 +58,11 @@ function cadastroEmMemoria<T extends { id: number }>(entidade: string) {
   return cadastro;
 }
 
-function comprasEmMemoria(cartoes: ReturnType<typeof cadastroEmMemoria<Cartao>>) {
-  const compras: (Compra & { id: number; rateios: Rateio[]; excluido: boolean })[] = [];
-  const parcelas: (Parcela & { id: number; compraId: number })[] = [];
-
+function comprasEmMemoria(
+  compras: CompraGravada[],
+  parcelas: ParcelaGravada[],
+  cartaoVigente: (id: number) => Cartao,
+) {
   const buscar = (id: number) => {
     const compra = compras.find((c) => c.id === id);
     if (!compra) throw new RegistroNaoEncontrado('Compra', id);
@@ -60,7 +71,7 @@ function comprasEmMemoria(cartoes: ReturnType<typeof cadastroEmMemoria<Cartao>>)
 
   const repositorio: ComprasRepository = {
     salvar: async (dados) => {
-      const preparada = prepararNovaCompra(dados, cartoes.ativo(dados.cartaoId));
+      const preparada = prepararNovaCompra(dados, cartaoVigente(dados.cartaoId));
       const id = compras.length + 1;
       compras.push({ ...preparada.compra, id, rateios: preparada.rateios, excluido: false });
       for (const parcela of preparada.parcelas) {
@@ -100,11 +111,52 @@ function comprasEmMemoria(cartoes: ReturnType<typeof cadastroEmMemoria<Cartao>>)
 }
 
 export function criarRepositoriosEmMemoria(): Repositorios {
-  const cartoes = cadastroEmMemoria<Cartao>('Cartão');
+  const compras: CompraGravada[] = [];
+  const parcelas: ParcelaGravada[] = [];
+
+  const cadastroCartoes = cadastroEmMemoria<Cartao>('Cartão', (id) =>
+    compras.some((c) => c.cartaoId === id),
+  );
+  const cartoes: CartoesRepository = {
+    ...cadastroCartoes,
+    comprasParaRecalculo: async (id) =>
+      compras
+        .filter((c) => c.cartaoId === id && !c.excluido)
+        .map((c) => ({
+          compraId: c.id,
+          descricao: c.descricao,
+          dataCompra: c.dataCompra,
+          parcelas: parcelas
+            .filter((p) => p.compraId === c.id)
+            .map((p) => ({ numero: p.numero, competencia: p.competencia })),
+        })),
+    atualizarComParcelas: async (id, cartao, mudancas) => {
+      cadastroCartoes.vigente(id);
+      const alvos = mudancas.flatMap((m) =>
+        m.parcelas.map((nova) => {
+          const parcela = parcelas.find(
+            (p) =>
+              p.compraId === m.compraId &&
+              p.numero === nova.numero &&
+              compras.some((c) => c.id === p.compraId && c.cartaoId === id),
+          );
+          if (!parcela) throw new RegistroNaoEncontrado('Parcela', nova.numero);
+          return { parcela, competencia: nova.competencia };
+        }),
+      );
+      for (const { parcela, competencia } of alvos) parcela.competencia = competencia;
+      await cadastroCartoes.atualizar(id, cartao);
+    },
+  };
+
   return {
     cartoes,
-    categorias: cadastroEmMemoria('Categoria'),
-    terceiros: cadastroEmMemoria('Terceiro'),
-    compras: comprasEmMemoria(cartoes),
+    categorias: cadastroEmMemoria<Categoria>('Categoria', (id) =>
+      compras.some((c) => c.categoriaId === id),
+    ),
+    terceiros: cadastroEmMemoria<Terceiro>('Terceiro', (id) =>
+      compras.some((c) => c.rateios.some((r) => r.terceiroId === id)),
+    ),
+    compras: comprasEmMemoria(compras, parcelas, (id) => cadastroCartoes.vigente(id)),
   };
 }

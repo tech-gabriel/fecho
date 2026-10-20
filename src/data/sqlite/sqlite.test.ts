@@ -4,15 +4,19 @@ import { criarRepositoriosSqlite } from '.';
 import { bancoDeTeste } from './node-sqlite';
 
 contratoDosRepositorios('sqlite', async () => {
-  const { banco, salvarCompra } = bancoDeTeste();
-  return criarRepositoriosSqlite(banco, salvarCompra);
+  const { banco, comandos } = bancoDeTeste();
+  return criarRepositoriosSqlite(banco, comandos);
 });
 
 describe('sqlite', () => {
   it('grava exclusão lógica em vez de apagar a linha', async () => {
-    const { banco, salvarCompra, db } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, salvarCompra);
-    const id = await repos.categorias.criar({ nome: 'Mercado', icone: 'shopping-cart' });
+    const { banco, comandos, db } = bancoDeTeste();
+    const repos = criarRepositoriosSqlite(banco, comandos);
+    const id = await repos.categorias.criar({
+      nome: 'Mercado',
+      icone: 'shopping-cart',
+      ativo: true,
+    });
 
     await repos.categorias.excluir(id);
 
@@ -21,24 +25,25 @@ describe('sqlite', () => {
   });
 
   it('atualizar sem campos não faz nada', async () => {
-    const { banco, salvarCompra } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, salvarCompra);
+    const { banco, comandos } = bancoDeTeste();
+    const repos = criarRepositoriosSqlite(banco, comandos);
     await expect(repos.categorias.atualizar(9999, {})).resolves.toBeUndefined();
   });
 
   it('a transação desfaz tudo quando uma parcela é recusada pelo banco', async () => {
-    const { banco, salvarCompra, db } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, salvarCompra);
+    const { banco, comandos, db } = bancoDeTeste();
+    const repos = criarRepositoriosSqlite(banco, comandos);
     const cartao = await repos.cartoes.criar({
       nome: 'Roxo',
       diaFechamento: 28,
       diaVencimento: 5,
       limiteCentavos: 0,
       cor: '#8B5CF6',
+      ativo: true,
     });
 
     await expect(
-      salvarCompra({
+      comandos.salvarCompra({
         compra: {
           cartaoId: cartao,
           descricao: 'X',
