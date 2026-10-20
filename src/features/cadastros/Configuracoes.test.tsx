@@ -239,6 +239,6 @@ describe('Configurações › cadastros', () => {
     fireEvent.blur(campo);
 
     expect(await screen.findByText('Limite salvo')).toBeInTheDocument();
-    expect(await repos.preferencias.ler()).toEqual({ limiteRendaComprometida: 40 });
+    expect(await repos.preferencias.ler()).toMatchObject({ limiteRendaComprometida: 40 });
   });
 });

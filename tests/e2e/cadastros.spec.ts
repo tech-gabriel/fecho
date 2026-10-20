@@ -25,3 +25,14 @@ test('cadastra um cartão e recalcula as faturas ao mudar o fechamento', async (
   await expect(page.getByText('Cartão salvo').last()).toBeVisible();
   await expect(cartoes.getByRole('row', { name: /Cartão Roxo/ })).toContainText('Dia 10');
 });
+
+test('no navegador, backup aparece como recurso do app instalado', async ({ page }) => {
+  await page.goto('/#/configuracoes');
+  await page
+    .getByRole('navigation', { name: 'Seções das configurações' })
+    .getByRole('button', { name: 'Dados e backup' })
+    .click();
+  await expect(page.getByRole('region', { name: 'Dados e backup' })).toContainText(
+    'Backup e restauração funcionam no app instalado.',
+  );
+});

@@ -234,9 +234,21 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
       });
 
       it('lê o limite padrão e grava o escolhido', async () => {
-        expect(await repos.preferencias.ler()).toEqual({ limiteRendaComprometida: 30 });
+        expect(await repos.preferencias.ler()).toEqual({
+          limiteRendaComprometida: 30,
+          backupAutomatico: true,
+          ultimoBackup: null,
+        });
         await repos.preferencias.gravar({ limiteRendaComprometida: 40 });
-        expect(await repos.preferencias.ler()).toEqual({ limiteRendaComprometida: 40 });
+        await repos.preferencias.gravar({
+          backupAutomatico: false,
+          ultimoBackup: '2026-10-20T11:12:00.000Z',
+        });
+        expect(await repos.preferencias.ler()).toEqual({
+          limiteRendaComprometida: 40,
+          backupAutomatico: false,
+          ultimoBackup: '2026-10-20T11:12:00.000Z',
+        });
       });
     });
 
