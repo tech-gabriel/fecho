@@ -68,6 +68,20 @@ export function bancoDeTeste() {
       return Number(lastInsertRowid);
     });
 
+  const importarCompras = async (lista: NovaCompraPreparada[]) =>
+    transacao(() =>
+      lista.map((preparada) => {
+        const { lastInsertRowid } = db
+          .prepare(
+            `INSERT INTO compras (cartao_id, descricao, categoria_id, valor_total_centavos,
+               num_parcelas, data_compra, recorrente, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(...valoresDaCompra(preparada));
+        inserirFilhos(lastInsertRowid, preparada);
+        return Number(lastInsertRowid);
+      }),
+    );
+
   const substituirCompra = async (id: number, preparada: NovaCompraPreparada) => {
     transacao(() => {
       const { changes } = db
@@ -116,6 +130,11 @@ export function bancoDeTeste() {
     }
   };
 
-  const comandos: ComandosAtomicos = { salvarCompra, substituirCompra, atualizarCartao };
+  const comandos: ComandosAtomicos = {
+    salvarCompra,
+    importarCompras,
+    substituirCompra,
+    atualizarCartao,
+  };
   return { banco, comandos, db };
 }

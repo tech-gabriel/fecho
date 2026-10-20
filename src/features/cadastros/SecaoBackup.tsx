@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
-import { ArchiveRestore, Download, HardDrive } from 'lucide-react';
+import { ArchiveRestore, Download, FileUp, HardDrive } from 'lucide-react';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { useRepositorios } from '@/app/repositorios';
 import { useApp } from '@/app/store';
@@ -100,6 +101,18 @@ export function SecaoBackup() {
       <h2 id="dados-titulo" className="text-base font-semibold">
         Dados e backup
       </h2>
+
+      <div className="flex items-center gap-3">
+        <p className="flex-1 text-sm text-ink-muted">
+          Tem suas compras numa planilha? Traga um .xlsx ou .csv.
+        </p>
+        <Button variant="outline" asChild>
+          <Link to="/importar">
+            <FileUp strokeWidth={1.75} />
+            Importar planilha…
+          </Link>
+        </Button>
+      </div>
 
       {!backup.disponivel ? (
         <p className="text-sm text-ink-muted">Backup e restauração funcionam no app instalado.</p>
