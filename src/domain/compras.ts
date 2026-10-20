@@ -14,6 +14,7 @@ export interface DadosNovaCompra {
   recorrente: boolean;
   rateios: readonly Rateio[];
   observacao?: string | null;
+  assinatura?: { id: number; mes: Competencia };
 }
 
 export interface Compra {
@@ -25,6 +26,8 @@ export interface Compra {
   dataCompra: DataLocal;
   recorrente: boolean;
   observacao: string | null;
+  assinaturaId: number | null;
+  assinaturaMes: Competencia | null;
 }
 
 export interface NovaCompraPreparada {
@@ -53,6 +56,8 @@ export function prepararNovaCompra(
       dataCompra: dados.dataCompra,
       recorrente: dados.recorrente,
       observacao: dados.observacao?.trim() || null,
+      assinaturaId: dados.assinatura?.id ?? null,
+      assinaturaMes: dados.assinatura?.mes ?? null,
     },
     rateios: soMeu ? [] : [...dados.rateios],
     parcelas: gerarParcelas(dados, cartao),

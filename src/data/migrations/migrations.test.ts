@@ -20,6 +20,7 @@ describe('migrations', () => {
       .map((t) => t.name);
     expect(tabelas).toEqual([
       'abatimentos',
+      'assinaturas',
       'cartoes',
       'categorias',
       'compras',

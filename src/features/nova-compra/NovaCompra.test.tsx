@@ -241,7 +241,7 @@ describe('Nova compra', () => {
     });
   });
 
-  it('grava repetir todo mês e a observação pelas mais opções (Alt+M)', async () => {
+  it('repetir todo mês (Alt+M) cria a assinatura ligada à compra deste mês', async () => {
     const salvar = vi.spyOn(repos.compras, 'salvar');
     await abrirApp();
     const dialog = await abrirDialog();
@@ -253,10 +253,23 @@ describe('Nova compra', () => {
     digitar('Observação', 'plano família');
     fireEvent.click(within(dialog).getByRole('button', { name: /Salvar/ }));
 
-    await screen.findByText('Compra registrada');
+    await screen.findByText('Compra registrada. A cobrança entra sozinha todo mês.');
+    const [assinatura] = await repos.assinaturas.listar();
+    expect(assinatura).toMatchObject({
+      nome: 'Streaming',
+      valorCentavos: 3_990,
+      dia: 20,
+      ativa: true,
+      inicio: '2026-10',
+    });
     expect(salvar).toHaveBeenCalledWith(
-      expect.objectContaining({ recorrente: true, observacao: 'plano família' }),
+      expect.objectContaining({
+        recorrente: true,
+        observacao: 'plano família',
+        assinatura: { id: assinatura?.id, mes: '2026-10' },
+      }),
     );
+    expect(await repos.assinaturas.geradas()).toEqual([`${String(assinatura?.id)}:2026-10`]);
   });
 
   it('sem cartão ativo, leva ao cadastro', async () => {

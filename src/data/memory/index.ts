@@ -1,7 +1,9 @@
+import { chaveDaCobranca } from '@/domain/assinaturas';
 import { prepararNovaCompra, type Compra } from '@/domain/compras';
 import type { Parcela } from '@/domain/parcelas';
 import type { Rateio } from '@/domain/terceiros';
 import {
+  type Assinatura,
   type Cadastro,
   type Cartao,
   type CartoesRepository,
@@ -87,6 +89,13 @@ function comprasEmMemoria(
       .map(({ numero, competencia, valorCentavos }) => ({ numero, competencia, valorCentavos }));
 
   const gravar = (preparada: ReturnType<typeof prepararNovaCompra>) => {
+    const { assinaturaId, assinaturaMes } = preparada.compra;
+    if (
+      assinaturaId !== null &&
+      compras.some((c) => c.assinaturaId === assinaturaId && c.assinaturaMes === assinaturaMes)
+    ) {
+      throw new Error(`Cobrança de ${String(assinaturaMes)} já gerada`);
+    }
     const id = compras.length + 1;
     compras.push({ ...preparada.compra, id, rateios: preparada.rateios, excluido: false });
     for (const parcela of preparada.parcelas) {
@@ -145,7 +154,11 @@ function comprasEmMemoria(
       const atual = vigente(id);
       const preparada = prepararNovaCompra(dados, cartaoVigente(dados.cartaoId));
       const novas = opcoes?.parcelas ?? preparada.parcelas;
-      Object.assign(atual, preparada.compra, { rateios: preparada.rateios });
+      Object.assign(atual, preparada.compra, {
+        assinaturaId: atual.assinaturaId,
+        assinaturaMes: atual.assinaturaMes,
+        rateios: preparada.rateios,
+      });
       for (let i = parcelas.length - 1; i >= 0; i--) {
         if (parcelas[i]?.compraId === id) parcelas.splice(i, 1);
       }
@@ -305,5 +318,16 @@ export function criarRepositoriosEmMemoria(): Repositorios {
     ),
     terceiros: cadastroTerceiros,
     compras: comprasEmMemoria(compras, parcelas, (id) => cadastroCartoes.vigente(id)),
+    assinaturas: {
+      ...cadastroEmMemoria<Assinatura>('Assinatura', (id) =>
+        compras.some((c) => c.assinaturaId === id),
+      ),
+      geradas: async () =>
+        compras.flatMap((c) =>
+          c.assinaturaId === null || c.assinaturaMes === null
+            ? []
+            : [chaveDaCobranca(c.assinaturaId, c.assinaturaMes)],
+        ),
+    },
   };
 }

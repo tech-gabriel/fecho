@@ -1,9 +1,10 @@
-import { type Competencia, type DataLocal, diasEntre } from './competencia';
+import { type Assinatura, proximaCobranca } from './assinaturas';
+import { type Competencia, type DataLocal, competenciaDe, diasEntre } from './competencia';
 import { competenciaDaCompra, datasDaFatura, type DiasDoCartao } from './faturas';
 import type { Centavos } from './money';
 import { DIAS_DE_ANTECEDENCIA_DO_ALERTA, precisaAlertarReembolso } from './terceiros';
 
-export type TipoDeAlerta = 'reembolso' | 'fechamento' | 'vencimento' | 'atraso';
+export type TipoDeAlerta = 'reembolso' | 'fechamento' | 'vencimento' | 'atraso' | 'assinatura';
 
 export const DIAS_ANTES_DO_FECHAMENTO = 3;
 export const DIAS_ANTES_DO_VENCIMENTO = 3;
@@ -24,6 +25,7 @@ export interface Alerta {
   cartaoId: number;
   competencia: Competencia;
   terceiroId?: number;
+  assinaturaId?: number;
   valor?: Centavos;
   data: DataLocal;
   dias: number;
@@ -35,6 +37,7 @@ export function alertasDoDia(
   cartoes: readonly ({ id: number } & DiasDoCartao)[],
   hoje: DataLocal,
   desligados: readonly TipoDeAlerta[] = [],
+  assinaturas: readonly Assinatura[] = [],
 ): Alerta[] {
   const alertas: Alerta[] = [];
 
@@ -85,6 +88,24 @@ export function alertasDoDia(
         idade: DIAS_DE_ANTECEDENCIA_DO_ALERTA - dias,
       });
     }
+  }
+
+  for (const assinatura of assinaturas) {
+    if (!assinatura.ativa) continue;
+    const data = proximaCobranca(assinatura, hoje);
+    if (diasEntre(hoje, data) !== 1) continue;
+    const competencia = competenciaDe(data);
+    alertas.push({
+      chave: `assinatura:${String(assinatura.id)}:${competencia}`,
+      tipo: 'assinatura',
+      cartaoId: assinatura.cartaoId,
+      competencia,
+      assinaturaId: assinatura.id,
+      valor: assinatura.valorCentavos,
+      data,
+      dias: 1,
+      idade: 0,
+    });
   }
 
   return alertas.filter((a) => !desligados.includes(a.tipo)).sort((a, b) => a.idade - b.idade);

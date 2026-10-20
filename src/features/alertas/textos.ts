@@ -7,9 +7,9 @@ const emDias = (dias: number) => (dias === 1 ? 'amanhã' : `em ${String(dias)} d
 
 export function textoDoAlerta(
   alerta: Alerta,
-  nomes: { cartao: string; terceiro: string | undefined },
+  nomes: { cartao: string; terceiro: string | undefined; assinatura?: string | undefined },
 ): string {
-  const { cartao, terceiro } = nomes;
+  const { cartao, terceiro, assinatura } = nomes;
   switch (alerta.tipo) {
     case 'reembolso':
       return `Faltam ${formatarMoeda(alerta.valor ?? 0)} de ${terceiro ?? ''} para fechar a fatura do ${cartao}`;
@@ -19,6 +19,8 @@ export function textoDoAlerta(
     }
     case 'vencimento':
       return `A fatura do ${cartao} vence ${alerta.dias === 0 ? 'hoje' : emDias(alerta.dias)}`;
+    case 'assinatura':
+      return `Amanhã: ${assinatura ?? ''}, ${formatarMoeda(alerta.valor ?? 0)} no ${cartao}`;
     case 'atraso':
       return `A fatura do ${cartao} está atrasada há ${String(-alerta.dias)} ${alerta.dias === -1 ? 'dia' : 'dias'}`;
   }
