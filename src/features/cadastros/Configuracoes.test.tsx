@@ -159,6 +159,34 @@ describe('Configurações › cadastros', () => {
     expect((await repos.cartoes.listar())[0]?.diaFechamento).toBe(25);
   });
 
+  it('não move compras de fatura já paga', async () => {
+    await repos.compras.salvar({
+      cartaoId: 1,
+      descricao: 'Tênis de corrida',
+      categoriaId: null,
+      valorTotal: 30_000,
+      numParcelas: 1,
+      dataCompra: '2026-10-26',
+      recorrente: false,
+      rateios: [],
+    });
+    await repos.faturas.marcarComoPaga({
+      cartaoId: 1,
+      competencia: '2026-10',
+      pagoEm: '2026-10-20',
+      valorPagoCentavos: 30_000,
+    });
+    await abrir();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar Cartão Roxo' }));
+    await screen.findByRole('dialog', { name: 'Cartão Roxo' });
+    preencher('Fecha dia', '25');
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByText('Cartão salvo')).toBeInTheDocument();
+    expect(await repos.compras.parcelasDaCompetencia('2026-10')).toHaveLength(1);
+  });
+
   it('salva direto quando nenhuma compra muda de fatura', async () => {
     await abrir();
 

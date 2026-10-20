@@ -5,6 +5,7 @@ import {
   type Cadastro,
   type Cartao,
   type CartoesRepository,
+  type PagamentoDeFatura,
   type Categoria,
   type ComprasRepository,
   type Novo,
@@ -155,7 +156,27 @@ export function criarRepositoriosEmMemoria(): Repositorios {
     },
   };
 
+  let pagamentos: PagamentoDeFatura[] = [];
+  const mesmaFatura = (p: PagamentoDeFatura, cartaoId: number, competencia: string) =>
+    p.cartaoId === cartaoId && p.competencia === competencia;
+
   return {
+    faturas: {
+      pagamentos: async () =>
+        pagamentos
+          .map((p) => ({ ...p }))
+          .sort((a, b) => a.competencia.localeCompare(b.competencia) || a.cartaoId - b.cartaoId),
+      marcarComoPaga: async (pagamento) => {
+        cadastroCartoes.vigente(pagamento.cartaoId);
+        pagamentos = [
+          ...pagamentos.filter((p) => !mesmaFatura(p, pagamento.cartaoId, pagamento.competencia)),
+          { ...pagamento },
+        ];
+      },
+      desmarcar: async (cartaoId, competencia) => {
+        pagamentos = pagamentos.filter((p) => !mesmaFatura(p, cartaoId, competencia));
+      },
+    },
     cartoes,
     categorias: cadastroEmMemoria<Categoria>('Categoria', (id) =>
       compras.some((c) => c.categoriaId === id),

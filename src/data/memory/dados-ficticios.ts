@@ -94,4 +94,19 @@ export async function semearDadosFicticios(repos: Repositorios) {
     { terceiroId: null, percentual: 50 },
     { terceiroId: bruno, percentual: 50 },
   ]);
+
+  const setembro = await repos.compras.parcelasDaCompetencia('2026-09');
+  for (const cartaoId of [roxo, azul, verdeAgua]) {
+    const total = setembro
+      .filter((p) => p.cartaoId === cartaoId)
+      .reduce((soma, p) => soma + p.valorCentavos, 0);
+    if (total > 0) {
+      await repos.faturas.marcarComoPaga({
+        cartaoId,
+        competencia: '2026-09',
+        pagoEm: '2026-10-04',
+        valorPagoCentavos: total,
+      });
+    }
+  }
 }

@@ -51,6 +51,9 @@ export function Configuracoes() {
             item.diaFechamento,
             dados.diaFechamento,
             hojeLocal(),
+            (await repos.faturas.pagamentos())
+              .filter((p) => p.cartaoId === item.id)
+              .map((p) => p.competencia),
           );
     if (mudancas.length > 0) {
       setPrevia({ item, dados, mudancas, concluir });
