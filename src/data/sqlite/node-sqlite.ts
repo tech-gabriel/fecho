@@ -56,14 +56,20 @@ export function bancoDeTeste() {
     compra.observacao,
   ];
 
+  const daAssinatura = ({ compra }: NovaCompraPreparada) => [
+    compra.assinaturaId,
+    compra.assinaturaMes,
+  ];
+
   const salvarCompra = async (preparada: NovaCompraPreparada) =>
     transacao(() => {
       const { lastInsertRowid } = db
         .prepare(
           `INSERT INTO compras (cartao_id, descricao, categoria_id, valor_total_centavos,
-             num_parcelas, data_compra, recorrente, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+             num_parcelas, data_compra, recorrente, observacao, assinatura_id, assinatura_mes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(...valoresDaCompra(preparada));
+        .run(...valoresDaCompra(preparada), ...daAssinatura(preparada));
       inserirFilhos(lastInsertRowid, preparada);
       return Number(lastInsertRowid);
     });
@@ -74,9 +80,10 @@ export function bancoDeTeste() {
         const { lastInsertRowid } = db
           .prepare(
             `INSERT INTO compras (cartao_id, descricao, categoria_id, valor_total_centavos,
-               num_parcelas, data_compra, recorrente, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+               num_parcelas, data_compra, recorrente, observacao, assinatura_id, assinatura_mes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(...valoresDaCompra(preparada));
+          .run(...valoresDaCompra(preparada), ...daAssinatura(preparada));
         inserirFilhos(lastInsertRowid, preparada);
         return Number(lastInsertRowid);
       }),

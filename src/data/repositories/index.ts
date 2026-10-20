@@ -6,6 +6,9 @@ import type { CompraParaRecalculo, MudancaDeFatura } from '@/domain/faturas';
 import type { Centavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
 import type { TipoDeAlerta } from '@/domain/alertas';
+import type { Assinatura } from '@/domain/assinaturas';
+
+export type { Assinatura };
 
 export interface Cartao {
   id: number;
@@ -175,6 +178,10 @@ export interface ReceberRepository {
   restaurar(id: number): Promise<void>;
 }
 
+export interface AssinaturasRepository extends Cadastro<Assinatura> {
+  geradas(): Promise<string[]>;
+}
+
 export interface Repositorios {
   cartoes: CartoesRepository;
   categorias: Cadastro<Categoria>;
@@ -185,6 +192,7 @@ export interface Repositorios {
   preferencias: PreferenciasRepository;
   backup: ServicoDeBackup;
   receber: ReceberRepository;
+  assinaturas: AssinaturasRepository;
 }
 
 export class RegistroNaoEncontrado extends Error {

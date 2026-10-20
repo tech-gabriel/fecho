@@ -11,7 +11,8 @@ import {
   type RowSelectionState,
   type SortingState,
 } from '@tanstack/react-table';
-import { ArrowDown, ArrowUp, Layers, Repeat, UserRound } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarClock, Layers, Repeat, UserRound } from 'lucide-react';
+import { hojeLocal } from '@/app/store';
 import { cn } from 'cn';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -97,6 +98,7 @@ export function TabelaDeLancamentos({
 }) {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'data', desc: true }]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const hoje = hojeLocal();
   const [ativa, setAtiva] = useState(0);
   const [ancora, setAncora] = useState<number | null>(null);
   const [editando, setEditando] = useState<{ id: string; texto: string } | null>(null);
@@ -371,6 +373,12 @@ export function TabelaDeLancamentos({
                                       aria-label="Repete todo mês"
                                       className="flex-none text-ink-muted"
                                     />
+                                  )}
+                                  {linha.dataCompra > hoje && (
+                                    <span className="flex flex-none items-center gap-1 rounded-full bg-soft px-2 text-xs leading-5 font-medium text-ink-muted-on-tint">
+                                      <CalendarClock size={12} strokeWidth={1.75} aria-hidden />
+                                      Prevista
+                                    </span>
                                   )}
                                 </span>
                               )}

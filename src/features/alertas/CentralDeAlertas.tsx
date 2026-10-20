@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Bell, BellOff, CalendarClock, Copy, CreditCard, TriangleAlert } from 'lucide-react';
+import {
+  Bell,
+  BellOff,
+  CalendarClock,
+  Copy,
+  CreditCard,
+  Repeat,
+  TriangleAlert,
+} from 'lucide-react';
 import { cn } from 'cn';
 import { useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
@@ -16,6 +24,7 @@ const VISUAL: Record<TipoDeAlerta, { icone: typeof Bell; classe: string }> = {
   reembolso: { icone: TriangleAlert, classe: 'bg-warning-bg text-warning-text' },
   vencimento: { icone: CalendarClock, classe: 'bg-warning-bg text-warning-text' },
   fechamento: { icone: CreditCard, classe: 'bg-soft text-ink' },
+  assinatura: { icone: Repeat, classe: 'bg-info-bg text-info-text' },
 };
 
 const GRUPOS: GrupoDeAlerta[] = ['Hoje', 'Esta semana', 'Antes'];
@@ -31,6 +40,10 @@ export function CentralDeAlertas() {
   const abrir = (alerta: AlertaNaTela) => {
     marcarComoLidos([alerta.chave]);
     setAberta(false);
+    if (alerta.tipo === 'assinatura') {
+      void navigate('/assinaturas');
+      return;
+    }
     irParaCompetencia(alerta.competencia);
     void navigate(
       alerta.tipo === 'reembolso' && alerta.terceiro

@@ -136,8 +136,32 @@ describe('rendaComprometida', () => {
         { competencia: '2026-12', minhasParcelas: 10_000, renda: 0 },
       ]),
     ).toEqual([
-      { competencia: '2026-11', valor: 221_000, percentual: 30.69 },
-      { competencia: '2026-12', valor: 10_000, percentual: null },
+      {
+        competencia: '2026-11',
+        valor: 221_000,
+        parcelas: 221_000,
+        assinaturas: 0,
+        percentual: 30.69,
+      },
+      { competencia: '2026-12', valor: 10_000, parcelas: 10_000, assinaturas: 0, percentual: null },
+    ]);
+  });
+});
+
+describe('rendaComprometida com assinaturas', () => {
+  it('soma parcelas e assinaturas e devolve cada série', () => {
+    expect(
+      rendaComprometida([
+        { competencia: '2026-11', minhasParcelas: 200_000, assinaturas: 16_000, renda: 720_000 },
+      ]),
+    ).toEqual([
+      {
+        competencia: '2026-11',
+        valor: 216_000,
+        parcelas: 200_000,
+        assinaturas: 16_000,
+        percentual: 30,
+      },
     ]);
   });
 });

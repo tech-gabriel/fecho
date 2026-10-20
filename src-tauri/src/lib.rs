@@ -13,15 +13,17 @@ const MIGRATION_4: &str = include_str!("../../src/data/migrations/0004_faturas.s
 const MIGRATION_5: &str =
     include_str!("../../src/data/migrations/0005_receitas_e_preferencias.sql");
 const MIGRATION_6: &str = include_str!("../../src/data/migrations/0006_movimentos.sql");
+const MIGRATION_7: &str = include_str!("../../src/data/migrations/0007_assinaturas.sql");
 
 #[cfg(test)]
-pub(crate) const MIGRATIONS_SQL: [&str; 6] = [
+pub(crate) const MIGRATIONS_SQL: [&str; 7] = [
     MIGRATION_1,
     MIGRATION_2,
     MIGRATION_3,
     MIGRATION_4,
     MIGRATION_5,
     MIGRATION_6,
+    MIGRATION_7,
 ];
 
 fn migrations() -> Vec<Migration> {
@@ -60,6 +62,12 @@ fn migrations() -> Vec<Migration> {
             version: 6,
             description: "movimentos",
             sql: MIGRATION_6,
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 7,
+            description: "assinaturas",
+            sql: MIGRATION_7,
             kind: MigrationKind::Up,
         },
     ]
