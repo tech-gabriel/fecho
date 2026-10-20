@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { prepararNovaCompra } from './compras';
+import { prepararNovaCompra, previaDaCompra, rateioDaCompra, sugerirCategoria } from './compras';
 
 const cartaoRoxo = { diaFechamento: 28 };
 const base = {
@@ -25,6 +25,7 @@ describe('prepararNovaCompra', () => {
       numParcelas: 3,
       dataCompra: '2026-10-19',
       recorrente: false,
+      observacao: null,
     });
     expect(rateios).toEqual([]);
     expect(parcelas.map((p) => [p.numero, p.competencia, p.valorCentavos])).toEqual([
@@ -71,5 +72,130 @@ describe('prepararNovaCompra', () => {
     expect(() =>
       prepararNovaCompra({ ...base, rateios: [{ terceiroId: 7, percentual: 40 }] }, cartaoRoxo),
     ).toThrow('Os percentuais devem somar 100');
+  });
+});
+
+describe('observação', () => {
+  it('guarda o texto aparado e troca vazio por null', () => {
+    expect(
+      prepararNovaCompra({ ...base, observacao: '  presente da Ana ' }, cartaoRoxo).compra
+        .observacao,
+    ).toBe('presente da Ana');
+    expect(
+      prepararNovaCompra({ ...base, observacao: '   ' }, cartaoRoxo).compra.observacao,
+    ).toBeNull();
+  });
+});
+
+describe('sugerirCategoria', () => {
+  const categorias = [
+    { id: 1, nome: 'Mercado', ativo: true },
+    { id: 2, nome: 'Transporte', ativo: true },
+    { id: 3, nome: 'Saúde', ativo: true },
+    { id: 4, nome: 'Lazer', ativo: false },
+    { id: 5, nome: 'Casa', ativo: true },
+  ];
+
+  it('usa a categoria da compra mais recente com a mesma primeira palavra', () => {
+    const historico = [
+      { descricao: 'Uber para casa', categoriaId: 5 },
+      { descricao: 'Uber aeroporto', categoriaId: 2 },
+    ];
+    expect(sugerirCategoria('uber centro', historico, categorias)).toBe(5);
+  });
+
+  it('ignora acento e maiúscula na comparação', () => {
+    expect(
+      sugerirCategoria('Açougue', [{ descricao: 'acougue do zé', categoriaId: 1 }], categorias),
+    ).toBe(1);
+  });
+
+  it('sem histórico, usa a lista de palavras pelo nome da categoria', () => {
+    expect(sugerirCategoria('Supermercado Dia', [], categorias)).toBe(1);
+    expect(sugerirCategoria('Drogasil', [], categorias)).toBe(3);
+    expect(sugerirCategoria('99 Pop', [], categorias)).toBe(2);
+  });
+
+  it('não sugere categoria arquivada nem descrição desconhecida', () => {
+    expect(
+      sugerirCategoria('Cinema', [{ descricao: 'cinema', categoriaId: 4 }], categorias),
+    ).toBeNull();
+    expect(sugerirCategoria('Xyz', [], categorias)).toBeNull();
+    expect(sugerirCategoria('   ', [], categorias)).toBeNull();
+  });
+});
+
+describe('rateioDaCompra', () => {
+  it('minha compra não tem rateio', () => {
+    expect(rateioDaCompra('minha', [])).toEqual([]);
+  });
+
+  it('de outra pessoa é 100% dela', () => {
+    expect(rateioDaCompra('outra', [{ terceiroId: 7, percentual: 0 }])).toEqual([
+      { terceiroId: 7, percentual: 100 },
+    ]);
+  });
+
+  it('dividida deixa o resto comigo', () => {
+    expect(
+      rateioDaCompra('dividida', [
+        { terceiroId: 7, percentual: 30 },
+        { terceiroId: 8, percentual: 30 },
+      ]),
+    ).toEqual([
+      { terceiroId: 7, percentual: 30 },
+      { terceiroId: 8, percentual: 30 },
+      { terceiroId: null, percentual: 40 },
+    ]);
+  });
+
+  it('dividida em 100% entre outras pessoas não me inclui', () => {
+    expect(rateioDaCompra('dividida', [{ terceiroId: 7, percentual: 100 }])).toEqual([
+      { terceiroId: 7, percentual: 100 },
+    ]);
+  });
+
+  it.each([
+    ['outra', [], 'Escolha uma pessoa'],
+    ['dividida', [], 'Escolha pelo menos uma pessoa'],
+    ['dividida', [{ terceiroId: 7, percentual: 0 }], 'Use um percentual de 1 a 100'],
+    ['dividida', [{ terceiroId: 7, percentual: 12.5 }], 'Use um percentual de 1 a 100'],
+    [
+      'dividida',
+      [
+        { terceiroId: 7, percentual: 60 },
+        { terceiroId: 8, percentual: 50 },
+      ],
+      'A soma passa de 100%',
+    ],
+  ] as const)('%s com %j recusa: %s', (modo, pessoas, mensagem) => {
+    expect(() => rateioDaCompra(modo, pessoas)).toThrow(mensagem);
+  });
+});
+
+describe('previaDaCompra', () => {
+  it('mostra fatura, vencimento, valor e a parte de cada pessoa', () => {
+    const previa = previaDaCompra(
+      {
+        valorTotal: 129_900,
+        numParcelas: 6,
+        dataCompra: '2026-10-19',
+        rateios: [
+          { terceiroId: null, percentual: 50 },
+          { terceiroId: 7, percentual: 50 },
+        ],
+      },
+      { diaFechamento: 28, diaVencimento: 5 },
+    );
+
+    expect(previa).toHaveLength(6);
+    expect(previa[0]).toEqual({
+      numero: 1,
+      competencia: '2026-10',
+      vencimento: '2026-11-05',
+      valorCentavos: 21_650,
+      porTerceiro: new Map([[7, 10_825]]),
+    });
+    expect(previa[5]?.competencia).toBe('2027-03');
   });
 });

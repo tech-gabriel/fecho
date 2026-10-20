@@ -100,6 +100,12 @@ function comprasEmMemoria(
           };
         })
         .sort((a, b) => a.dataCompra.localeCompare(b.dataCompra) || a.parcelaId - b.parcelaId),
+    ultimasCategorias: async () =>
+      compras
+        .filter((c) => !c.excluido && c.categoriaId !== null)
+        .reverse()
+        .slice(0, 500)
+        .map((c) => ({ descricao: c.descricao, categoriaId: Number(c.categoriaId) })),
     excluir: async (id) => {
       buscar(id).excluido = true;
     },
