@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { toast } from 'sonner';
@@ -40,7 +40,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 9, 20, 10));
   localStorage.clear();
-  useApp.setState({ novaCompraAberta: false });
+  useApp.setState({ novaCompraAberta: false, novaCompraPreenchida: null, compraEmEdicao: null });
   repos = criarRepositoriosEmMemoria();
   const cartao = (nome: string, diaFechamento: number, cor: string) =>
     repos.cartoes.criar({
@@ -273,5 +273,126 @@ describe('Nova compra', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/configuracoes');
     });
+  });
+
+  it('Duplicar abre preenchida com a data de hoje', async () => {
+    await abrirApp();
+
+    act(() => {
+      useApp.getState().abrirNovaCompra({
+        cartaoId: ids.azul,
+        descricao: 'Mercado do mês',
+        categoriaId: ids.mercado,
+        valorTotal: 48_730,
+        numParcelas: 2,
+        dataCompra: '2026-09-01',
+        recorrente: false,
+        rateios: [{ terceiroId: ids.ana, percentual: 100 }],
+      });
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Nova compra' });
+
+    expect(within(dialog).getByLabelText('Valor')).toHaveValue('487,30');
+    expect(within(dialog).getByLabelText('Descrição')).toHaveValue('Mercado do mês');
+    expect(within(dialog).getByRole('combobox', { name: 'Cartão' })).toHaveTextContent(
+      'Cartão Azul',
+    );
+    expect(within(dialog).getByRole('button', { name: /Data/ })).toHaveTextContent('20/10/2026');
+    expect(within(dialog).getByRole('radio', { name: 'De outra pessoa' })).toHaveAttribute(
+      'data-state',
+      'on',
+    );
+    expect(within(dialog).getByRole('combobox', { name: 'Categoria' })).not.toHaveTextContent(
+      'sugerida',
+    );
+  });
+});
+
+describe('Editar compra', () => {
+  const salvarCompra = () =>
+    repos.compras.salvar({
+      cartaoId: ids.roxo,
+      descricao: 'Tênis',
+      categoriaId: null,
+      valorTotal: 30_000,
+      numParcelas: 3,
+      dataCompra: '2026-10-26',
+      recorrente: false,
+      rateios: [],
+    });
+
+  it('regenera as parcelas e desfaz', async () => {
+    const id = await salvarCompra();
+    await abrirApp();
+
+    act(() => {
+      useApp.getState().editarCompra(id);
+    });
+    const sheet = await screen.findByRole('dialog', { name: 'Editar compra' });
+    await waitFor(() => {
+      expect(within(sheet).getByLabelText('Valor')).toHaveValue('300,00');
+    });
+    fireEvent.click(within(sheet).getByRole('button', { name: '2×' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: /Salvar/ }));
+
+    expect(await screen.findByText('Compra atualizada')).toBeInTheDocument();
+    expect((await repos.compras.buscar(id)).parcelas.map((p) => p.competencia)).toEqual([
+      '2026-10',
+      '2026-11',
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await waitFor(async () => {
+      expect((await repos.compras.buscar(id)).numParcelas).toBe(3);
+    });
+  });
+
+  it('só a descrição mantém as parcelas mesmo se o fechamento mudou', async () => {
+    const id = await salvarCompra();
+    await repos.cartoes.atualizar(ids.roxo, { diaFechamento: 25 });
+    await abrirApp();
+
+    act(() => {
+      useApp.getState().editarCompra(id);
+    });
+    const sheet = await screen.findByRole('dialog', { name: 'Editar compra' });
+    await waitFor(() => {
+      expect(within(sheet).getByLabelText('Descrição')).toHaveValue('Tênis');
+    });
+    fireEvent.change(within(sheet).getByLabelText('Descrição'), {
+      target: { value: 'Tênis novo' },
+    });
+    fireEvent.click(within(sheet).getByRole('button', { name: /Salvar/ }));
+
+    await screen.findByText('Compra atualizada');
+    expect(await repos.compras.buscar(id)).toMatchObject({
+      descricao: 'Tênis novo',
+      parcelas: [
+        { numero: 1, competencia: '2026-10' },
+        { numero: 2, competencia: '2026-11' },
+        { numero: 3, competencia: '2026-12' },
+      ],
+    });
+  });
+
+  it('avisa quando a compra tem parcelas em fatura paga', async () => {
+    const id = await salvarCompra();
+    await repos.faturas.marcarComoPaga({
+      cartaoId: ids.roxo,
+      competencia: '2026-10',
+      pagoEm: '2026-10-20',
+      valorPagoCentavos: 10_000,
+    });
+    await abrirApp();
+
+    act(() => {
+      useApp.getState().editarCompra(id);
+    });
+
+    expect(
+      await screen.findByText(
+        'Esta compra tem parcelas em faturas já pagas: Outubro. Alterar muda o total delas.',
+      ),
+    ).toBeInTheDocument();
   });
 });

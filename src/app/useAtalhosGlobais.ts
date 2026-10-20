@@ -26,7 +26,9 @@ export function useAtalhosGlobais() {
       const pagina = /^[1-8]$/.test(e.key) ? PAGINAS[Number(e.key) - 1] : undefined;
       const acoes: Record<string, (() => void) | undefined> = {
         b: app.alternarSidebar,
-        n: app.abrirNovaCompra,
+        n: () => {
+          app.abrirNovaCompra();
+        },
         ArrowLeft: app.voltarMes,
         ArrowRight: app.avancarMes,
         Home: app.irParaHoje,

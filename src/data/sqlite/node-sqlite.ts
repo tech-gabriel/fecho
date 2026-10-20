@@ -18,42 +18,70 @@ export function bancoDeTeste() {
     },
   };
 
-  const salvarCompra = async ({ compra, rateios, parcelas }: NovaCompraPreparada) => {
+  const transacao = <T>(trabalho: () => T): T => {
     db.exec('BEGIN');
     try {
+      const resultado = trabalho();
+      db.exec('COMMIT');
+      return resultado;
+    } catch (erro) {
+      db.exec('ROLLBACK');
+      throw erro;
+    }
+  };
+
+  const inserirFilhos = (compraId: number | bigint, { rateios, parcelas }: NovaCompraPreparada) => {
+    for (const r of rateios) {
+      db.prepare('INSERT INTO rateios (compra_id, terceiro_id, percentual) VALUES (?, ?, ?)').run(
+        compraId,
+        r.terceiroId,
+        r.percentual,
+      );
+    }
+    for (const p of parcelas) {
+      db.prepare(
+        'INSERT INTO parcelas (compra_id, numero, competencia, valor_centavos) VALUES (?, ?, ?, ?)',
+      ).run(compraId, p.numero, p.competencia, p.valorCentavos);
+    }
+  };
+
+  const valoresDaCompra = ({ compra }: NovaCompraPreparada) => [
+    compra.cartaoId,
+    compra.descricao,
+    compra.categoriaId,
+    compra.valorTotalCentavos,
+    compra.numParcelas,
+    compra.dataCompra,
+    compra.recorrente ? 1 : 0,
+    compra.observacao,
+  ];
+
+  const salvarCompra = async (preparada: NovaCompraPreparada) =>
+    transacao(() => {
       const { lastInsertRowid } = db
         .prepare(
           `INSERT INTO compras (cartao_id, descricao, categoria_id, valor_total_centavos,
              num_parcelas, data_compra, recorrente, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(
-          compra.cartaoId,
-          compra.descricao,
-          compra.categoriaId,
-          compra.valorTotalCentavos,
-          compra.numParcelas,
-          compra.dataCompra,
-          compra.recorrente ? 1 : 0,
-          compra.observacao,
-        );
-      for (const r of rateios) {
-        db.prepare('INSERT INTO rateios (compra_id, terceiro_id, percentual) VALUES (?, ?, ?)').run(
-          lastInsertRowid,
-          r.terceiroId,
-          r.percentual,
-        );
-      }
-      for (const p of parcelas) {
-        db.prepare(
-          'INSERT INTO parcelas (compra_id, numero, competencia, valor_centavos) VALUES (?, ?, ?, ?)',
-        ).run(lastInsertRowid, p.numero, p.competencia, p.valorCentavos);
-      }
-      db.exec('COMMIT');
+        .run(...valoresDaCompra(preparada));
+      inserirFilhos(lastInsertRowid, preparada);
       return Number(lastInsertRowid);
-    } catch (erro) {
-      db.exec('ROLLBACK');
-      throw erro;
-    }
+    });
+
+  const substituirCompra = async (id: number, preparada: NovaCompraPreparada) => {
+    transacao(() => {
+      const { changes } = db
+        .prepare(
+          `UPDATE compras SET cartao_id = ?, descricao = ?, categoria_id = ?, valor_total_centavos = ?,
+             num_parcelas = ?, data_compra = ?, recorrente = ?, observacao = ?
+           WHERE id = ? AND deleted_at IS NULL`,
+        )
+        .run(...valoresDaCompra(preparada), id);
+      if (changes === 0) throw new Error(`Compra ${id} não encontrada`);
+      db.prepare('DELETE FROM rateios WHERE compra_id = ?').run(id);
+      db.prepare('DELETE FROM parcelas WHERE compra_id = ?').run(id);
+      inserirFilhos(id, preparada);
+    });
   };
 
   const atualizarCartao = async (id: number, cartao: Novo<Cartao>, parcelas: ParcelaMovida[]) => {
@@ -88,6 +116,6 @@ export function bancoDeTeste() {
     }
   };
 
-  const comandos: ComandosAtomicos = { salvarCompra, atualizarCartao };
+  const comandos: ComandosAtomicos = { salvarCompra, substituirCompra, atualizarCartao };
   return { banco, comandos, db };
 }

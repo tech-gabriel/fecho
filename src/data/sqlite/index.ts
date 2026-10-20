@@ -32,6 +32,7 @@ export interface ParcelaMovida {
 
 export interface ComandosAtomicos {
   salvarCompra(compra: NovaCompraPreparada): Promise<number>;
+  substituirCompra(id: number, compra: NovaCompraPreparada): Promise<void>;
   atualizarCartao(id: number, cartao: Novo<Cartao>, parcelas: ParcelaMovida[]): Promise<void>;
 }
 
@@ -169,10 +170,7 @@ function cartoesSqlite(banco: Banco, comandos: ComandosAtomicos): CartoesReposit
   };
 }
 
-function comprasSqlite(
-  banco: Banco,
-  salvarAtomica: ComandosAtomicos['salvarCompra'],
-): ComprasRepository {
+function comprasSqlite(banco: Banco, comandos: ComandosAtomicos): ComprasRepository {
   const exigirLinha = async (id: number, sql: string, params: unknown[]) => {
     const { rowsAffected } = await banco.execute(sql, params);
     if (rowsAffected === 0) throw new RegistroNaoEncontrado('Compra', id);
@@ -185,7 +183,7 @@ function comprasSqlite(
         [dados.cartaoId],
       );
       if (!cartao) throw new RegistroNaoEncontrado('Cartão', dados.cartaoId);
-      return salvarAtomica(
+      return comandos.salvarCompra(
         prepararNovaCompra(dados, { diaFechamento: numero(cartao.dia_fechamento) }),
       );
     },
@@ -238,6 +236,58 @@ function comprasSqlite(
         descricao: String(l.descricao),
         categoriaId: numero(l.categoria_id),
       }));
+    },
+    buscar: async (id) => {
+      const [c] = await banco.select<Linha[]>(
+        `SELECT cartao_id, descricao, categoria_id, valor_total_centavos, num_parcelas,
+                data_compra, recorrente, observacao
+         FROM compras WHERE id = ? AND deleted_at IS NULL`,
+        [id],
+      );
+      if (!c) throw new RegistroNaoEncontrado('Compra', id);
+      const [rateios, parcelas] = await Promise.all([
+        banco.select<Linha[]>(
+          'SELECT terceiro_id, percentual FROM rateios WHERE compra_id = ? ORDER BY rowid',
+          [id],
+        ),
+        banco.select<Linha[]>(
+          'SELECT numero, competencia, valor_centavos FROM parcelas WHERE compra_id = ? ORDER BY numero',
+          [id],
+        ),
+      ]);
+      return {
+        id,
+        cartaoId: numero(c.cartao_id),
+        descricao: String(c.descricao),
+        categoriaId: c.categoria_id === null ? null : numero(c.categoria_id),
+        valorTotal: assertCentavos(numero(c.valor_total_centavos)),
+        numParcelas: numero(c.num_parcelas),
+        dataCompra: String(c.data_compra),
+        recorrente: Boolean(c.recorrente),
+        observacao: typeof c.observacao === 'string' ? c.observacao : null,
+        rateios: rateios.map((r) => ({
+          terceiroId: r.terceiro_id === null ? null : numero(r.terceiro_id),
+          percentual: numero(r.percentual),
+        })),
+        parcelas: parcelas.map((p) => ({
+          numero: numero(p.numero),
+          competencia: String(p.competencia),
+          valorCentavos: assertCentavos(numero(p.valor_centavos)),
+        })),
+      };
+    },
+    substituir: async function (id, dados, opcoes) {
+      await this.buscar(id);
+      const [cartao] = await banco.select<Linha[]>(
+        'SELECT dia_fechamento FROM cartoes WHERE id = ? AND deleted_at IS NULL',
+        [dados.cartaoId],
+      );
+      if (!cartao) throw new RegistroNaoEncontrado('Cartão', dados.cartaoId);
+      const preparada = prepararNovaCompra(dados, { diaFechamento: numero(cartao.dia_fechamento) });
+      await comandos.substituirCompra(id, {
+        ...preparada,
+        parcelas: opcoes?.parcelas ?? preparada.parcelas,
+      });
     },
     excluir: (id) =>
       exigirLinha(id, 'UPDATE compras SET deleted_at = ? WHERE id = ?', [
@@ -313,6 +363,6 @@ export function criarRepositoriosSqlite(banco: Banco, comandos: ComandosAtomicos
         ativo: Boolean(l.ativo),
       }),
     }),
-    compras: comprasSqlite(banco, (compra) => comandos.salvarCompra(compra)),
+    compras: comprasSqlite(banco, comandos),
   };
 }
