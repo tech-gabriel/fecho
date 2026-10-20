@@ -6,6 +6,7 @@ import {
   type Cadastro,
   type Cartao,
   type CartoesRepository,
+  type FaturasRepository,
   type Categoria,
   type ComprasRepository,
   type Novo,
@@ -247,9 +248,45 @@ function comprasSqlite(
   };
 }
 
+function faturasSqlite(banco: Banco): FaturasRepository {
+  return {
+    pagamentos: async () => {
+      const linhas = await banco.select<Linha[]>(
+        'SELECT cartao_id, competencia, pago_em, valor_pago_centavos FROM faturas ORDER BY competencia, cartao_id',
+      );
+      return linhas.map((l) => ({
+        cartaoId: numero(l.cartao_id),
+        competencia: String(l.competencia),
+        pagoEm: String(l.pago_em),
+        valorPagoCentavos: assertCentavos(numero(l.valor_pago_centavos)),
+      }));
+    },
+    marcarComoPaga: async ({ cartaoId, competencia, pagoEm, valorPagoCentavos }) => {
+      const [existe] = await banco.select<Linha[]>(
+        'SELECT 1 FROM cartoes WHERE id = ? AND deleted_at IS NULL',
+        [cartaoId],
+      );
+      if (!existe) throw new RegistroNaoEncontrado('Cartão', cartaoId);
+      await banco.execute(
+        `INSERT INTO faturas (cartao_id, competencia, pago_em, valor_pago_centavos) VALUES (?, ?, ?, ?)
+         ON CONFLICT (cartao_id, competencia) DO UPDATE
+         SET pago_em = excluded.pago_em, valor_pago_centavos = excluded.valor_pago_centavos`,
+        [cartaoId, competencia, pagoEm, valorPagoCentavos],
+      );
+    },
+    desmarcar: async (cartaoId, competencia) => {
+      await banco.execute('DELETE FROM faturas WHERE cartao_id = ? AND competencia = ?', [
+        cartaoId,
+        competencia,
+      ]);
+    },
+  };
+}
+
 export function criarRepositoriosSqlite(banco: Banco, comandos: ComandosAtomicos): Repositorios {
   return {
     cartoes: cartoesSqlite(banco, comandos),
+    faturas: faturasSqlite(banco),
     categorias: cadastroSqlite<Categoria>(banco, {
       entidade: 'Categoria',
       tabela: 'categorias',

@@ -1,3 +1,5 @@
+import { type Centavos } from './money';
+import { type Rateio, ratear } from './terceiros';
 import {
   type Competencia,
   type DataLocal,
@@ -67,12 +69,13 @@ export function recalcularFechamento(
   diaAntigo: number,
   diaNovo: number,
   hoje: DataLocal,
+  faturasPagas: readonly Competencia[] = [],
 ): MudancaDeFatura[] {
   const faturaAberta = competenciaDaCompra(hoje, diaAntigo);
 
   return compras.flatMap((compra) => {
     const de = compra.parcelas.find((p) => p.numero === 1)?.competencia;
-    if (!de || de < faturaAberta) return [];
+    if (!de || de < faturaAberta || faturasPagas.includes(de)) return [];
     const para = competenciaDaCompra(compra.dataCompra, diaNovo);
     if (para === de) return [];
     const delta = mesesEntre(de, para);
@@ -89,4 +92,48 @@ export function recalcularFechamento(
       },
     ];
   });
+}
+
+export type StatusDaFatura = 'paga' | 'atrasada' | 'pendente';
+
+export function statusDaFatura(
+  fatura: { vencimento: DataLocal; pagoEm: DataLocal | null },
+  hoje: DataLocal,
+): StatusDaFatura {
+  if (fatura.pagoEm) return 'paga';
+  return hoje > fatura.vencimento ? 'atrasada' : 'pendente';
+}
+
+export interface LinhaDaFatura {
+  parcelaId: number;
+  dono: number | null;
+  valorCentavos: Centavos;
+}
+
+export function linhasPorDono(
+  parcelas: readonly { parcelaId: number; valorCentavos: Centavos; rateios: readonly Rateio[] }[],
+): LinhaDaFatura[] {
+  return parcelas.flatMap(({ parcelaId, valorCentavos, rateios }) => {
+    const { meu, porTerceiro } = ratear(valorCentavos, rateios);
+    const minhas = meu > 0 ? [{ parcelaId, dono: null, valorCentavos: meu }] : [];
+    return [
+      ...minhas,
+      ...[...porTerceiro].map(([dono, valor]) => ({ parcelaId, dono, valorCentavos: valor })),
+    ];
+  });
+}
+
+export function resumoDaFatura(linhas: readonly LinhaDaFatura[]): {
+  total: Centavos;
+  meu: Centavos;
+  porTerceiro: Map<number, Centavos>;
+} {
+  const porTerceiro = new Map<number, Centavos>();
+  let meu = 0;
+  for (const { dono, valorCentavos } of linhas) {
+    if (dono === null) meu += valorCentavos;
+    else porTerceiro.set(dono, (porTerceiro.get(dono) ?? 0) + valorCentavos);
+  }
+  const total = meu + [...porTerceiro.values()].reduce((a, b) => a + b, 0);
+  return { total, meu, porTerceiro };
 }

@@ -1,6 +1,6 @@
-import { useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronDown, CreditCard } from 'lucide-react';
+import { ChevronDown, CreditCard, TriangleAlert } from 'lucide-react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
@@ -29,14 +29,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { Cartao, Categoria, Terceiro } from '@/data';
+import type { Cartao, Categoria, PagamentoDeFatura, Terceiro } from '@/data';
 import {
   previaDaCompra,
   rateioDaCompra,
   sugerirCategoria,
   type ModoDaCompra,
 } from '@/domain/compras';
+import { competenciaDaCompra } from '@/domain/faturas';
 import { lerReais } from '@/domain/money';
+import { nomeDoMes } from '@/lib/formato';
 import { MAXIMO_DE_PARCELAS } from '@/domain/parcelas';
 import { atributosDeErro, Campo } from '@/features/cadastros/Campo';
 import { executar } from '@/features/cadastros/SecaoCadastro';
@@ -103,11 +105,34 @@ const esquema = z
 
 type Entrada = z.input<typeof esquema>;
 
+function calcularPrevia(
+  valor: string,
+  cartao: Cartao | undefined,
+  numParcelas: number,
+  dataCompra: string,
+  modo: ModoDaCompra,
+  pessoas: Entrada['pessoas'],
+) {
+  const valorTotal = valorEmCentavos(valor);
+  if (!valorTotal || !cartao) return null;
+  const compra = { valorTotal, numParcelas, dataCompra };
+  try {
+    return previaDaCompra({ ...compra, rateios: rateioDaCompra(modo, pessoas) }, cartao);
+  } catch {
+    try {
+      return previaDaCompra({ ...compra, rateios: [] }, cartao);
+    } catch {
+      return null;
+    }
+  }
+}
+
 interface Dados {
   cartoes: Cartao[];
   categorias: Categoria[];
   terceiros: Terceiro[];
   historico: { descricao: string; categoriaId: number }[];
+  pagamentos: PagamentoDeFatura[];
 }
 
 export function NovaCompra() {
@@ -124,13 +149,15 @@ export function NovaCompra() {
       repos.categorias.listar(),
       repos.terceiros.listar(),
       repos.compras.ultimasCategorias(),
-    ]).then(([cartoes, categorias, terceiros, historico]) => {
+      repos.faturas.pagamentos(),
+    ]).then(([cartoes, categorias, terceiros, historico, pagamentos]) => {
       if (!montado) return;
       setDados({
         cartoes: cartoes.filter((c) => c.ativo),
         categorias: categorias.filter((c) => c.ativo),
         terceiros: terceiros.filter((t) => t.ativo),
         historico,
+        pagamentos,
       });
     });
     return () => {
@@ -185,6 +212,7 @@ function Formulario({ dados }: { dados: Dados }) {
   const id = useId();
   const repos = useRepositorios();
   const fechar = useApp((s) => s.fecharNovaCompra);
+  const dadosMudaram = useApp((s) => s.dadosMudaram);
   const hoje = hojeLocal();
   const [categoriaAMao, setCategoriaAMao] = useState(false);
   const [maisOpcoes, setMaisOpcoes] = useState(false);
@@ -220,33 +248,27 @@ function Formulario({ dados }: { dados: Dados }) {
   });
   const cartao = dados.cartoes.find((c) => c.id === cartaoId);
   const revalidar = { shouldValidate: isSubmitted };
+  const faturaDaCompra = cartao ? competenciaDaCompra(dataCompra, cartao.diaFechamento) : null;
+  const faturaPaga = dados.pagamentos.some(
+    (p) => p.cartaoId === cartaoId && p.competencia === faturaDaCompra,
+  );
 
-  const previa = useMemo(() => {
-    const valorTotal = valorEmCentavos(valor);
-    if (!valorTotal || !cartao) return null;
-    try {
-      return previaDaCompra(
-        { valorTotal, numParcelas, dataCompra, rateios: rateioDaCompra(modo, pessoas) },
-        cartao,
-      );
-    } catch {
-      try {
-        return previaDaCompra({ valorTotal, numParcelas, dataCompra, rateios: [] }, cartao);
-      } catch {
-        return null;
-      }
-    }
-  }, [valor, cartao, numParcelas, dataCompra, modo, pessoas]);
+  const previa = calcularPrevia(valor, cartao, numParcelas, dataCompra, modo, pessoas);
 
   const salvar = (abrirOutra: boolean) =>
     handleSubmit((compra) =>
       executar(async () => {
         const compraId = await repos.compras.salvar(compra);
         gravarUltimoCartao(compra.cartaoId);
+        dadosMudaram();
         toast.success('Compra registrada', {
           action: {
             label: 'Desfazer',
-            onClick: () => void executar(() => repos.compras.excluir(compraId)),
+            onClick: () =>
+              void executar(async () => {
+                await repos.compras.excluir(compraId);
+                dadosMudaram();
+              }),
           },
         });
         if (!abrirOutra) {
@@ -465,6 +487,22 @@ function Formulario({ dados }: { dados: Dados }) {
           </Campo>
         </CollapsibleContent>
       </Collapsible>
+
+      {faturaPaga && cartao && faturaDaCompra && (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning-text"
+        >
+          <TriangleAlert
+            size={16}
+            strokeWidth={1.75}
+            aria-hidden
+            className="mt-px flex-none text-warning"
+          />
+          A fatura de {nomeDoMes(faturaDaCompra).split(' ')[0]} do {cartao.nome} já foi paga. A
+          compra entra nela mesmo assim.
+        </p>
+      )}
 
       <DialogFooter className="items-center">
         <span className="flex-1 text-xs text-ink-muted">Shift+Enter salva e abre outra</span>

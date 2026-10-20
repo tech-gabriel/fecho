@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { competenciaDaCompra, datasDaFatura, recalcularFechamento } from './faturas';
+import {
+  competenciaDaCompra,
+  datasDaFatura,
+  linhasPorDono,
+  recalcularFechamento,
+  resumoDaFatura,
+  statusDaFatura,
+} from './faturas';
 
 describe('competenciaDaCompra', () => {
   it.each([
@@ -136,5 +143,67 @@ describe('recalcularFechamento', () => {
     );
 
     expect(mudanca).toBeUndefined();
+  });
+});
+
+describe('recalcularFechamento com faturas pagas', () => {
+  it('não move compras de fatura já paga', () => {
+    const compras = [
+      {
+        compraId: 1,
+        descricao: 'Tênis',
+        dataCompra: '2026-10-26',
+        parcelas: [{ numero: 1, competencia: '2026-10' }],
+      },
+    ];
+
+    expect(recalcularFechamento(compras, 28, 25, '2026-10-20', ['2026-10'])).toEqual([]);
+    expect(recalcularFechamento(compras, 28, 25, '2026-10-20', ['2026-09'])).toHaveLength(1);
+  });
+});
+
+describe('statusDaFatura', () => {
+  it.each([
+    [{ vencimento: '2026-11-05', pagoEm: '2026-11-01' }, '2026-11-20', 'paga'],
+    [{ vencimento: '2026-11-05', pagoEm: null }, '2026-11-05', 'pendente'],
+    [{ vencimento: '2026-11-05', pagoEm: null }, '2026-11-06', 'atrasada'],
+    [{ vencimento: '2026-11-05', pagoEm: null }, '2026-10-20', 'pendente'],
+  ] as const)('%j em %s → %s', (fatura, hoje, status) => {
+    expect(statusDaFatura(fatura, hoje)).toBe(status);
+  });
+});
+
+describe('linhas e resumo da fatura', () => {
+  const parcelas = [
+    { parcelaId: 1, valorCentavos: 21_651, rateios: [] },
+    {
+      parcelaId: 2,
+      valorCentavos: 10_001,
+      rateios: [
+        { terceiroId: null, percentual: 50 },
+        { terceiroId: 7, percentual: 50 },
+      ],
+    },
+    { parcelaId: 3, valorCentavos: 9_000, rateios: [{ terceiroId: 8, percentual: 100 }] },
+  ];
+
+  it('separa uma linha por dono, com o centavo que sobra comigo', () => {
+    expect(linhasPorDono(parcelas)).toEqual([
+      { parcelaId: 1, dono: null, valorCentavos: 21_651 },
+      { parcelaId: 2, dono: null, valorCentavos: 5_001 },
+      { parcelaId: 2, dono: 7, valorCentavos: 5_000 },
+      { parcelaId: 3, dono: 8, valorCentavos: 9_000 },
+    ]);
+  });
+
+  it('resume total, meu e por pessoa', () => {
+    expect(resumoDaFatura(linhasPorDono(parcelas))).toEqual({
+      total: 40_652,
+      meu: 26_652,
+      porTerceiro: new Map([
+        [7, 5_000],
+        [8, 9_000],
+      ]),
+    });
   });
 });
