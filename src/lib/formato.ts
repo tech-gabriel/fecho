@@ -32,3 +32,14 @@ export function formatarComSinal(centavos: Centavos): string {
 export function formatarDecimal(centavos: Centavos): string {
   return decimal.format(centavos / 100);
 }
+
+const dois = (n: number) => String(n).padStart(2, '0');
+
+export function quandoFoi(momento: Date, agora: Date): string {
+  const hora = `${dois(momento.getHours())}:${dois(momento.getMinutes())}`;
+  const dia = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diferenca = Math.round((dia(agora) - dia(momento)) / 86_400_000);
+  if (diferenca === 0) return `hoje às ${hora}`;
+  if (diferenca === 1) return `ontem às ${hora}`;
+  return `${dois(momento.getDate())}/${dois(momento.getMonth() + 1)}/${momento.getFullYear()} às ${hora}`;
+}

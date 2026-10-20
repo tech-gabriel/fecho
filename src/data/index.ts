@@ -1,4 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
+import { backupDoTauri } from './backup';
 import { criarRepositoriosEmMemoria } from './memory';
 import { semearDadosFicticios } from './memory/dados-ficticios';
 import type { Repositorios } from './repositories';
@@ -17,11 +18,15 @@ export async function criarRepositorios(): Promise<Repositorios> {
     import('./sqlite'),
   ]);
   const banco = await Database.load('sqlite:fecho.db');
-  return criarRepositoriosSqlite(banco, {
-    salvarCompra: (preparada) => invoke<number>('salvar_compra', { ...preparada }),
-    substituirCompra: (id, preparada) =>
-      invoke<undefined>('substituir_compra', { id, ...preparada }),
-    atualizarCartao: (id, cartao, parcelas) =>
-      invoke<undefined>('atualizar_cartao', { id, cartao, parcelas }),
-  });
+  return criarRepositoriosSqlite(
+    banco,
+    {
+      salvarCompra: (preparada) => invoke<number>('salvar_compra', { ...preparada }),
+      substituirCompra: (id, preparada) =>
+        invoke<undefined>('substituir_compra', { id, ...preparada }),
+      atualizarCartao: (id, cartao, parcelas) =>
+        invoke<undefined>('atualizar_cartao', { id, cartao, parcelas }),
+    },
+    backupDoTauri(),
+  );
 }

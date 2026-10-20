@@ -17,6 +17,7 @@ import {
   type Repositorios,
   type Terceiro,
 } from '../repositories';
+import { backupIndisponivel } from '../backup';
 
 type CompraGravada = Compra & { id: number; rateios: Rateio[]; excluido: boolean };
 type ParcelaGravada = Parcela & { id: number; compraId: number };
@@ -205,6 +206,7 @@ export function criarRepositoriosEmMemoria(): Repositorios {
   let preferencias: Preferencias = { ...PREFERENCIAS_PADRAO };
 
   return {
+    backup: backupIndisponivel,
     receitas: cadastroEmMemoria<Receita>('Receita', () => false),
     preferencias: {
       ler: async () => ({ ...preferencias }),
