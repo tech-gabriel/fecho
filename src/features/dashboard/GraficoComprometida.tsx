@@ -16,6 +16,8 @@ import { formatarMoeda, mesAbreviado, nomeDoMes } from '@/lib/formato';
 export interface MesComprometido {
   competencia: Competencia;
   valor: number;
+  parcelas: number;
+  assinaturas: number;
   percentual: number | null;
 }
 
@@ -30,10 +32,16 @@ export function GraficoComprometida({
 }) {
   const [ativo, setAtivo] = useState(0);
   const semRenda = meses.every((m) => m.percentual === null);
-  const dados = meses.map((m) => ({
-    mes: mesAbreviado(m.competencia).mes,
-    percentual: m.percentual ?? 0,
-  }));
+  const dados = meses.map((m) => {
+    const percentual = m.percentual ?? 0;
+    const daParte = (parte: number) => (m.valor > 0 ? (percentual * parte) / m.valor : 0);
+    return {
+      mes: mesAbreviado(m.competencia).mes,
+      percentual,
+      parcelas: daParte(m.parcelas),
+      assinaturas: daParte(m.assinaturas),
+    };
+  });
   const maior = Math.max(limite, ...dados.map((d) => d.percentual));
   const topo = Math.max(40, Math.ceil((maior + 5) / 10) * 10);
   const destaque = meses[ativo] ?? meses[0];
@@ -50,9 +58,15 @@ export function GraficoComprometida({
           </h2>
           <p className="text-xs text-ink-muted">Próximos 6 meses · o que já está lançado</p>
         </div>
-        <span className="flex items-center gap-2 text-xs text-ink-muted">
-          <span aria-hidden className="size-2.5 rounded-sm bg-chart-1" />
-          Parcelas
+        <span className="flex items-center gap-4 text-xs text-ink-muted">
+          <span className="flex items-center gap-2">
+            <span aria-hidden className="size-2.5 rounded-sm bg-chart-1" />
+            Parcelas
+          </span>
+          <span className="flex items-center gap-2">
+            <span aria-hidden className="size-2.5 rounded-sm bg-chart-3" />
+            Assinaturas
+          </span>
         </span>
       </div>
 
@@ -91,8 +105,22 @@ export function GraficoComprometida({
                 }}
               />
               <Bar
-                dataKey="percentual"
+                dataKey="parcelas"
+                stackId="comprometida"
                 fill="var(--chart-1)"
+                stroke="var(--surface)"
+                strokeWidth={2}
+                maxBarSize={40}
+                onMouseEnter={(_, indice) => {
+                  setAtivo(indice);
+                }}
+              />
+              <Bar
+                dataKey="assinaturas"
+                stackId="comprometida"
+                fill="var(--chart-3)"
+                stroke="var(--surface)"
+                strokeWidth={2}
                 radius={[4, 4, 0, 0]}
                 maxBarSize={40}
                 onMouseEnter={(_, indice) => {
@@ -119,6 +147,10 @@ export function GraficoComprometida({
           {' · '}
           {formatarMoeda(destaque.valor)}
           {destaque.percentual !== null && ` · ${porcento(destaque.percentual)} da renda`}
+          <span className="block text-xs">
+            Parcelas {formatarMoeda(destaque.parcelas)} · Assinaturas{' '}
+            {formatarMoeda(destaque.assinaturas)}
+          </span>
         </p>
       )}
 
@@ -128,6 +160,7 @@ export function GraficoComprometida({
           <tr>
             <th scope="col">Mês</th>
             <th scope="col">Parcelas</th>
+            <th scope="col">Assinaturas</th>
             <th scope="col">Da renda</th>
           </tr>
         </thead>
@@ -135,7 +168,8 @@ export function GraficoComprometida({
           {meses.map((m) => (
             <tr key={m.competencia}>
               <th scope="row">{nomeDoMes(m.competencia)}</th>
-              <td>{formatarMoeda(m.valor)}</td>
+              <td>{formatarMoeda(m.parcelas)}</td>
+              <td>{formatarMoeda(m.assinaturas)}</td>
               <td>{m.percentual === null ? 'sem renda' : porcento(m.percentual)}</td>
             </tr>
           ))}

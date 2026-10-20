@@ -570,5 +570,66 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         await expect(repos.compras.excluir(9999)).rejects.toThrow('não encontrado');
       });
     });
+
+    describe('assinaturas', () => {
+      const nuvem = () => ({
+        nome: 'Nuvem 2 TB',
+        cartaoId: cartaoRoxo,
+        categoriaId: null,
+        valorCentavos: 2_940,
+        dia: 25,
+        rateios: [
+          { terceiroId: null, percentual: 50 },
+          { terceiroId: ana, percentual: 50 },
+        ],
+        ativa: true,
+        inicio: '2026-10',
+      });
+
+      it('cria, lista com o rateio, pausa e exclui', async () => {
+        const id = await repos.assinaturas.criar(nuvem());
+        expect(await repos.assinaturas.listar()).toEqual([{ id, ...nuvem() }]);
+
+        await repos.assinaturas.atualizar(id, { ativa: false, valorCentavos: 3_000 });
+        expect(await repos.assinaturas.listar()).toEqual([
+          { id, ...nuvem(), ativa: false, valorCentavos: 3_000 },
+        ]);
+
+        await repos.assinaturas.excluir(id);
+        expect(await repos.assinaturas.listar()).toEqual([]);
+        await repos.assinaturas.restaurar(id);
+        expect(await repos.assinaturas.listar()).toHaveLength(1);
+      });
+
+      it('marca o mês gerado, mesmo se a cobrança for excluída, e não gera duas vezes', async () => {
+        const id = await repos.assinaturas.criar(nuvem());
+        const cobranca = compra({
+          descricao: 'Nuvem 2 TB',
+          valorTotal: 2_940,
+          numParcelas: 1,
+          dataCompra: '2026-10-25',
+          recorrente: true,
+          assinatura: { id, mes: '2026-10' },
+        });
+
+        const compraId = await repos.compras.salvar(cobranca);
+        await repos.compras.excluir(compraId);
+
+        expect(await repos.assinaturas.geradas()).toEqual([`${String(id)}:2026-10`]);
+        expect(await repos.assinaturas.possuiCompras(id)).toBe(true);
+        await expect(repos.compras.salvar(cobranca)).rejects.toThrow();
+      });
+
+      it('editar a cobrança mantém a ligação com a assinatura', async () => {
+        const id = await repos.assinaturas.criar(nuvem());
+        const compraId = await repos.compras.salvar(
+          compra({ numParcelas: 1, assinatura: { id, mes: '2026-10' } }),
+        );
+
+        await repos.compras.substituir(compraId, compra({ numParcelas: 1, valorTotal: 3_000 }));
+
+        expect(await repos.assinaturas.geradas()).toEqual([`${String(id)}:2026-10`]);
+      });
+    });
   });
 }

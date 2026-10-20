@@ -15,6 +15,7 @@ import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
 import type {
+  Assinatura,
   Cartao,
   Movimento,
   PagamentoDeFatura,
@@ -23,6 +24,7 @@ import type {
   Receita,
   Terceiro,
 } from '@/data';
+import { projecaoDeAssinaturas } from '@/domain/assinaturas';
 import { somarMeses } from '@/domain/competencia';
 import { linhasPorDono, resumoDaFatura } from '@/domain/faturas';
 import { receitasDoMes, rendaComprometida, resumoDoMes } from '@/domain/resumo';
@@ -46,6 +48,8 @@ interface Dados {
   preferencias: Preferencias;
   deTerceiros: ParcelaDoMes[];
   movimentos: Movimento[];
+  assinaturas: Assinatura[];
+  geradas: string[];
 }
 
 const MESES_DO_GRAFICO = 6;
@@ -122,6 +126,8 @@ export function Dashboard() {
       repos.preferencias.ler(),
       repos.compras.parcelasDeTerceiros(competencia),
       repos.receber.movimentos(),
+      repos.assinaturas.listar(),
+      repos.assinaturas.geradas(),
     ]).then(
       ([
         cartoes,
@@ -133,6 +139,8 @@ export function Dashboard() {
         preferencias,
         deTerceiros,
         movimentos,
+        assinaturas,
+        geradas,
       ]) => {
         if (montado) {
           setDados({
@@ -145,6 +153,8 @@ export function Dashboard() {
             preferencias,
             deTerceiros,
             movimentos,
+            assinaturas,
+            geradas,
           });
         }
       },
@@ -198,6 +208,12 @@ export function Dashboard() {
       return {
         competencia: mes,
         minhasParcelas: resumoDaFatura(linhasPorDono(parcelas)).meu,
+        assinaturas: projecaoDeAssinaturas(
+          dados.assinaturas,
+          mes,
+          new Set(dados.geradas),
+          dados.cartoes,
+        ),
         renda: receitasDoMes(dados.receitas, mes).reduce((s, r) => s + r.valorCentavos, 0),
       };
     }),

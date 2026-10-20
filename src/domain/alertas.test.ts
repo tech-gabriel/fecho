@@ -134,3 +134,40 @@ describe('grupoDoAlerta', () => {
     expect(grupoDoAlerta(7)).toBe('Antes');
   });
 });
+
+describe('alerta de assinatura', () => {
+  const nuvem = {
+    id: 4,
+    nome: 'Nuvem 2 TB',
+    cartaoId: 2,
+    categoriaId: null,
+    valorCentavos: 2_940,
+    dia: 25,
+    rateios: [],
+    ativa: true,
+    inicio: '2026-10',
+  };
+
+  it('avisa na véspera da cobrança', () => {
+    expect(alertasDoDia([], [], '2026-10-23', [], [nuvem])).toEqual([]);
+    expect(alertasDoDia([], [], '2026-10-24', [], [nuvem])).toEqual([
+      {
+        chave: 'assinatura:4:2026-10',
+        tipo: 'assinatura',
+        cartaoId: 2,
+        competencia: '2026-10',
+        assinaturaId: 4,
+        valor: 2_940,
+        data: '2026-10-25',
+        dias: 1,
+        idade: 0,
+      },
+    ]);
+    expect(alertasDoDia([], [], '2026-10-25', [], [nuvem])).toEqual([]);
+  });
+
+  it('não avisa assinatura pausada nem desligada', () => {
+    expect(alertasDoDia([], [], '2026-10-24', [], [{ ...nuvem, ativa: false }])).toEqual([]);
+    expect(alertasDoDia([], [], '2026-10-24', ['assinatura'], [nuvem])).toEqual([]);
+  });
+});

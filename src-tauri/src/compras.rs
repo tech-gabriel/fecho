@@ -16,6 +16,10 @@ pub struct Compra {
     pub data_compra: String,
     pub recorrente: bool,
     pub observacao: Option<String>,
+    #[serde(default)]
+    pub assinatura_id: Option<i64>,
+    #[serde(default)]
+    pub assinatura_mes: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -53,7 +57,8 @@ async fn inserir_na_transacao(
 ) -> Result<i64, sqlx::Error> {
     let compra_id = sqlx::query(
         "INSERT INTO compras (cartao_id, descricao, categoria_id, valor_total_centavos,
-           num_parcelas, data_compra, recorrente, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+           num_parcelas, data_compra, recorrente, observacao, assinatura_id, assinatura_mes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(compra.cartao_id)
     .bind(&compra.descricao)
@@ -63,6 +68,8 @@ async fn inserir_na_transacao(
     .bind(&compra.data_compra)
     .bind(compra.recorrente)
     .bind(&compra.observacao)
+    .bind(compra.assinatura_id)
+    .bind(&compra.assinatura_mes)
     .execute(&mut **tx)
     .await?
     .last_insert_rowid();
@@ -259,6 +266,8 @@ mod testes {
             data_compra: "2026-10-19".into(),
             recorrente: false,
             observacao: Some("presente".into()),
+            assinatura_id: None,
+            assinatura_mes: None,
         }
     }
 
@@ -275,6 +284,31 @@ mod testes {
             valor_centavos,
         })
         .collect()
+    }
+
+    #[test]
+    fn recusa_a_mesma_assinatura_duas_vezes_no_mes() {
+        let pool = banco();
+        tauri::async_runtime::block_on(
+            sqlx::query(
+                "INSERT INTO assinaturas (nome, cartao_id, valor_centavos, dia, inicio)
+                   VALUES ('Nuvem', 1, 2940, 25, '2026-10')",
+            )
+            .execute(&pool),
+        )
+        .unwrap();
+        let cobranca = Compra {
+            assinatura_id: Some(1),
+            assinatura_mes: Some("2026-10".into()),
+            ..compra()
+        };
+
+        tauri::async_runtime::block_on(inserir_compra(&pool, &cobranca, &[], &parcelas())).unwrap();
+        let repetida =
+            tauri::async_runtime::block_on(inserir_compra(&pool, &cobranca, &[], &parcelas()));
+
+        assert!(repetida.is_err());
+        assert_eq!(contar(&pool, "compras"), 1);
     }
 
     #[test]

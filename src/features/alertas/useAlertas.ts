@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
 import type {
+  Assinatura,
   Cartao,
   Movimento,
   PagamentoDeFatura,
@@ -28,6 +29,7 @@ interface Dados {
   deTerceiros: ParcelaDoMes[];
   movimentos: Movimento[];
   preferencias: Preferencias;
+  assinaturas: Assinatura[];
 }
 
 export interface AlertaNaTela extends Alerta {
@@ -65,6 +67,7 @@ function calcular(dados: Dados, hoje: DataLocal): AlertaNaTela[] {
     dados.cartoes.filter((c) => c.ativo),
     hoje,
     dados.preferencias.alertasDesligados,
+    dados.assinaturas,
   ).flatMap((alerta) => {
     const cartao = dados.cartoes.find((c) => c.id === alerta.cartaoId);
     if (!cartao) return [];
@@ -74,7 +77,11 @@ function calcular(dados: Dados, hoje: DataLocal): AlertaNaTela[] {
         ...alerta,
         cartao,
         terceiro,
-        texto: textoDoAlerta(alerta, { cartao: cartao.nome, terceiro: terceiro?.nome }),
+        texto: textoDoAlerta(alerta, {
+          cartao: cartao.nome,
+          terceiro: terceiro?.nome,
+          assinatura: dados.assinaturas.find((a) => a.id === alerta.assinaturaId)?.nome,
+        }),
         lido: lidos.has(alerta.chave),
       },
     ];
@@ -109,11 +116,32 @@ export function useAlertas() {
       repos.compras.parcelasDeTerceiros(somarMeses(atual, 1)),
       repos.receber.movimentos(),
       repos.preferencias.ler(),
-    ]).then(([cartoes, terceiros, porMes, pagamentos, deTerceiros, movimentos, preferencias]) => {
-      if (montado) {
-        setDados({ cartoes, terceiros, porMes, pagamentos, deTerceiros, movimentos, preferencias });
-      }
-    });
+      repos.assinaturas.listar(),
+    ]).then(
+      ([
+        cartoes,
+        terceiros,
+        porMes,
+        pagamentos,
+        deTerceiros,
+        movimentos,
+        preferencias,
+        assinaturas,
+      ]) => {
+        if (montado) {
+          setDados({
+            cartoes,
+            terceiros,
+            porMes,
+            pagamentos,
+            deTerceiros,
+            movimentos,
+            preferencias,
+            assinaturas,
+          });
+        }
+      },
+    );
     return () => {
       montado = false;
     };

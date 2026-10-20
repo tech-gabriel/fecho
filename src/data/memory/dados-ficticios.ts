@@ -89,7 +89,41 @@ export async function semearDadosFicticios(repos: Repositorios) {
     { terceiroId: carla, percentual: 100 },
   ]);
   await compra(azul, 'Notebook', compras, 480_000, 10, '2026-06-15');
-  await compra(verdeAgua, 'Streaming', assinaturas, 5590, 1, '2026-10-05');
+  const assinatura = async (
+    dados: Omit<Parameters<typeof repos.assinaturas.criar>[0], 'ativa' | 'inicio'>,
+  ) => {
+    const id = await repos.assinaturas.criar({ ...dados, ativa: true, inicio: '2026-10' });
+    await repos.compras.salvar({
+      cartaoId: dados.cartaoId,
+      descricao: dados.nome,
+      categoriaId: dados.categoriaId,
+      valorTotal: dados.valorCentavos,
+      numParcelas: 1,
+      dataCompra: `2026-10-${String(dados.dia).padStart(2, '0')}`,
+      recorrente: true,
+      rateios: dados.rateios,
+      assinatura: { id, mes: '2026-10' },
+    });
+  };
+  await assinatura({
+    nome: 'Streaming',
+    cartaoId: verdeAgua,
+    categoriaId: assinaturas,
+    valorCentavos: 5590,
+    dia: 5,
+    rateios: [],
+  });
+  await assinatura({
+    nome: 'Nuvem 2 TB',
+    cartaoId: azul,
+    categoriaId: assinaturas,
+    valorCentavos: 2940,
+    dia: 25,
+    rateios: [
+      { terceiroId: null, percentual: 50 },
+      { terceiroId: ana, percentual: 50 },
+    ],
+  });
   await compra(verdeAgua, 'Farmácia', mercado, 8_420, 1, '2026-10-08', [
     { terceiroId: null, percentual: 50 },
     { terceiroId: bruno, percentual: 50 },

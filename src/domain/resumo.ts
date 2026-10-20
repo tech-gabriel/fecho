@@ -74,11 +74,27 @@ export function resumoDoMes(mes: {
 }
 
 export function rendaComprometida(
-  meses: readonly { competencia: Competencia; minhasParcelas: Centavos; renda: Centavos }[],
-): { competencia: Competencia; valor: Centavos; percentual: number | null }[] {
-  return meses.map(({ competencia, minhasParcelas, renda }) => ({
-    competencia,
-    valor: minhasParcelas,
-    percentual: renda > 0 ? Math.round((minhasParcelas / renda) * 10_000) / 100 : null,
-  }));
+  meses: readonly {
+    competencia: Competencia;
+    minhasParcelas: Centavos;
+    assinaturas?: Centavos;
+    renda: Centavos;
+  }[],
+): {
+  competencia: Competencia;
+  valor: Centavos;
+  parcelas: Centavos;
+  assinaturas: Centavos;
+  percentual: number | null;
+}[] {
+  return meses.map(({ competencia, minhasParcelas, assinaturas = 0, renda }) => {
+    const valor = minhasParcelas + assinaturas;
+    return {
+      competencia,
+      valor,
+      parcelas: minhasParcelas,
+      assinaturas,
+      percentual: renda > 0 ? Math.round((valor / renda) * 10_000) / 100 : null,
+    };
+  });
 }

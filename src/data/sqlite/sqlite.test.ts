@@ -84,6 +84,8 @@ describe('sqlite', () => {
           dataCompra: '2026-10-19',
           recorrente: false,
           observacao: null,
+          assinaturaId: null,
+          assinaturaMes: null,
         },
         rateios: [],
         parcelas: [{ numero: 99, competencia: '2026-10', valorCentavos: 100 }],
