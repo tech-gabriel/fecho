@@ -25,6 +25,10 @@ export function formatarMoeda(centavos: Centavos): string {
   return moeda.format(centavos / 100);
 }
 
+export function formatarComSinal(centavos: Centavos): string {
+  return formatarMoeda(centavos).replace('-', '−');
+}
+
 export function formatarDecimal(centavos: Centavos): string {
   return decimal.format(centavos / 100);
 }

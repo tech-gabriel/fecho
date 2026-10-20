@@ -1,5 +1,6 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { Configuracoes } from '@/features/cadastros/Configuracoes';
+import { Dashboard } from '@/features/dashboard/Dashboard';
 import { Faturas } from '@/features/faturas/Faturas';
 import { Lancamentos } from '@/features/lancamentos/Lancamentos';
 import { EmBreve } from './EmBreve';
@@ -7,6 +8,7 @@ import { AppLayout } from './layout/AppLayout';
 import { CONFIGURACOES, PAGINAS } from './paginas';
 
 const TELAS: Record<string, () => React.ReactNode> = {
+  '/': Dashboard,
   '/faturas': Faturas,
   '/lancamentos': Lancamentos,
 };
