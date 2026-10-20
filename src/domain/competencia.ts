@@ -56,3 +56,14 @@ export function diasEntre(de: DataLocal, ate: DataLocal): number {
   };
   return Math.round((utc(ate) - utc(de)) / 86_400_000);
 }
+
+export type LegendaDoMes =
+  { tipo: 'atual'; diasParaFechar: number } | { tipo: 'futuro' } | { tipo: 'passado' };
+
+export function legendaDoMes(c: Competencia, hoje: DataLocal): LegendaDoMes {
+  const atual = competenciaDe(hoje);
+  if (c === atual) {
+    return { tipo: 'atual', diasParaFechar: diasEntre(hoje, dataNaCompetencia(c, 31)) };
+  }
+  return { tipo: assertCompetencia(c) > atual ? 'futuro' : 'passado' };
+}
