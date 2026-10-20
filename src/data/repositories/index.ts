@@ -66,6 +66,7 @@ export interface ParcelaDoMes {
 export interface ComprasRepository {
   salvar(dados: DadosNovaCompra): Promise<number>;
   parcelasDaCompetencia(competencia: Competencia): Promise<ParcelaDoMes[]>;
+  ultimasCategorias(): Promise<{ descricao: string; categoriaId: number }[]>;
   excluir(id: number): Promise<void>;
   restaurar(id: number): Promise<void>;
 }

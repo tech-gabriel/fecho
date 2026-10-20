@@ -271,6 +271,27 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         );
       });
 
+      it('lista as categorias usadas, da compra mais recente para a mais antiga', async () => {
+        const feira = await repos.categorias.criar({ nome: 'Feira', icone: 'carrot', ativo: true });
+        const lazer = await repos.categorias.criar({
+          nome: 'Lazer',
+          icone: 'party-popper',
+          ativo: true,
+        });
+        await repos.compras.salvar(compra({ descricao: 'Feira livre', categoriaId: feira }));
+        await repos.compras.salvar(compra({ descricao: 'Cinema', categoriaId: lazer }));
+        const excluida = await repos.compras.salvar(
+          compra({ descricao: 'Show', categoriaId: lazer }),
+        );
+        await repos.compras.excluir(excluida);
+        await repos.compras.salvar(compra({ descricao: 'Sem categoria' }));
+
+        expect(await repos.compras.ultimasCategorias()).toEqual([
+          { descricao: 'Cinema', categoriaId: lazer },
+          { descricao: 'Feira livre', categoriaId: feira },
+        ]);
+      });
+
       it('recusa excluir compra inexistente', async () => {
         await expect(repos.compras.excluir(9999)).rejects.toThrow('não encontrado');
       });

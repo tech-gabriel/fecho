@@ -1,10 +1,12 @@
 import { Bell, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePaginaAtual } from '../paginas';
+import { useApp } from '../store';
 import { Dica, EM_BREVE, Kbd } from './apoio';
 
 export function Cabecalho() {
   const pagina = usePaginaAtual();
+  const abrirNovaCompra = useApp((s) => s.abrirNovaCompra);
 
   return (
     <header className="flex flex-none items-start justify-between gap-4">
@@ -33,13 +35,15 @@ export function Cabecalho() {
             <Bell strokeWidth={1.75} />
           </Button>
         </Dica>
-        <Dica texto={EM_BREVE}>
-          <Button aria-disabled="true" aria-keyshortcuts="Control+N" className="pr-2 font-semibold">
-            <Plus strokeWidth={2} />
-            Nova compra
-            <Kbd className="bg-on-brand/12 text-on-brand">Ctrl N</Kbd>
-          </Button>
-        </Dica>
+        <Button
+          aria-keyshortcuts="Control+N"
+          className="pr-2 font-semibold"
+          onClick={abrirNovaCompra}
+        >
+          <Plus strokeWidth={2} />
+          Nova compra
+          <Kbd className="bg-on-brand/12 text-on-brand">Ctrl N</Kbd>
+        </Button>
       </div>
     </header>
   );

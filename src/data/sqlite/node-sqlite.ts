@@ -24,7 +24,7 @@ export function bancoDeTeste() {
       const { lastInsertRowid } = db
         .prepare(
           `INSERT INTO compras (cartao_id, descricao, categoria_id, valor_total_centavos,
-             num_parcelas, data_compra, recorrente) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+             num_parcelas, data_compra, recorrente, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           compra.cartaoId,
@@ -34,6 +34,7 @@ export function bancoDeTeste() {
           compra.numParcelas,
           compra.dataCompra,
           compra.recorrente ? 1 : 0,
+          compra.observacao,
         );
       for (const r of rateios) {
         db.prepare('INSERT INTO rateios (compra_id, terceiro_id, percentual) VALUES (?, ?, ?)').run(
