@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { EditarCompra } from '@/features/nova-compra/EditarCompra';
 import { NovaCompra } from '@/features/nova-compra/NovaCompra';
 import { DURACAO, MOVIMENTO, gsap, useGSAP } from '@/lib/gsap';
 import { useAtalhosGlobais } from '../useAtalhosGlobais';
@@ -40,6 +41,7 @@ export function AppLayout() {
         </main>
       </div>
       <NovaCompra />
+      <EditarCompra />
       <Toaster />
     </TooltipProvider>
   );

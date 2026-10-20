@@ -64,11 +64,22 @@ function comprasEmMemoria(
   parcelas: ParcelaGravada[],
   cartaoVigente: (id: number) => Cartao,
 ) {
+  let proximaParcela = 1;
   const buscar = (id: number) => {
     const compra = compras.find((c) => c.id === id);
     if (!compra) throw new RegistroNaoEncontrado('Compra', id);
     return compra;
   };
+  const vigente = (id: number) => {
+    const compra = buscar(id);
+    if (compra.excluido) throw new RegistroNaoEncontrado('Compra', id);
+    return compra;
+  };
+  const parcelasDa = (compraId: number) =>
+    parcelas
+      .filter((p) => p.compraId === compraId)
+      .sort((a, b) => a.numero - b.numero)
+      .map(({ numero, competencia, valorCentavos }) => ({ numero, competencia, valorCentavos }));
 
   const repositorio: ComprasRepository = {
     salvar: async (dados) => {
@@ -76,7 +87,7 @@ function comprasEmMemoria(
       const id = compras.length + 1;
       compras.push({ ...preparada.compra, id, rateios: preparada.rateios, excluido: false });
       for (const parcela of preparada.parcelas) {
-        parcelas.push({ ...parcela, id: parcelas.length + 1, compraId: id });
+        parcelas.push({ ...parcela, id: proximaParcela++, compraId: id });
       }
       return id;
     },
@@ -107,6 +118,34 @@ function comprasEmMemoria(
         .reverse()
         .slice(0, 500)
         .map((c) => ({ descricao: c.descricao, categoriaId: Number(c.categoriaId) })),
+    buscar: async (id) => {
+      const c = vigente(id);
+      return {
+        id: c.id,
+        cartaoId: c.cartaoId,
+        descricao: c.descricao,
+        categoriaId: c.categoriaId,
+        valorTotal: c.valorTotalCentavos,
+        numParcelas: c.numParcelas,
+        dataCompra: c.dataCompra,
+        recorrente: c.recorrente,
+        observacao: c.observacao,
+        rateios: c.rateios.map((r) => ({ ...r })),
+        parcelas: parcelasDa(id),
+      };
+    },
+    substituir: async (id, dados, opcoes) => {
+      const atual = vigente(id);
+      const preparada = prepararNovaCompra(dados, cartaoVigente(dados.cartaoId));
+      const novas = opcoes?.parcelas ?? preparada.parcelas;
+      Object.assign(atual, preparada.compra, { rateios: preparada.rateios });
+      for (let i = parcelas.length - 1; i >= 0; i--) {
+        if (parcelas[i]?.compraId === id) parcelas.splice(i, 1);
+      }
+      for (const parcela of novas) {
+        parcelas.push({ ...parcela, id: proximaParcela++, compraId: id });
+      }
+    },
     excluir: async (id) => {
       buscar(id).excluido = true;
     },

@@ -1,5 +1,6 @@
 import type { Competencia, DataLocal } from '@/domain/competencia';
 import type { DadosNovaCompra } from '@/domain/compras';
+import type { Parcela } from '@/domain/parcelas';
 import type { CompraParaRecalculo, MudancaDeFatura } from '@/domain/faturas';
 import type { Centavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
@@ -63,10 +64,19 @@ export interface ParcelaDoMes {
   rateios: Rateio[];
 }
 
+export interface CompraGravada extends DadosNovaCompra {
+  id: number;
+  observacao: string | null;
+  rateios: Rateio[];
+  parcelas: Parcela[];
+}
+
 export interface ComprasRepository {
   salvar(dados: DadosNovaCompra): Promise<number>;
   parcelasDaCompetencia(competencia: Competencia): Promise<ParcelaDoMes[]>;
   ultimasCategorias(): Promise<{ descricao: string; categoriaId: number }[]>;
+  buscar(id: number): Promise<CompraGravada>;
+  substituir(id: number, dados: DadosNovaCompra, opcoes?: { parcelas?: Parcela[] }): Promise<void>;
   excluir(id: number): Promise<void>;
   restaurar(id: number): Promise<void>;
 }

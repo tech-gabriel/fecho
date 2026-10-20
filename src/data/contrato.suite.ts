@@ -329,6 +329,89 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         ]);
       });
 
+      it('busca a compra com rateio, observação e parcelas', async () => {
+        const id = await repos.compras.salvar(
+          compra({
+            observacao: 'presente',
+            rateios: [
+              { terceiroId: null, percentual: 50 },
+              { terceiroId: ana, percentual: 50 },
+            ],
+          }),
+        );
+
+        expect(await repos.compras.buscar(id)).toEqual({
+          id,
+          cartaoId: cartaoRoxo,
+          descricao: 'Tênis',
+          categoriaId: null,
+          valorTotal: 64_950,
+          numParcelas: 3,
+          dataCompra: '2026-10-19',
+          recorrente: false,
+          observacao: 'presente',
+          rateios: [
+            { terceiroId: null, percentual: 50 },
+            { terceiroId: ana, percentual: 50 },
+          ],
+          parcelas: [
+            { numero: 1, competencia: '2026-10', valorCentavos: 21_650 },
+            { numero: 2, competencia: '2026-11', valorCentavos: 21_650 },
+            { numero: 3, competencia: '2026-12', valorCentavos: 21_650 },
+          ],
+        });
+      });
+
+      it('substitui a compra gerando as parcelas de novo', async () => {
+        const id = await repos.compras.salvar(compra());
+
+        await repos.compras.substituir(
+          id,
+          compra({
+            descricao: 'Tênis novo',
+            numParcelas: 2,
+            valorTotal: 10_001,
+            rateios: [{ terceiroId: ana, percentual: 100 }],
+          }),
+        );
+
+        const atual = await repos.compras.buscar(id);
+        expect(atual).toMatchObject({
+          descricao: 'Tênis novo',
+          numParcelas: 2,
+          valorTotal: 10_001,
+        });
+        expect(atual.rateios).toEqual([{ terceiroId: ana, percentual: 100 }]);
+        expect(atual.parcelas).toEqual([
+          { numero: 1, competencia: '2026-10', valorCentavos: 5_001 },
+          { numero: 2, competencia: '2026-11', valorCentavos: 5_000 },
+        ]);
+        expect(await repos.compras.parcelasDaCompetencia('2026-12')).toEqual([]);
+      });
+
+      it('substitui mantendo as parcelas quando pedido', async () => {
+        const id = await repos.compras.salvar(compra({ dataCompra: '2026-10-26' }));
+        await repos.cartoes.atualizar(cartaoRoxo, { diaFechamento: 25 });
+
+        await repos.compras.substituir(
+          id,
+          compra({ dataCompra: '2026-10-26', descricao: 'Renomeada' }),
+          { parcelas: (await repos.compras.buscar(id)).parcelas },
+        );
+
+        const [outubro] = await repos.compras.parcelasDaCompetencia('2026-10');
+        expect(outubro).toMatchObject({ descricao: 'Renomeada', numero: 1 });
+      });
+
+      it('recusa buscar ou substituir compra excluída ou inexistente', async () => {
+        const id = await repos.compras.salvar(compra());
+        await repos.compras.excluir(id);
+
+        await expect(repos.compras.buscar(id)).rejects.toThrow('não encontrado');
+        await expect(repos.compras.substituir(id, compra())).rejects.toThrow('não encontrad');
+        await expect(repos.compras.buscar(9999)).rejects.toThrow('não encontrad');
+      });
+
       it('recusa excluir compra inexistente', async () => {
         await expect(repos.compras.excluir(9999)).rejects.toThrow('não encontrado');
       });
