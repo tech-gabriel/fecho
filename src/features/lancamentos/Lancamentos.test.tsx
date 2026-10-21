@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import * as XLSX from 'xlsx';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { toast } from 'sonner';
@@ -9,6 +10,12 @@ import { useApp } from '@/app/store';
 import { criarRepositoriosEmMemoria } from '@/data/memory';
 import type { DadosNovaCompra } from '@/domain/compras';
 import type { Repositorios } from '@/data';
+import { salvarPlanilha } from '@/data/backup';
+
+vi.mock('@/data/backup', async (original) => ({
+  ...(await original<typeof import('@/data/backup')>()),
+  salvarPlanilha: vi.fn((nome: string) => Promise.resolve(nome)),
+}));
 
 let repos: Repositorios;
 let ids: { roxo: number; azul: number; ana: number; mercado: number; casa: number };
@@ -291,5 +298,28 @@ describe('Lançamentos', () => {
     expect(await screen.findByText('Nada lançado em Junho ainda.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Registrar compra' }));
     expect(await screen.findByRole('dialog', { name: 'Nova compra' })).toBeInTheDocument();
+  });
+});
+
+describe('Exportar .xlsx', () => {
+  it('exporta as compras do mês com uma aba por cartão', async () => {
+    await abrir();
+    fireEvent.click(await screen.findByRole('button', { name: 'Exportar .xlsx' }));
+
+    expect(await screen.findByText('Planilha de Outubro exportada')).toBeInTheDocument();
+    const [nome, bytes] = vi.mocked(salvarPlanilha).mock.lastCall ?? [];
+    expect(nome).toBe('fecho-2026-10.xlsx');
+    const livro = XLSX.read(bytes, { type: 'array' });
+    expect([...livro.SheetNames].sort()).toEqual(['Cartão Azul', 'Cartão Roxo']);
+    const roxo = XLSX.utils.sheet_to_json<unknown[]>(
+      livro.Sheets['Cartão Roxo'] as XLSX.WorkSheet,
+      {
+        header: 1,
+      },
+    );
+    expect(roxo.filter((l) => l[1] === 'Tênis').map((l) => [l[3], l[4]])).toEqual([
+      ['1 de 6', 'Eu'],
+      ['1 de 6', 'Ana'],
+    ]);
   });
 });
