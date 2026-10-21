@@ -73,6 +73,7 @@ beforeEach(async () => {
     recorrente: false,
     rateios: [{ terceiroId: ids.ana, percentual: 100 }],
   });
+  await repos.fechamento.fechar('2026-10', '2026-11-01');
 });
 
 afterEach(() => {
@@ -245,5 +246,23 @@ describe('Alerta de parcela de empréstimo', () => {
       ]);
     });
     expect(await sino('Alertas, 3 novos')).toBeInTheDocument();
+  });
+});
+
+describe('Lembrete de fechar o mês', () => {
+  it('lembra o mês anterior ainda aberto e leva ao fechamento', async () => {
+    await repos.fechamento.reabrir('2026-10');
+    const router = await abrir();
+
+    const central = await abrirSino();
+    fireEvent.click(
+      central.getByRole('button', {
+        name: /Outubro ainda não foi fechado\. Que tal conferir as faturas\?/,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/fechar/2026-10');
+    });
   });
 });

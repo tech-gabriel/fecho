@@ -7,12 +7,13 @@ import { AReceber } from '@/features/receber/AReceber';
 import { Assinaturas } from '@/features/assinaturas/Assinaturas';
 import { Calendario } from '@/features/calendario/Calendario';
 import { Economias } from '@/features/economias/Economias';
+import { FecharMes } from '@/features/fechamento/FecharMes';
 import { Emprestimos } from '@/features/emprestimos/Emprestimos';
 import { EmBreve } from './EmBreve';
 import { AppLayout } from './layout/AppLayout';
 import { Raiz } from './layout/Raiz';
 import { Importacao } from '@/features/importacao/Importacao';
-import { CONFIGURACOES, PAGINAS } from './paginas';
+import { CONFIGURACOES, FECHAR_O_MES, PAGINAS } from './paginas';
 
 const TELAS: Record<string, () => React.ReactNode> = {
   '/': Dashboard,
@@ -39,6 +40,7 @@ export const rotas: RouteObject[] = [
             Component: TELAS[pagina.caminho] ?? EmBreve,
           })),
           { path: CONFIGURACOES.caminho, handle: CONFIGURACOES, Component: Configuracoes },
+          { path: FECHAR_O_MES.caminho, handle: FECHAR_O_MES, Component: FecharMes },
           { path: '*', element: <Navigate to="/" replace /> },
         ],
       },

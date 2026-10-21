@@ -2,11 +2,13 @@ import { chaveDaCobranca } from '@/domain/assinaturas';
 import { type NovaCompraPreparada, prepararNovaCompra } from '@/domain/compras';
 import type { CompraParaRecalculo } from '@/domain/faturas';
 import type { ServicoDeBackup } from '../backup';
+import { comMesesFechados } from '../fechamento';
 import { assertCentavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
 import {
   type Assinatura,
   type Cadastro,
+  type FechamentoRepository,
   type EconomiasRepository,
   type EmprestimoConcedido,
   type MovimentoDeEconomia,
@@ -599,12 +601,59 @@ function receberSqlite(banco: Banco, comandos: ComandosAtomicos): ReceberReposit
   };
 }
 
+function fechamentoSqlite(banco: Banco): FechamentoRepository {
+  return {
+    fechados: async () => {
+      const linhas = await banco.select<Linha[]>(
+        'SELECT competencia FROM meses_fechados ORDER BY competencia',
+      );
+      return linhas.map((l) => String(l.competencia));
+    },
+    fechar: async (competencia, em) => {
+      await banco.execute(
+        `INSERT INTO meses_fechados (competencia, fechado_em) VALUES (?, ?)
+         ON CONFLICT (competencia) DO UPDATE SET fechado_em = excluded.fechado_em`,
+        [competencia, em],
+      );
+    },
+    reabrir: async (competencia) => {
+      await banco.execute('DELETE FROM meses_fechados WHERE competencia = ?', [competencia]);
+    },
+    conferencias: async () => {
+      const linhas = await banco.select<Linha[]>(
+        'SELECT cartao_id, competencia, extrato, conferida_em FROM conferencias',
+      );
+      return linhas.map((l) => ({
+        cartaoId: numero(l.cartao_id),
+        competencia: String(l.competencia),
+        extrato: typeof l.extrato === 'string' ? l.extrato : null,
+        conferidaEm: String(l.conferida_em),
+      }));
+    },
+    conferir: async ({ cartaoId, competencia, extrato, conferidaEm }) => {
+      await banco.execute(
+        `INSERT INTO conferencias (cartao_id, competencia, extrato, conferida_em) VALUES (?, ?, ?, ?)
+         ON CONFLICT (cartao_id, competencia)
+         DO UPDATE SET extrato = excluded.extrato, conferida_em = excluded.conferida_em`,
+        [cartaoId, competencia, extrato, conferidaEm],
+      );
+    },
+    desconferir: async (cartaoId, competencia) => {
+      await banco.execute('DELETE FROM conferencias WHERE cartao_id = ? AND competencia = ?', [
+        cartaoId,
+        competencia,
+      ]);
+    },
+  };
+}
+
 export function criarRepositoriosSqlite(
   banco: Banco,
   comandos: ComandosAtomicos,
   backup: ServicoDeBackup,
 ): Repositorios {
-  return {
+  return comMesesFechados({
+    fechamento: fechamentoSqlite(banco),
     backup,
     receber: receberSqlite(banco, comandos),
     cartoes: cartoesSqlite(banco, comandos),
@@ -697,5 +746,5 @@ export function criarRepositoriosSqlite(
         );
       },
     },
-  };
+  });
 }

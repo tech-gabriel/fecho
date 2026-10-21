@@ -29,6 +29,11 @@ const TIPOS: { tipo: TipoDeAlerta; rotulo: string; dica: string }[] = [
     dica: 'No dia do débito, até você marcar como paga',
   },
   {
+    tipo: 'fechar-mes',
+    rotulo: 'Hora de fechar o mês',
+    dica: 'Nos 3 últimos dias do mês e até o dia 10 do seguinte',
+  },
+  {
     tipo: 'devolucao',
     rotulo: 'Empréstimo não devolvido',
     dica: 'Quando alguém passa da data combinada para devolver',
