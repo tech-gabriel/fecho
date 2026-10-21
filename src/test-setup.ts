@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
+
+// Os runners do CI (sobretudo o Windows) renderizam bem mais devagar que a máquina local.
+configure({ asyncUtilTimeout: 4000 });
 
 afterEach(cleanup);
 
