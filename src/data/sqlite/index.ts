@@ -7,7 +7,10 @@ import type { Rateio } from '@/domain/terceiros';
 import {
   type Assinatura,
   type Cadastro,
+  type EconomiasRepository,
   type EmprestimoConcedido,
+  type MovimentoDeEconomia,
+  type Objetivo,
   type EmprestimosRepository,
   type EmprestimoTomado,
   type Cartao,
@@ -489,6 +492,54 @@ function emprestimosSqlite(banco: Banco): EmprestimosRepository {
   };
 }
 
+function economiasSqlite(banco: Banco): EconomiasRepository {
+  const texto = (v: unknown) => String(v);
+  return {
+    metas: {
+      listar: async () => {
+        const linhas = await banco.select<Linha[]>(
+          'SELECT valor_centavos, inicio FROM economia_metas ORDER BY inicio',
+        );
+        return linhas.map((l) => ({
+          valorCentavos: assertCentavos(numero(l.valor_centavos)),
+          inicio: texto(l.inicio),
+        }));
+      },
+      definir: async ({ valorCentavos, inicio }) => {
+        await banco.execute(
+          `INSERT INTO economia_metas (valor_centavos, inicio) VALUES (?, ?)
+           ON CONFLICT (inicio) DO UPDATE SET valor_centavos = excluded.valor_centavos`,
+          [valorCentavos, inicio],
+        );
+      },
+    },
+    objetivos: cadastroSqlite<Objetivo>(banco, {
+      entidade: 'Objetivo',
+      tabela: 'economia_objetivos',
+      colunas: { nome: 'nome', alvoCentavos: 'alvo_centavos', prazo: 'prazo' },
+      usoSql: 'SELECT 1 FROM economia_movimentos WHERE objetivo_id = ?',
+      ler: (l) => ({
+        id: numero(l.id),
+        nome: texto(l.nome),
+        alvoCentavos: assertCentavos(numero(l.alvo_centavos)),
+        prazo: l.prazo === null ? null : texto(l.prazo),
+      }),
+    }),
+    movimentos: cadastroSqlite<MovimentoDeEconomia>(banco, {
+      entidade: 'Registro',
+      tabela: 'economia_movimentos',
+      colunas: { data: 'data', valorCentavos: 'valor_centavos', objetivoId: 'objetivo_id' },
+      usoSql: 'SELECT 1 WHERE 0 = ?',
+      ler: (l) => ({
+        id: numero(l.id),
+        data: texto(l.data),
+        valorCentavos: assertCentavos(numero(l.valor_centavos)),
+        objetivoId: l.objetivo_id === null ? null : numero(l.objetivo_id),
+      }),
+    }),
+  };
+}
+
 function receberSqlite(banco: Banco, comandos: ComandosAtomicos): ReceberRepository {
   const exigirLinha = async (id: number, sql: string, params: unknown[]) => {
     const { rowsAffected } = await banco.execute(sql, params);
@@ -608,6 +659,7 @@ export function criarRepositoriosSqlite(
     }),
     compras: comprasSqlite(banco, comandos),
     emprestimos: emprestimosSqlite(banco),
+    economias: economiasSqlite(banco),
     assinaturas: {
       ...cadastroSqlite<Assinatura>(banco, {
         entidade: 'Assinatura',

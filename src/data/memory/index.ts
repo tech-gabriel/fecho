@@ -6,6 +6,9 @@ import {
   type Assinatura,
   type Cadastro,
   type EmprestimoConcedido,
+  type MetaDeEconomia,
+  type MovimentoDeEconomia,
+  type Objetivo,
   type EmprestimoTomado,
   type PagamentoDeParcela,
   type Cartao,
@@ -273,7 +276,31 @@ export function criarRepositoriosEmMemoria(): Repositorios {
   const mesmaParcela = (p: PagamentoDeParcela, emprestimoId: number, numero: number) =>
     p.emprestimoId === emprestimoId && p.numero === numero;
 
+  let metasDeEconomia: MetaDeEconomia[] = [];
+  const objetivos = cadastroEmMemoria<Objetivo>('Objetivo', () => false);
+  const movimentosDeEconomia = cadastroEmMemoria<MovimentoDeEconomia>('Registro', () => false);
+
   return {
+    economias: {
+      metas: {
+        listar: async () =>
+          metasDeEconomia.map((m) => ({ ...m })).sort((a, b) => a.inicio.localeCompare(b.inicio)),
+        definir: async (meta) => {
+          metasDeEconomia = [
+            ...metasDeEconomia.filter((m) => m.inicio !== meta.inicio),
+            { ...meta },
+          ];
+        },
+      },
+      objetivos,
+      movimentos: {
+        ...movimentosDeEconomia,
+        criar: async (novo) => {
+          if (novo.objetivoId !== null) objetivos.vigente(novo.objetivoId);
+          return movimentosDeEconomia.criar(novo);
+        },
+      },
+    },
     emprestimos: {
       tomados,
       concedidos: {
