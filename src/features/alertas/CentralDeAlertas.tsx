@@ -9,6 +9,7 @@ import {
   CreditCard,
   HandCoins,
   Landmark,
+  Lock,
   Repeat,
   TriangleAlert,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ const VISUAL: Record<TipoDeAlerta, { icone: typeof Bell; classe: string }> = {
   assinatura: { icone: Repeat, classe: 'bg-info-bg text-info-text' },
   devolucao: { icone: HandCoins, classe: 'bg-danger-bg text-danger-text' },
   'parcela-emprestimo': { icone: Landmark, classe: 'bg-warning-bg text-warning-text' },
+  'fechar-mes': { icone: Lock, classe: 'bg-brand-subtle text-brand-text' },
 };
 
 const GRUPOS: GrupoDeAlerta[] = ['Hoje', 'Esta semana', 'Antes'];
@@ -50,6 +52,10 @@ export function CentralDeAlertas() {
   const abrir = (alerta: AlertaNaTela) => {
     marcarComoLidos([alerta.chave]);
     setAberta(false);
+    if (alerta.tipo === 'fechar-mes') {
+      void navigate(`/fechar/${alerta.competencia}`);
+      return;
+    }
     if (alerta.tipo === 'assinatura' || alerta.tipo === 'parcela-emprestimo') {
       void navigate(alerta.tipo === 'assinatura' ? '/assinaturas' : '/emprestimos');
       return;

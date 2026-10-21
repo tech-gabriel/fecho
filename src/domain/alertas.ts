@@ -1,5 +1,12 @@
 import { type Assinatura, proximaCobranca } from './assinaturas';
-import { type Competencia, type DataLocal, competenciaDe, diasEntre } from './competencia';
+import {
+  type Competencia,
+  type DataLocal,
+  competenciaDe,
+  dataNaCompetencia,
+  diasEntre,
+  somarMeses,
+} from './competencia';
 import { competenciaDaCompra, datasDaFatura, type DiasDoCartao } from './faturas';
 import type { Centavos } from './money';
 import { DIAS_DE_ANTECEDENCIA_DO_ALERTA, precisaAlertarReembolso } from './terceiros';
@@ -11,7 +18,8 @@ export type TipoDeAlerta =
   | 'atraso'
   | 'assinatura'
   | 'devolucao'
-  | 'parcela-emprestimo';
+  | 'parcela-emprestimo'
+  | 'fechar-mes';
 
 export interface EmprestimosParaAlerta {
   devolucoes: readonly {
@@ -32,6 +40,8 @@ export interface EmprestimosParaAlerta {
 export const DIAS_ANTES_DO_FECHAMENTO = 3;
 export const DIAS_ANTES_DO_VENCIMENTO = 3;
 export const DIAS_DE_ATRASO_ALERTADOS = 30;
+export const DIAS_ANTES_DE_FECHAR_O_MES = 3;
+export const DIAS_PARA_LEMBRAR_O_MES_ANTERIOR = 10;
 
 export interface FaturaParaAlerta {
   cartaoId: number;
@@ -64,6 +74,7 @@ export function alertasDoDia(
   desligados: readonly TipoDeAlerta[] = [],
   assinaturas: readonly Assinatura[] = [],
   emprestimos: EmprestimosParaAlerta = { devolucoes: [], parcelas: [] },
+  fechados?: ReadonlySet<Competencia>,
 ): Alerta[] {
   const alertas: Alerta[] = [];
 
@@ -166,6 +177,29 @@ export function alertasDoDia(
       dias,
       idade: Math.abs(dias),
     });
+  }
+
+  const mesAtual = competenciaDe(hoje);
+  const anterior = somarMeses(mesAtual, -1);
+  const fimDoMes = dataNaCompetencia(mesAtual, 31);
+  const diasParaFechar = diasEntre(hoje, fimDoMes);
+  const lembrar = (competencia: Competencia, dias: number, idade: number) => {
+    alertas.push({
+      chave: `fechar-mes:${competencia}`,
+      tipo: 'fechar-mes',
+      cartaoId: 0,
+      competencia,
+      data: dataNaCompetencia(competencia, 31),
+      dias,
+      idade,
+    });
+  };
+  if (fechados && diasParaFechar <= DIAS_ANTES_DE_FECHAR_O_MES && !fechados.has(mesAtual)) {
+    lembrar(mesAtual, diasParaFechar, DIAS_ANTES_DE_FECHAR_O_MES - diasParaFechar);
+  }
+  const diasDepois = diasEntre(dataNaCompetencia(anterior, 31), hoje);
+  if (fechados && diasDepois <= DIAS_PARA_LEMBRAR_O_MES_ANTERIOR && !fechados.has(anterior)) {
+    lembrar(anterior, -diasDepois, diasDepois - 1);
   }
 
   return alertas.filter((a) => !desligados.includes(a.tipo)).sort((a, b) => a.idade - b.idade);

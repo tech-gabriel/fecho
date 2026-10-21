@@ -25,6 +25,22 @@ export type {
   PagamentoDeParcela,
 };
 
+export interface Conferencia {
+  cartaoId: number;
+  competencia: Competencia;
+  extrato: string | null;
+  conferidaEm: DataLocal;
+}
+
+export interface FechamentoRepository {
+  fechados(): Promise<Competencia[]>;
+  fechar(competencia: Competencia, em: DataLocal): Promise<void>;
+  reabrir(competencia: Competencia): Promise<void>;
+  conferencias(): Promise<Conferencia[]>;
+  conferir(conferencia: Conferencia): Promise<void>;
+  desconferir(cartaoId: number, competencia: Competencia): Promise<void>;
+}
+
 export interface EconomiasRepository {
   metas: {
     listar(): Promise<MetaDeEconomia[]>;
@@ -155,6 +171,7 @@ export interface Preferencias {
   alertasLidos: string[];
   alertasNotificados: string[];
   notificarNoWindows: boolean;
+  etapaDoFechamento: { competencia: Competencia; etapa: number } | null;
 }
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
@@ -168,6 +185,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   alertasLidos: [],
   alertasNotificados: [],
   notificarNoWindows: true,
+  etapaDoFechamento: null,
 };
 
 export interface PreferenciasRepository {
@@ -223,6 +241,13 @@ export interface Repositorios {
   assinaturas: AssinaturasRepository;
   emprestimos: EmprestimosRepository;
   economias: EconomiasRepository;
+  fechamento: FechamentoRepository;
+}
+
+export class MesFechado extends Error {
+  constructor(readonly competencia: Competencia) {
+    super(`O mês ${competencia} está fechado`);
+  }
 }
 
 export class RegistroNaoEncontrado extends Error {

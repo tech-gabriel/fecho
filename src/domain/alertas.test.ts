@@ -224,3 +224,25 @@ describe('alertas de empréstimo', () => {
     expect(doDia('2026-12-11', ['devolucao'])).toEqual([]);
   });
 });
+
+describe('alerta de fechar o mês', () => {
+  const doDia = (hoje: string, fechados: string[] = []) =>
+    alertasDoDia([], [], hoje, [], [], undefined, new Set(fechados)).map((a) => [
+      a.chave,
+      a.competencia,
+      a.dias,
+    ]);
+
+  it('lembra nos 3 últimos dias do mês', () => {
+    expect(doDia('2026-10-27')).toEqual([]);
+    expect(doDia('2026-10-28')).toEqual([['fechar-mes:2026-10', '2026-10', 3]]);
+    expect(doDia('2026-10-31')).toEqual([['fechar-mes:2026-10', '2026-10', 0]]);
+  });
+
+  it('continua lembrando o mês anterior até o dia 10, se não foi fechado', () => {
+    expect(doDia('2026-11-10')).toEqual([['fechar-mes:2026-10', '2026-10', -10]]);
+    expect(doDia('2026-11-11')).toEqual([]);
+    expect(doDia('2026-11-05', ['2026-10'])).toEqual([]);
+    expect(doDia('2026-10-30', ['2026-10'])).toEqual([]);
+  });
+});

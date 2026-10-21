@@ -72,7 +72,9 @@ function fraseDaMeta(
   }
   const falta = meta - guardado;
   const legenda = legendaDoMes(competencia, hoje);
-  if (legenda.tipo === 'passado') return `Faltaram ${formatarMoeda(falta)}.`;
+  if (legenda.tipo === 'passado' || legenda.tipo === 'fechado') {
+    return `Faltaram ${formatarMoeda(falta)}.`;
+  }
   if (legenda.tipo === 'futuro') return `Faltam ${formatarMoeda(falta)}.`;
   const ritmo = `Faltam ${formatarMoeda(falta)}. No ritmo de ${mesCurto(competencia)}, sobram ${formatarComSinal(sobra)} no fim do mês`;
   return sobra >= falta
@@ -82,6 +84,7 @@ function fraseDaMeta(
 
 function prazoDoMes(competencia: Competencia, hoje: string) {
   const legenda = legendaDoMes(competencia, hoje);
+  if (legenda.tipo === 'fechado') return 'Mês fechado';
   if (legenda.tipo === 'passado') return 'Mês encerrado';
   if (legenda.tipo === 'futuro') return 'Ainda não começou';
   return legenda.diasParaFechar === 0

@@ -58,9 +58,17 @@ export function diasEntre(de: DataLocal, ate: DataLocal): number {
 }
 
 export type LegendaDoMes =
-  { tipo: 'atual'; diasParaFechar: number } | { tipo: 'futuro' } | { tipo: 'passado' };
+  | { tipo: 'atual'; diasParaFechar: number }
+  | { tipo: 'futuro' }
+  | { tipo: 'passado' }
+  | { tipo: 'fechado' };
 
-export function legendaDoMes(c: Competencia, hoje: DataLocal): LegendaDoMes {
+export function legendaDoMes(
+  c: Competencia,
+  hoje: DataLocal,
+  fechados: ReadonlySet<Competencia> = new Set(),
+): LegendaDoMes {
+  if (fechados.has(c)) return { tipo: 'fechado' };
   const atual = competenciaDe(hoje);
   if (c === atual) {
     return { tipo: 'atual', diasParaFechar: diasEntre(hoje, dataNaCompetencia(c, 31)) };

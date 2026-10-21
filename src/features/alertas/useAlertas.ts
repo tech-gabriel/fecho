@@ -20,6 +20,7 @@ const MESES_OLHADOS = [-2, -1, 0, 1];
 interface Dados extends FaturasCarregadas {
   preferencias: Preferencias;
   assinaturas: Assinatura[];
+  fechados: string[];
 }
 
 export interface AlertaNaTela extends Alerta {
@@ -39,6 +40,7 @@ function calcular(dados: Dados, hoje: DataLocal): AlertaNaTela[] {
     dados.preferencias.alertasDesligados,
     dados.assinaturas,
     emprestimosParaAlerta(dados, hoje),
+    new Set(dados.fechados),
   ).flatMap((alerta) => {
     const cartao = dados.cartoes.find((c) => c.id === alerta.cartaoId);
     if (!cartao && alerta.cartaoId !== 0) return [];
@@ -88,8 +90,9 @@ export function useAlertas() {
       ),
       repos.preferencias.ler(),
       repos.assinaturas.listar(),
-    ]).then(([faturas, preferencias, assinaturas]) => {
-      if (montado) setDados({ ...faturas, preferencias, assinaturas });
+      repos.fechamento.fechados(),
+    ]).then(([faturas, preferencias, assinaturas, fechados]) => {
+      if (montado) setDados({ ...faturas, preferencias, assinaturas, fechados });
     });
     return () => {
       montado = false;
