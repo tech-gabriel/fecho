@@ -104,6 +104,7 @@ describe('Dados e backup', () => {
       expect(backup.restaurar).toHaveBeenCalledWith(
         'D:\\pendrive\\fecho.db',
         'fecho-2026-10-20-140000.db',
+        undefined,
       );
     });
   });

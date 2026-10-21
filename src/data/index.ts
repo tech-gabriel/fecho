@@ -1,5 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { backupDoTauri } from './backup';
+import { segurancaDoTauri } from './seguranca';
 import { criarRepositoriosEmMemoria } from './memory';
 import { semearDadosFicticios } from './memory/dados-ficticios';
 import type { Repositorios } from './repositories';
@@ -30,5 +31,6 @@ export async function criarRepositorios(): Promise<Repositorios> {
         invoke<undefined>('atualizar_cartao', { id, cartao, parcelas }),
     },
     backupDoTauri(),
+    segurancaDoTauri(),
   );
 }

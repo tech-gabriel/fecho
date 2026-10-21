@@ -26,7 +26,17 @@ function gravarSidebarRecolhida(recolhida: boolean) {
   }
 }
 
+export type MotivoDoBloqueio = 'inicio' | 'atalho' | 'inatividade';
+
 interface EstadoApp {
+  pinAtivo: boolean;
+  bloqueio: { em: Date; motivo: MotivoDoBloqueio } | null;
+  errosDoPin: number;
+  esperarAte: number | null;
+  definirPinAtivo: (ativo: boolean) => void;
+  bloquear: (motivo: MotivoDoBloqueio) => void;
+  desbloquear: () => void;
+  errarPin: (erros: number, esperarAte: number | null) => void;
   competencia: Competencia;
   sidebarRecolhida: boolean;
   novaCompraAberta: boolean;
@@ -50,6 +60,22 @@ interface EstadoApp {
 }
 
 export const useApp = create<EstadoApp>()((set) => ({
+  pinAtivo: false,
+  bloqueio: null,
+  errosDoPin: 0,
+  esperarAte: null,
+  definirPinAtivo: (pinAtivo) => {
+    set({ pinAtivo });
+  },
+  bloquear: (motivo) => {
+    set((s) => (s.bloqueio ? s : { bloqueio: { em: new Date(), motivo } }));
+  },
+  desbloquear: () => {
+    set({ bloqueio: null, errosDoPin: 0, esperarAte: null });
+  },
+  errarPin: (errosDoPin, esperarAte) => {
+    set({ errosDoPin, esperarAte });
+  },
   competencia: competenciaDe(hojeLocal()),
   sidebarRecolhida: lerSidebarRecolhida(),
   novaCompraAberta: false,
