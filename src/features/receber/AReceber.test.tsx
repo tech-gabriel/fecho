@@ -171,6 +171,39 @@ describe('A receber', () => {
     expect(await screen.findByRole('button', { name: 'Copiado' })).toBeInTheDocument();
   });
 
+  it('atalhos: Ctrl+Shift+C copia, Ctrl+Enter recebe tudo, Ctrl+Z desfaz e Ctrl+R abre outro valor', async () => {
+    await abrir(`/receber?pessoa=${String(ids.ana)}`);
+    await lista();
+
+    fireEvent.keyDown(window, { key: 'C', ctrlKey: true, shiftKey: true });
+    expect(await screen.findByRole('button', { name: 'Copiado' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
+    expect(await opcao(/Ana.*Pago/)).toBeInTheDocument();
+
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true });
+    expect(await opcao(/Ana.*Pendente/)).toBeInTheDocument();
+    expect((await repos.receber.movimentos()).map((m) => m.tipo)).toEqual(['cobranca']);
+
+    fireEvent.keyDown(document.body, { key: 'r', ctrlKey: true });
+    expect(await screen.findByLabelText('Quanto Ana depositou?')).toBeInTheDocument();
+  });
+
+  it('Ctrl+R em outra tela vai para A receber com o outro valor aberto', async () => {
+    const router = createMemoryRouter(rotas, { initialEntries: ['/faturas'] });
+    render(
+      <RepositoriosProvider criar={() => Promise.resolve(repos)}>
+        <RouterProvider router={router} />
+      </RepositoriosProvider>,
+    );
+    await screen.findByRole('heading', { level: 1, name: 'Faturas' });
+
+    fireEvent.keyDown(document.body, { key: 'r', ctrlKey: true });
+
+    expect(await screen.findByLabelText('Quanto Bruno depositou?')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/receber');
+  });
+
   it('mostra o estado vazio quando ninguém deve nada', async () => {
     repos = criarRepositoriosEmMemoria();
     await abrir();

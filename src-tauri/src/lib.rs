@@ -3,6 +3,8 @@ mod cartoes;
 mod compras;
 mod receber;
 mod seguranca;
+#[cfg_attr(not(windows), allow(dead_code))]
+mod teclas;
 
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -107,6 +109,10 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             backup::aplicar_restauracao_pendente(&app.path().app_config_dir()?)?;
+            #[cfg(windows)]
+            if let Some(janela) = app.get_webview_window("main") {
+                teclas::entregar_ao_app(&janela)?;
+            }
             Ok(())
         })
         .plugin(

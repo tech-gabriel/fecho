@@ -121,6 +121,21 @@ describe('Fechar o mês', () => {
     expect(await screen.findByText(/conferida em 03\/11 sem extrato/)).toBeVisible();
   });
 
+  it('Espaço confere a fatura e P marca a fatura como paga', async () => {
+    await abrir();
+    await screen.findByRole('button', { name: 'Conferir sem extrato' });
+
+    fireEvent.keyDown(document.body, { key: ' ' });
+    expect(await screen.findByText(/conferida em 03\/11 sem extrato/)).toBeVisible();
+
+    avancar();
+    await screen.findByRole('region', { name: 'Fatura do Cartão Roxo' });
+    fireEvent.keyDown(document.body, { key: 'p' });
+
+    expect(await screen.findByText('Fatura do Cartão Roxo marcada como paga')).toBeVisible();
+    expect(await repos.faturas.pagamentos()).toHaveLength(1);
+  });
+
   it('pagar menos joga o saldo para a próxima fatura, e desfazer tira os dois', async () => {
     await abrir();
     avancar();

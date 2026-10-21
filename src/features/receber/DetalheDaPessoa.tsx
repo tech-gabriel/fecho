@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { Check, ChevronDown, Copy, HandCoins, Layers, TriangleAlert } from 'lucide-react';
 import { cn } from 'cn';
+import { useLocation, useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { Cartao, Preferencias } from '@/data';
 import { diasEntre, type Competencia, type DataLocal } from '@/domain/competencia';
 import type { ItemComSituacao } from '@/domain/receber';
 import { dataCurta } from '@/features/faturas/ListaDeCartoes';
+import { emCampoDeTexto } from '@/lib/atalhos';
 import { formatarMoeda } from '@/lib/formato';
 import { useAcoesDeCobranca } from './acoes';
 import { ondeEQuando } from './ListaDePessoas';
@@ -38,7 +40,10 @@ export function DetalheDaPessoa({
   hoje: DataLocal;
 }) {
   const [copiado, setCopiado] = useState(false);
-  const [outroValor, setOutroValor] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pediuRegistro = (location.state as { registrar?: boolean } | null)?.registrar === true;
+  const [outroValor, setOutroValor] = useState(pediuRegistro);
   const { terceiro, falta, credito, prazo, status } = situacao;
   const nome = terceiro.nome;
   const nomeDoCartao = (id: number) => cartoes.find((c) => c.id === id)?.nome ?? '';
@@ -82,6 +87,28 @@ export function DetalheDaPessoa({
       },
     );
 
+  useEffect(() => {
+    if (!pediuRegistro) return;
+    void navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [pediuRegistro, navigate, location.pathname, location.search]);
+
+  const aoTeclar = useEffectEvent((e: KeyboardEvent) => {
+    if (!e.ctrlKey || e.altKey || emCampoDeTexto(e.target) || falta === 0) return;
+    if (e.shiftKey && e.key.toLowerCase() === 'c') {
+      e.preventDefault();
+      void copiar();
+    } else if (!e.shiftKey && e.key === 'Enter') {
+      e.preventDefault();
+      void registrar(falta, abertos);
+    }
+  });
+  useEffect(() => {
+    window.addEventListener('keydown', aoTeclar);
+    return () => {
+      window.removeEventListener('keydown', aoTeclar);
+    };
+  }, []);
+
   return (
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
       <div className="flex flex-col gap-4 rounded-lg border bg-surface p-6">
@@ -98,7 +125,11 @@ export function DetalheDaPessoa({
             </p>
           </div>
           {falta > 0 && (
-            <Button variant="outline" onClick={() => void copiar()}>
+            <Button
+              variant="outline"
+              aria-keyshortcuts="Control+Shift+C"
+              onClick={() => void copiar()}
+            >
               {copiado ? (
                 <Check strokeWidth={1.75} aria-hidden />
               ) : (
@@ -111,6 +142,7 @@ export function DetalheDaPessoa({
             <Button
               className="rounded-r-none"
               disabled={falta === 0}
+              aria-keyshortcuts="Control+Enter"
               onClick={() => void registrar(falta, abertos)}
             >
               {falta > 0 ? `Recebi ${formatarMoeda(falta)}` : 'Recebi'}
@@ -120,6 +152,8 @@ export function DetalheDaPessoa({
                 <Button
                   size="icon"
                   aria-label="Outro valor"
+                  aria-keyshortcuts="Control+R"
+                  data-atalho="outro-valor"
                   className="rounded-l-none border-l border-on-brand/20"
                 >
                   <ChevronDown strokeWidth={1.75} aria-hidden />

@@ -19,6 +19,7 @@ import { FormCartao, FormCategoria, FormPessoa } from './formularios';
 import { CORES_DE_CARTAO, iconeDaCategoria } from './opcoes';
 import { executar, SecaoCadastro } from './SecaoCadastro';
 import { SecaoAlertas } from './SecaoAlertas';
+import { SecaoAtalhos } from './SecaoAtalhos';
 import { SecaoBackup } from './SecaoBackup';
 import { SecaoSeguranca } from './SecaoSeguranca';
 import { SecaoCobranca } from './SecaoCobranca';
@@ -33,6 +34,7 @@ const SECOES = [
   { ancora: 'alertas', rotulo: 'Alertas' },
   { ancora: 'cobranca', rotulo: 'Cobrança' },
   { ancora: 'dados', rotulo: 'Dados e backup' },
+  { ancora: 'atalhos', rotulo: 'Atalhos' },
 ];
 
 const dia = (n: number) => `Dia ${String(n).padStart(2, '0')}`;
@@ -221,6 +223,7 @@ export function Configuracoes() {
         <SecaoAlertas />
         <SecaoCobranca />
         <SecaoBackup />
+        <SecaoAtalhos />
       </div>
 
       <Dialog

@@ -155,7 +155,12 @@ function CardDePagamento({ fatura, hoje }: { fatura: FaturaDoCartao; hoje: DataL
             <Label htmlFor={`${id}-data`}>Pago em</Label>
             <SeletorData id={`${id}-data`} valor={pagoEm} hoje={hoje} onEscolher={setPagoEm} />
           </div>
-          <Button disabled={pago === null} onClick={() => void marcarPaga()}>
+          <Button
+            disabled={pago === null}
+            aria-keyshortcuts="P"
+            data-atalho="marcar-paga"
+            onClick={() => void marcarPaga()}
+          >
             <Check strokeWidth={1.75} />
             Marcar paga
           </Button>

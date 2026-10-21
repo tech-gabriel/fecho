@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { GeradorDeCobrancas } from '@/features/assinaturas/GeradorDeCobrancas';
+import { FolhaDeAtalhos } from '@/features/comandos/FolhaDeAtalhos';
+import { PaletaDeComandos } from '@/features/comandos/PaletaDeComandos';
 import { EditarCompra } from '@/features/nova-compra/EditarCompra';
 import { NovaCompra } from '@/features/nova-compra/NovaCompra';
 import { DURACAO, MOVIMENTO, gsap, useGSAP } from '@/lib/gsap';
@@ -44,6 +46,8 @@ export function AppLayout() {
       <NovaCompra />
       <EditarCompra />
       <GeradorDeCobrancas />
+      <PaletaDeComandos />
+      <FolhaDeAtalhos />
     </>
   );
 }
