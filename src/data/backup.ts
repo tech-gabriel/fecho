@@ -12,8 +12,8 @@ export interface ServicoDeBackup {
   exportar(nomeSugerido: string): Promise<string | null>;
   automatico(nome: string): Promise<string>;
   escolherBackup(): Promise<string | null>;
-  inspecionar(origem: string): Promise<InfoDoBackup>;
-  restaurar(origem: string, nome: string): Promise<void>;
+  inspecionar(origem: string, senha?: string): Promise<InfoDoBackup>;
+  restaurar(origem: string, nome: string, senha?: string): Promise<void>;
 }
 
 const FILTROS = [{ name: 'Backup do Fechô', extensions: ['db'] }];
@@ -43,7 +43,8 @@ export function backupDoTauri(): ServicoDeBackup {
     automatico: (nome) => invoke('backup_automatico', { nome }),
     escolherBackup: async () =>
       (await dialogo()).open({ multiple: false, directory: false, filters: FILTROS }),
-    inspecionar: (origem) => invoke('inspecionar_backup', { origem }),
-    restaurar: (origem, nome) => invoke('restaurar_backup', { origem, nome }),
+    inspecionar: (origem, senha) => invoke('inspecionar_backup', { origem, senha: senha ?? null }),
+    restaurar: (origem, nome, senha) =>
+      invoke('restaurar_backup', { origem, nome, senha: senha ?? null }),
   };
 }

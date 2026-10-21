@@ -9,6 +9,7 @@ use tauri::{AppHandle, Manager, Runtime, State};
 use tauri_plugin_sql::{DbInstances, DbPool};
 
 use crate::compras::BANCO;
+use crate::seguranca::{self, Segredo};
 
 const ARQUIVO_DO_BANCO: &str = "fecho.db";
 const RESTAURACAO_PENDENTE: &str = "fecho.db.restaurar";
@@ -60,6 +61,82 @@ pub async fn copiar(pool: &SqlitePool, destino: &Path) -> Result<(), String> {
     Ok(())
 }
 
+// Arquivo em claro só existe dentro da pasta privada do app e é apagado mesmo em erro.
+struct Temporario(PathBuf);
+
+impl Temporario {
+    fn novo(pasta_privada: &Path) -> Result<Self, String> {
+        fs::create_dir_all(pasta_privada).map_err(|erro| erro.to_string())?;
+        Ok(Self(pasta_privada.join(format!(
+            "temporario-{}-{}.db",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0, |d| d.as_nanos())
+        ))))
+    }
+}
+
+impl Drop for Temporario {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
+}
+
+pub async fn copiar_protegido(
+    pool: &SqlitePool,
+    destino: &Path,
+    chave: Option<&Segredo>,
+    pasta_privada: &Path,
+) -> Result<(), String> {
+    let Some(chave) = chave else {
+        return copiar(pool, destino).await;
+    };
+    let temporario = Temporario::novo(pasta_privada)?;
+    copiar(pool, &temporario.0).await?;
+    let bytes = fs::read(&temporario.0).map_err(|erro| erro.to_string())?;
+    fs::write(destino, seguranca::criptografar(&bytes, chave)?).map_err(|erro| erro.to_string())
+}
+
+pub struct BackupAberto {
+    pub caminho: PathBuf,
+    _temporario: Option<Temporario>,
+}
+
+pub fn abrir(
+    origem: &Path,
+    senha: Option<&str>,
+    pasta_privada: &Path,
+) -> Result<BackupAberto, String> {
+    let bytes = fs::read(origem).map_err(|_| NAO_E_BACKUP.to_string())?;
+    if !seguranca::e_criptografado(&bytes) {
+        return Ok(BackupAberto {
+            caminho: origem.to_path_buf(),
+            _temporario: None,
+        });
+    }
+    let senha = senha.ok_or_else(|| seguranca::BACKUP_CRIPTOGRAFADO.to_string())?;
+    let claro = seguranca::descriptografar(&bytes, senha)?;
+    let temporario = Temporario::novo(pasta_privada)?;
+    fs::write(&temporario.0, claro).map_err(|erro| erro.to_string())?;
+    Ok(BackupAberto {
+        caminho: temporario.0.clone(),
+        _temporario: Some(temporario),
+    })
+}
+
+fn modificado_em(caminho: &Path) -> u64 {
+    fs::metadata(caminho)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(0))
+}
+
+fn chave_atual<R: Runtime>(app: &AppHandle<R>) -> Result<Option<Segredo>, String> {
+    Ok(seguranca::ler(&seguranca::pasta(app)?).backup)
+}
+
 pub fn podar(pasta: &Path, manter: usize) -> std::io::Result<()> {
     let mut automaticos: Vec<PathBuf> = fs::read_dir(pasta)?
         .filter_map(|entrada| entrada.ok().map(|e| e.path()))
@@ -97,15 +174,10 @@ pub async fn inspecionar(origem: &Path, versao_do_app: i64) -> Result<InfoDoBack
         .fetch_one(&mut conexao)
         .await
         .map_err(|_| NAO_E_BACKUP.to_string())?;
-    let modificado_em = fs::metadata(origem)
-        .and_then(|m| m.modified())
-        .ok()
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(0));
     Ok(InfoDoBackup {
         compras,
         versao,
-        modificado_em,
+        modificado_em: modificado_em(origem),
     })
 }
 
@@ -134,11 +206,19 @@ pub fn caminhos_de_dados<R: Runtime>(app: AppHandle<R>) -> Result<Caminhos, Stri
 }
 
 #[tauri::command]
-pub async fn exportar_backup(
+pub async fn exportar_backup<R: Runtime>(
+    app: AppHandle<R>,
     bancos: State<'_, DbInstances>,
     destino: String,
 ) -> Result<(), String> {
-    copiar(&pool_aberto(&bancos).await?, Path::new(&destino)).await
+    let chave = chave_atual(&app)?;
+    copiar_protegido(
+        &pool_aberto(&bancos).await?,
+        Path::new(&destino),
+        chave.as_ref(),
+        &pasta_do_banco(&app)?,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -150,14 +230,29 @@ pub async fn backup_automatico<R: Runtime>(
     let pasta = pasta_de_backups(&app)?;
     fs::create_dir_all(&pasta).map_err(|erro| erro.to_string())?;
     let destino = pasta.join(nome);
-    copiar(&pool_aberto(&bancos).await?, &destino).await?;
+    let chave = chave_atual(&app)?;
+    copiar_protegido(
+        &pool_aberto(&bancos).await?,
+        &destino,
+        chave.as_ref(),
+        &pasta_do_banco(&app)?,
+    )
+    .await?;
     podar(&pasta, BACKUPS_MANTIDOS).map_err(|erro| erro.to_string())?;
     Ok(destino.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-pub async fn inspecionar_backup(origem: String) -> Result<InfoDoBackup, String> {
-    inspecionar(Path::new(&origem), crate::versao_do_banco()).await
+pub async fn inspecionar_backup<R: Runtime>(
+    app: AppHandle<R>,
+    origem: String,
+    senha: Option<String>,
+) -> Result<InfoDoBackup, String> {
+    let origem = Path::new(&origem);
+    let aberto = abrir(origem, senha.as_deref(), &pasta_do_banco(&app)?)?;
+    let mut info = inspecionar(&aberto.caminho, crate::versao_do_banco()).await?;
+    info.modificado_em = modificado_em(origem);
+    Ok(info)
 }
 
 #[tauri::command]
@@ -166,18 +261,26 @@ pub async fn restaurar_backup<R: Runtime>(
     bancos: State<'_, DbInstances>,
     origem: String,
     nome: String,
+    senha: Option<String>,
 ) -> Result<(), String> {
-    let origem = Path::new(&origem);
-    inspecionar(origem, crate::versao_do_banco()).await?;
+    let aberto = abrir(Path::new(&origem), senha.as_deref(), &pasta_do_banco(&app)?)?;
+    inspecionar(&aberto.caminho, crate::versao_do_banco()).await?;
+    let chave = chave_atual(&app)?;
     let backups = pasta_de_backups(&app)?;
     fs::create_dir_all(&backups).map_err(|erro| erro.to_string())?;
-    copiar(
+    copiar_protegido(
         &pool_aberto(&bancos).await?,
         &backups.join(format!("antes-de-restaurar-{nome}")),
+        chave.as_ref(),
+        &pasta_do_banco(&app)?,
     )
     .await?;
-    fs::copy(origem, pasta_do_banco(&app)?.join(RESTAURACAO_PENDENTE))
-        .map_err(|erro| erro.to_string())?;
+    fs::copy(
+        &aberto.caminho,
+        pasta_do_banco(&app)?.join(RESTAURACAO_PENDENTE),
+    )
+    .map_err(|erro| erro.to_string())?;
+    drop(aberto);
     app.restart()
 }
 
@@ -241,6 +344,41 @@ mod testes {
 
         assert_eq!((info.compras, info.versao), (1, 5));
         assert!(info.modificado_em > 0);
+    }
+
+    #[test]
+    fn criptografa_o_backup_e_so_abre_com_a_senha() {
+        let pasta = pasta_temporaria("criptografado");
+        let privada = pasta_temporaria("privada");
+        let destino = pasta.join("backup.db");
+        let chave = seguranca::chave_de_backup("senha-longa", 1_000);
+
+        tauri::async_runtime::block_on(copiar_protegido(
+            &banco_com_versao(5),
+            &destino,
+            Some(&chave),
+            &privada,
+        ))
+        .unwrap();
+
+        assert!(seguranca::e_criptografado(&fs::read(&destino).unwrap()));
+        assert_eq!(fs::read_dir(&pasta).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(&privada).unwrap().count(), 0);
+        assert_eq!(
+            abrir(&destino, None, &privada).err().unwrap(),
+            seguranca::BACKUP_CRIPTOGRAFADO
+        );
+        assert_eq!(
+            abrir(&destino, Some("errada"), &privada).err().unwrap(),
+            seguranca::SENHA_ERRADA
+        );
+        let aberto = abrir(&destino, Some("senha-longa"), &privada).unwrap();
+        assert!(aberto.caminho.starts_with(&privada));
+        let info = tauri::async_runtime::block_on(inspecionar(&aberto.caminho, 5)).unwrap();
+        assert_eq!(info.compras, 1);
+        let temporario = aberto.caminho.clone();
+        drop(aberto);
+        assert!(!temporario.exists());
     }
 
     #[test]

@@ -2,6 +2,7 @@ mod backup;
 mod cartoes;
 mod compras;
 mod receber;
+mod seguranca;
 
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -126,7 +127,12 @@ pub fn run() {
             backup::exportar_backup,
             backup::backup_automatico,
             backup::inspecionar_backup,
-            backup::restaurar_backup
+            backup::restaurar_backup,
+            seguranca::estado_da_seguranca,
+            seguranca::definir_pin,
+            seguranca::conferir_pin,
+            seguranca::remover_pin,
+            seguranca::definir_senha_de_backup
         ])
         .run(tauri::generate_context!())
         .expect("falha ao iniciar o Fechô");

@@ -2,6 +2,7 @@ import type { Competencia, DataLocal } from '@/domain/competencia';
 import type { DadosNovaCompra } from '@/domain/compras';
 import type { Parcela } from '@/domain/parcelas';
 import type { ServicoDeBackup } from '../backup';
+import type { ServicoDeSeguranca } from '../seguranca';
 import type { CompraParaRecalculo, MudancaDeFatura } from '@/domain/faturas';
 import type { Centavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
@@ -172,6 +173,7 @@ export interface Preferencias {
   alertasNotificados: string[];
   notificarNoWindows: boolean;
   etapaDoFechamento: { competencia: Competencia; etapa: number } | null;
+  bloquearAposMinutos: number | null;
 }
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
@@ -186,6 +188,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   alertasNotificados: [],
   notificarNoWindows: true,
   etapaDoFechamento: null,
+  bloquearAposMinutos: 5,
 };
 
 export interface PreferenciasRepository {
@@ -237,6 +240,7 @@ export interface Repositorios {
   receitas: ReceitasRepository;
   preferencias: PreferenciasRepository;
   backup: ServicoDeBackup;
+  seguranca: ServicoDeSeguranca;
   receber: ReceberRepository;
   assinaturas: AssinaturasRepository;
   emprestimos: EmprestimosRepository;

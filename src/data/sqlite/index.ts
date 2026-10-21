@@ -2,6 +2,7 @@ import { chaveDaCobranca } from '@/domain/assinaturas';
 import { type NovaCompraPreparada, prepararNovaCompra } from '@/domain/compras';
 import type { CompraParaRecalculo } from '@/domain/faturas';
 import type { ServicoDeBackup } from '../backup';
+import type { ServicoDeSeguranca } from '../seguranca';
 import { comMesesFechados } from '../fechamento';
 import { assertCentavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
@@ -651,10 +652,12 @@ export function criarRepositoriosSqlite(
   banco: Banco,
   comandos: ComandosAtomicos,
   backup: ServicoDeBackup,
+  seguranca: ServicoDeSeguranca,
 ): Repositorios {
   return comMesesFechados({
     fechamento: fechamentoSqlite(banco),
     backup,
+    seguranca,
     receber: receberSqlite(banco, comandos),
     cartoes: cartoesSqlite(banco, comandos),
     faturas: faturasSqlite(banco),
