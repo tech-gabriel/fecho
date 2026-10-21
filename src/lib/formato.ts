@@ -43,3 +43,13 @@ export function quandoFoi(momento: Date, agora: Date): string {
   if (diferenca === 1) return `ontem às ${hora}`;
   return `${dois(momento.getDate())}/${dois(momento.getMonth() + 1)}/${momento.getFullYear()} às ${hora}`;
 }
+
+const diaEMes = new Intl.DateTimeFormat('pt-BR', {
+  day: 'numeric',
+  month: 'long',
+  timeZone: 'UTC',
+});
+
+export function diaPorExtenso(data: string): string {
+  return diaEMes.format(new Date(`${data}T00:00:00Z`));
+}
