@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatarComSinal, quandoFoi } from './formato';
+import { diaPorExtenso, formatarComSinal, quandoFoi } from './formato';
 
 describe('quandoFoi', () => {
   const agora = new Date(2026, 9, 20, 14, 0);
@@ -18,5 +18,12 @@ describe('formatarComSinal', () => {
     const semNbsp = (texto: string) => texto.replace(/\u00a0/g, ' ');
     expect(semNbsp(formatarComSinal(-107_555))).toBe('−R$ 1.075,55');
     expect(semNbsp(formatarComSinal(100))).toBe('R$ 1,00');
+  });
+});
+
+describe('diaPorExtenso', () => {
+  it('escreve o dia e o mês sem trocar o dia por fuso', () => {
+    expect(diaPorExtenso('2026-10-28')).toBe('28 de outubro');
+    expect(diaPorExtenso('2027-01-01')).toBe('1 de janeiro');
   });
 });
