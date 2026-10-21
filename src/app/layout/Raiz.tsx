@@ -4,7 +4,9 @@ import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { lerPlanilha, PlanilhaInvalida } from '@/features/importacao/lerPlanilha';
+import { TelaDeBloqueio } from '@/features/seguranca/TelaDeBloqueio';
 import { useApp } from '../store';
+import { useBloqueio } from '../useBloqueio';
 
 const PLANILHA = /\.(xlsx|csv)$/i;
 
@@ -13,6 +15,8 @@ export function Raiz() {
   const receberPlanilha = useApp((s) => s.receberPlanilha);
   const { pathname } = useLocation();
   const noAssistente = pathname === '/importar';
+  const bloqueado = useApp((s) => s.bloqueio !== null);
+  useBloqueio();
 
   useEffect(() => {
     const permitir = (e: DragEvent) => {
@@ -44,8 +48,11 @@ export function Raiz() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <Outlet />
-      <Toaster />
+      <div className="contents" inert={bloqueado} aria-hidden={bloqueado || undefined}>
+        <Outlet />
+      </div>
+      <TelaDeBloqueio />
+      {!bloqueado && <Toaster />}
     </TooltipProvider>
   );
 }

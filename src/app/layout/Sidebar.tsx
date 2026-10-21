@@ -5,7 +5,8 @@ import { LogoSimbolo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { CONFIGURACOES, PAGINAS, type Pagina } from '../paginas';
 import { useApp } from '../store';
-import { Dica, EM_BREVE, Kbd } from './apoio';
+import { usePedirBloqueio } from '../useBloqueio';
+import { Dica, Kbd } from './apoio';
 import { SeletorMes, SeletorMesRecolhido } from './SeletorMes';
 
 const estiloItem = (recolhida: boolean) =>
@@ -47,6 +48,7 @@ function ItemNav({ pagina, recolhida }: { pagina: Pagina; recolhida: boolean }) 
 
 export function Sidebar() {
   const { sidebarRecolhida: recolhida, alternarSidebar } = useApp();
+  const pedirBloqueio = usePedirBloqueio();
 
   return (
     <aside
@@ -86,12 +88,13 @@ export function Sidebar() {
 
       <div className="mt-auto flex flex-col gap-0.5">
         <ItemNav pagina={CONFIGURACOES} recolhida={recolhida} />
-        <Dica texto={EM_BREVE} lado="right">
+        <Dica texto="Bloquear (Ctrl+L)" lado="right">
           <button
             type="button"
-            aria-disabled="true"
             aria-label={recolhida ? 'Bloquear' : undefined}
-            className={cn(estiloItem(recolhida), 'cursor-not-allowed')}
+            aria-keyshortcuts="Control+L"
+            onClick={pedirBloqueio}
+            className={estiloItem(recolhida)}
           >
             <Lock size={16} strokeWidth={1.75} aria-hidden className="flex-none text-ink-muted" />
             {!recolhida && (

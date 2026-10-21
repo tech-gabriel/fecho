@@ -18,6 +18,10 @@ import { Switch } from '@/components/ui/switch';
 import type { InfoDoBackup } from '@/data/backup';
 import type { Preferencias } from '@/data';
 import { nomeDoBackup } from '@/domain/backup';
+import { validarSenhaDeBackup } from '@/domain/seguranca';
+import { DialogDeSenha } from '@/features/seguranca/DialogDeSenha';
+
+const BACKUP_CRIPTOGRAFADO = 'BACKUP_CRIPTOGRAFADO';
 import { quandoFoi } from '@/lib/formato';
 import { executar } from './SecaoCadastro';
 
@@ -40,7 +44,26 @@ export function SecaoBackup() {
   const { backup } = repos;
   const [caminhos, setCaminhos] = useState<{ banco: string; backups: string } | null>(null);
   const [preferencias, setPreferencias] = useState<Preferencias | null>(null);
-  const [aRestaurar, setARestaurar] = useState<{ origem: string; info: InfoDoBackup } | null>(null);
+  const [aRestaurar, setARestaurar] = useState<{
+    origem: string;
+    info: InfoDoBackup;
+    senha?: string;
+  } | null>(null);
+  const [pedirSenha, setPedirSenha] = useState<string | null>(null);
+  const [criptografado, setCriptografado] = useState(false);
+  const [ligandoCriptografia, setLigandoCriptografia] = useState(false);
+  const { seguranca } = repos;
+
+  useEffect(() => {
+    if (!seguranca.criptografiaDeBackupDisponivel) return;
+    let montado = true;
+    void seguranca.estado().then((e) => {
+      if (montado) setCriptografado(e.backupCriptografado);
+    });
+    return () => {
+      montado = false;
+    };
+  }, [seguranca]);
 
   useEffect(() => {
     if (!backup.disponivel) return;
@@ -69,19 +92,31 @@ export function SecaoBackup() {
       .escolherBackup()
       .then(async (origem) => {
         if (!origem) return;
-        setARestaurar({ origem, info: await backup.inspecionar(origem) });
+        try {
+          setARestaurar({ origem, info: await backup.inspecionar(origem) });
+        } catch (erro) {
+          if (String(erro).includes(BACKUP_CRIPTOGRAFADO)) setPedirSenha(origem);
+          else throw erro;
+        }
       })
       .catch(falhou('Não foi possível ler esse arquivo.', escolher));
   };
 
-  const restaurar = (origem: string) => {
+  const restaurar = (origem: string, senha?: string) => {
     setARestaurar(null);
-    backup.restaurar(origem, nomeDoBackup(new Date())).catch(
+    backup.restaurar(origem, nomeDoBackup(new Date()), senha).catch(
       falhou('Não foi possível restaurar o backup.', () => {
-        restaurar(origem);
+        restaurar(origem, senha);
       }),
     );
   };
+
+  const desligarCriptografia = () =>
+    executar(async () => {
+      await seguranca.definirSenhaDeBackup(null);
+      setCriptografado(false);
+      toast.success('Os próximos backups saem sem criptografia');
+    });
 
   const alternarAutomatico = (ligado: boolean) =>
     executar(async () => {
@@ -151,6 +186,25 @@ export function SecaoBackup() {
             )}
           </div>
 
+          <div className="flex items-center gap-4 border-t pt-4">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Label htmlFor={`${id}-criptografar`} className="text-sm">
+                Criptografar backups
+              </Label>
+              <span className="text-[13px] text-ink-muted">
+                Os backups só abrem com a senha que você definir. Os já feitos continuam como estão.
+              </span>
+            </div>
+            <Switch
+              id={`${id}-criptografar`}
+              checked={criptografado}
+              onCheckedChange={(ligar) => {
+                if (ligar) setLigandoCriptografia(true);
+                else void desligarCriptografia();
+              }}
+            />
+          </div>
+
           <div className="flex gap-2 border-t pt-4">
             <Button variant="outline" onClick={exportar}>
               <Download strokeWidth={1.75} />
@@ -192,7 +246,7 @@ export function SecaoBackup() {
             </Button>
             <Button
               onClick={() => {
-                if (aRestaurar) restaurar(aRestaurar.origem);
+                if (aRestaurar) restaurar(aRestaurar.origem, aRestaurar.senha);
               }}
             >
               Restaurar e reiniciar
@@ -200,6 +254,55 @@ export function SecaoBackup() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DialogDeSenha
+        aberto={ligandoCriptografia}
+        titulo="Criptografar backups"
+        descricao="Escolha uma senha só para os backups. Ela não é o seu PIN."
+        campos={[
+          { rotulo: 'Senha', tipo: 'senha' },
+          { rotulo: 'Repita a senha', tipo: 'senha' },
+        ]}
+        confirmar="Criptografar"
+        aviso={
+          <p className="rounded-md bg-warning-bg px-3 py-2 text-[13px] text-warning-text">
+            Sem essa senha, os backups criptografados não abrem. Guarde-a num lugar seguro.
+          </p>
+        }
+        onFechar={() => {
+          setLigandoCriptografia(false);
+        }}
+        onConfirmar={async ([senha = '', confirmacao = '']) => {
+          const erro = validarSenhaDeBackup(senha, confirmacao);
+          if (erro) return erro;
+          await seguranca.definirSenhaDeBackup(senha);
+          setCriptografado(true);
+          setLigandoCriptografia(false);
+          toast.success('Os próximos backups saem criptografados');
+          return null;
+        }}
+      />
+      <DialogDeSenha
+        aberto={pedirSenha !== null}
+        titulo="Backup criptografado"
+        descricao="Digite a senha que você definiu para os backups."
+        campos={[{ rotulo: 'Senha do backup', tipo: 'senha' }]}
+        confirmar="Abrir"
+        onFechar={() => {
+          setPedirSenha(null);
+        }}
+        onConfirmar={async ([senha = '']) => {
+          if (pedirSenha === null) return null;
+          try {
+            const info = await backup.inspecionar(pedirSenha, senha);
+            setARestaurar({ origem: pedirSenha, info, senha });
+            setPedirSenha(null);
+            return null;
+          } catch {
+            return 'A senha do backup não confere.';
+          }
+        }}
+      />
     </section>
   );
 }
