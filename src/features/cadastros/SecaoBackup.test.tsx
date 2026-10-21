@@ -65,6 +65,13 @@ describe('Dados e backup', () => {
     expect(secao).toHaveTextContent('Backup e restauração funcionam no app instalado.');
   });
 
+  it('não exporta planilha de mês sem compras', async () => {
+    const secao = await abrir();
+    fireEvent.click(within(secao).getByRole('button', { name: 'Exportar planilha do mês' }));
+
+    expect(await screen.findByText(/^Nada lançado em \w+ para exportar\.$/)).toBeInTheDocument();
+  });
+
   it('mostra os caminhos e liga e desliga o automático', async () => {
     const secao = await abrir();
 

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 
 export interface InfoDoBackup {
   compras: number;
@@ -47,4 +47,23 @@ export function backupDoTauri(): ServicoDeBackup {
     restaurar: (origem, nome, senha) =>
       invoke('restaurar_backup', { origem, nome, senha: senha ?? null }),
   };
+}
+
+export async function salvarPlanilha(nome: string, bytes: Uint8Array): Promise<string | null> {
+  if (isTauri()) {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const destino = await save({
+      defaultPath: nome,
+      filters: [{ name: 'Planilha do Excel', extensions: ['xlsx'] }],
+    });
+    if (!destino) return null;
+    await invoke('salvar_planilha', { destino, bytes: Array.from(bytes) });
+    return destino;
+  }
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([bytes as BlobPart]));
+  link.download = nome;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  return nome;
 }

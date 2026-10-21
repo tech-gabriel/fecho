@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { ArchiveRestore, Download, FileUp, HardDrive } from 'lucide-react';
+import { ArchiveRestore, Download, FileSpreadsheet, FileUp, HardDrive } from 'lucide-react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { useRepositorios } from '@/app/repositorios';
@@ -19,11 +19,12 @@ import type { InfoDoBackup } from '@/data/backup';
 import type { Preferencias } from '@/data';
 import { nomeDoBackup } from '@/domain/backup';
 import { validarSenhaDeBackup } from '@/domain/seguranca';
+import { useExportarPlanilha } from '@/features/exportacao/useExportarPlanilha';
 import { DialogDeSenha } from '@/features/seguranca/DialogDeSenha';
+import { nomeDoMes, quandoFoi } from '@/lib/formato';
+import { executar } from './SecaoCadastro';
 
 const BACKUP_CRIPTOGRAFADO = 'BACKUP_CRIPTOGRAFADO';
-import { quandoFoi } from '@/lib/formato';
-import { executar } from './SecaoCadastro';
 
 function falhou(mensagem: string, tentar: () => void) {
   return (erro: unknown) => {
@@ -42,6 +43,8 @@ export function SecaoBackup() {
   const versao = useApp((s) => s.versaoDosDados);
   const dadosMudaram = useApp((s) => s.dadosMudaram);
   const { backup } = repos;
+  const mes = nomeDoMes(useApp((s) => s.competencia)).split(' ')[0];
+  const exportarPlanilha = useExportarPlanilha();
   const [caminhos, setCaminhos] = useState<{ banco: string; backups: string } | null>(null);
   const [preferencias, setPreferencias] = useState<Preferencias | null>(null);
   const [aRestaurar, setARestaurar] = useState<{
@@ -146,6 +149,16 @@ export function SecaoBackup() {
             <FileUp strokeWidth={1.75} />
             Importar planilha…
           </Link>
+        </Button>
+      </div>
+
+      <div className="flex items-center gap-3 border-t pt-4">
+        <p className="flex-1 text-sm text-ink-muted">
+          As compras de {mes}, uma aba por cartão, no formato que o Fechô importa.
+        </p>
+        <Button variant="outline" onClick={() => void exportarPlanilha()}>
+          <FileSpreadsheet strokeWidth={1.75} />
+          Exportar planilha do mês
         </Button>
       </div>
 
