@@ -45,6 +45,8 @@ interface EstadoApp {
   versaoDosDados: number;
   legendaDaPagina: string | null;
   planilhaArrastada: PlanilhaLida | null;
+  overlay: 'paleta' | 'atalhos' | null;
+  abrirOverlay: (overlay: 'paleta' | 'atalhos' | null) => void;
   voltarMes: () => void;
   avancarMes: () => void;
   irParaHoje: () => void;
@@ -119,6 +121,10 @@ export const useApp = create<EstadoApp>()((set) => ({
   },
   definirLegenda: (legendaDaPagina) => {
     set({ legendaDaPagina });
+  },
+  overlay: null,
+  abrirOverlay: (overlay) => {
+    set({ overlay });
   },
   receberPlanilha: (planilhaArrastada) => {
     set({ planilhaArrastada });

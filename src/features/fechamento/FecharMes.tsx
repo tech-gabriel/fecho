@@ -35,6 +35,7 @@ import { carregarFaturas, type FaturasCarregadas } from '@/features/alertas/fatu
 import { executar } from '@/features/cadastros/SecaoCadastro';
 import { montarFaturas } from '@/features/faturas/Faturas';
 import { montarSituacoes } from '@/features/receber/situacoes';
+import { acionar, emCampoDeTexto } from '@/lib/atalhos';
 import { formatarMoeda, nomeDoMes } from '@/lib/formato';
 import { EtapaConferir, diferencasDaFatura } from './EtapaConferir';
 import { EtapaEconomia, EtapaPagar, EtapaTerceiros } from './Etapas';
@@ -153,7 +154,19 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
       if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
         avancar();
+        return;
       }
+      if (e.ctrlKey || e.altKey || e.metaKey || emCampoDeTexto(e.target)) return;
+      const emControle =
+        e.target instanceof Element &&
+        e.target.closest('button, a, [role="tab"], [role="checkbox"], [role="switch"]') !== null;
+      const atalho =
+        e.key === ' ' && !emControle
+          ? 'conferir'
+          : e.key.toLowerCase() === 'p'
+            ? 'marcar-paga'
+            : null;
+      if (atalho && acionar(atalho)) e.preventDefault();
     };
     window.addEventListener('keydown', aoTeclar);
     return () => {
