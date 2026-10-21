@@ -147,3 +147,51 @@ describe('eventosDoPeriodo', () => {
     ).toEqual([['2027-01-02', 'fechamento', undefined]]);
   });
 });
+
+describe('eventos de empréstimo', () => {
+  const emprestimos = {
+    parcelas: [
+      { emprestimoId: 1, numero: 6, vencimento: '2026-10-10', valor: 48_000, paga: true },
+      { emprestimoId: 1, numero: 7, vencimento: '2026-11-10', valor: 48_000, paga: false },
+    ],
+    devolucoes: [{ emprestimoId: 3, terceiroId: 8, prazo: '2026-10-15', falta: 80_000 }],
+  };
+
+  it('põe a parcela do empréstimo tomado e a devolução combinada', () => {
+    const eventos = eventosDoPeriodo({
+      ...base,
+      emprestimos,
+      de: '2026-10-01',
+      ate: '2026-11-30',
+    });
+    expect(eventos.map((e) => [e.data, e.tipo, e.status, e.numero, e.terceiroId])).toEqual([
+      ['2026-10-10', 'emprestimo', 'paga', 6, undefined],
+      ['2026-10-15', 'devolucao', 'atrasada', undefined, 8],
+      ['2026-11-10', 'emprestimo', 'pendente', 7, undefined],
+    ]);
+  });
+
+  it('marca como atrasada a parcela vencida e a devolução que passou da data', () => {
+    const eventos = eventosDoPeriodo({
+      ...base,
+      hoje: '2026-11-11',
+      emprestimos,
+      de: '2026-10-01',
+      ate: '2026-11-30',
+    });
+    expect(eventos.map((e) => e.status)).toEqual(['paga', 'atrasada', 'atrasada']);
+  });
+
+  it('a devolução já paga aparece como paga', () => {
+    const eventos = eventosDoPeriodo({
+      ...base,
+      emprestimos: {
+        parcelas: [],
+        devolucoes: emprestimos.devolucoes.map((d) => ({ ...d, falta: 0 })),
+      },
+      de: '2026-10-01',
+      ate: '2026-10-31',
+    });
+    expect(eventos.map((e) => e.status)).toEqual(['paga']);
+  });
+});

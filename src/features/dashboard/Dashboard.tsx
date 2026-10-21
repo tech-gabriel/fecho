@@ -16,6 +16,8 @@ import { hojeLocal, useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
 import type {
   Assinatura,
+  EmprestimoConcedido,
+  EmprestimoTomado,
   Cartao,
   Movimento,
   PagamentoDeFatura,
@@ -25,6 +27,7 @@ import type {
   Terceiro,
 } from '@/data';
 import { projecaoDeAssinaturas } from '@/domain/assinaturas';
+import { parcelasTomadasDoMes } from '@/domain/emprestimos';
 import { somarMeses } from '@/domain/competencia';
 import { linhasPorDono, resumoDaFatura } from '@/domain/faturas';
 import { receitasDoMes, rendaComprometida, resumoDoMes } from '@/domain/resumo';
@@ -50,6 +53,8 @@ interface Dados {
   movimentos: Movimento[];
   assinaturas: Assinatura[];
   geradas: string[];
+  tomados: EmprestimoTomado[];
+  concedidos: EmprestimoConcedido[];
 }
 
 const MESES_DO_GRAFICO = 6;
@@ -128,6 +133,8 @@ export function Dashboard() {
       repos.receber.movimentos(),
       repos.assinaturas.listar(),
       repos.assinaturas.geradas(),
+      repos.emprestimos.tomados.listar(),
+      repos.emprestimos.concedidos.listar(),
     ]).then(
       ([
         cartoes,
@@ -141,6 +148,8 @@ export function Dashboard() {
         movimentos,
         assinaturas,
         geradas,
+        tomados,
+        concedidos,
       ]) => {
         if (montado) {
           setDados({
@@ -155,6 +164,8 @@ export function Dashboard() {
             movimentos,
             assinaturas,
             geradas,
+            tomados,
+            concedidos,
           });
         }
       },
@@ -201,6 +212,7 @@ export function Dashboard() {
       vencimento: f.vencimento,
       paga: f.pagamento !== undefined,
     })),
+    parcelasEmprestimos: parcelasTomadasDoMes(dados.tomados, competencia),
   });
   const comprometida = rendaComprometida(
     dados.futuras.map((parcelas, i) => {
@@ -214,6 +226,7 @@ export function Dashboard() {
           new Set(dados.geradas),
           dados.cartoes,
         ),
+        emprestimos: parcelasTomadasDoMes(dados.tomados, mes),
         renda: receitasDoMes(dados.receitas, mes).reduce((s, r) => s + r.valorCentavos, 0),
       };
     }),
@@ -367,8 +380,8 @@ export function Dashboard() {
             centavos={resumo.meusGastos}
             legenda={
               resumo.renda > 0
-                ? `${Math.round((resumo.meusGastos / resumo.renda) * 100)}% da renda · só cartões`
-                : 'só cartões'
+                ? `${Math.round((resumo.meusGastos / resumo.renda) * 100)}% da renda · cartões e empréstimos`
+                : 'cartões e empréstimos'
             }
             envolver={link('/lancamentos?ver=meu')}
           />

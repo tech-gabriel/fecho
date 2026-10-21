@@ -631,5 +631,76 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         expect(await repos.assinaturas.geradas()).toEqual([`${String(id)}:2026-10`]);
       });
     });
+
+    describe('empréstimos', () => {
+      const pessoal = {
+        descricao: 'Empréstimo pessoal',
+        valorCentavos: 490_000,
+        numParcelas: 12,
+        valorParcelaCentavos: 48_000,
+        dia: 10,
+        inicio: '2026-05',
+        data: '2026-04-10',
+      };
+      const bruno = () => ({
+        terceiroId: ana,
+        descricao: 'Empréstimo',
+        valorCentavos: 80_000,
+        data: '2026-08-15',
+        prazo: '2026-10-15',
+      });
+
+      it('separa os tomados dos concedidos, edita e exclui', async () => {
+        const tomado = await repos.emprestimos.tomados.criar(pessoal);
+        const concedido = await repos.emprestimos.concedidos.criar(bruno());
+
+        expect(await repos.emprestimos.tomados.listar()).toEqual([{ id: tomado, ...pessoal }]);
+        expect(await repos.emprestimos.concedidos.listar()).toEqual([
+          { id: concedido, ...bruno() },
+        ]);
+
+        await repos.emprestimos.concedidos.atualizar(concedido, { prazo: '2026-11-15' });
+        expect((await repos.emprestimos.concedidos.listar())[0]?.prazo).toBe('2026-11-15');
+
+        await repos.emprestimos.tomados.excluir(tomado);
+        expect(await repos.emprestimos.tomados.listar()).toEqual([]);
+        await repos.emprestimos.tomados.restaurar(tomado);
+        expect(await repos.emprestimos.tomados.listar()).toHaveLength(1);
+      });
+
+      it('marca e desmarca parcelas pagas, só de empréstimo existente', async () => {
+        const id = await repos.emprestimos.tomados.criar(pessoal);
+
+        await repos.emprestimos.marcarPaga({ emprestimoId: id, numero: 2, pagoEm: '2026-06-10' });
+        await repos.emprestimos.marcarPaga({ emprestimoId: id, numero: 1, pagoEm: '2026-05-10' });
+        await repos.emprestimos.marcarPaga({ emprestimoId: id, numero: 1, pagoEm: '2026-05-11' });
+        expect(await repos.emprestimos.pagamentos()).toEqual([
+          { emprestimoId: id, numero: 1, pagoEm: '2026-05-11' },
+          { emprestimoId: id, numero: 2, pagoEm: '2026-06-10' },
+        ]);
+
+        await repos.emprestimos.desmarcar(id, 1);
+        expect(await repos.emprestimos.pagamentos()).toHaveLength(1);
+        await expect(
+          repos.emprestimos.marcarPaga({ emprestimoId: 999, numero: 1, pagoEm: '2026-05-10' }),
+        ).rejects.toThrow();
+      });
+
+      it('o depósito pode abater um empréstimo concedido', async () => {
+        const emprestimoId = await repos.emprestimos.concedidos.criar(bruno());
+
+        await repos.receber.registrarDeposito({
+          terceiroId: ana,
+          valorCentavos: 30_000,
+          data: '2026-10-20',
+          competencia: '2026-10',
+          abatimentos: [{ emprestimoId, valor: 30_000 }],
+        });
+
+        expect((await repos.receber.movimentos())[0]?.abatimentos).toEqual([
+          { emprestimoId, valor: 30_000 },
+        ]);
+      });
+    });
   });
 }

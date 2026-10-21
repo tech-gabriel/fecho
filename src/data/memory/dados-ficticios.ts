@@ -166,4 +166,28 @@ export async function semearDadosFicticios(repos: Repositorios) {
     competencia: '2026-10',
     abatimentos: [{ compraId: tenis, numero: 1, valor: 10_825 }],
   });
+
+  const pessoal = await repos.emprestimos.tomados.criar({
+    descricao: 'Empréstimo pessoal',
+    valorCentavos: 490_000,
+    numParcelas: 12,
+    valorParcelaCentavos: 48_000,
+    dia: 10,
+    inicio: '2026-05',
+    data: '2026-04-10',
+  });
+  for (let numero = 1; numero <= 6; numero++) {
+    await repos.emprestimos.marcarPaga({
+      emprestimoId: pessoal,
+      numero,
+      pagoEm: `2026-${String(4 + numero).padStart(2, '0')}-10`,
+    });
+  }
+  await repos.emprestimos.concedidos.criar({
+    terceiroId: bruno,
+    descricao: 'Empréstimo',
+    valorCentavos: 80_000,
+    data: '2026-08-15',
+    prazo: '2026-10-15',
+  });
 }
