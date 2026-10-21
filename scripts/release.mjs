@@ -51,6 +51,12 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     'src-tauri/Cargo.lock',
   );
   git('commit', '-m', `chore: lança v${versao}`);
-  git('tag', '-a', `v${versao}`, '-m', `v${versao}`);
-  console.log(`v${versao} criada. Publique com: git push --follow-tags`);
+  // A tag só nasce na main: o squash da develop troca o commit desta branch.
+  console.log(
+    [
+      `Versão ${versao} commitada. Depois do PR e das promoções até a main:`,
+      `  git fetch origin && git tag -a v${versao} -m v${versao} origin/main`,
+      `  git push origin v${versao}`,
+    ].join('\n'),
+  );
 }

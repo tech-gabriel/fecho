@@ -22,6 +22,7 @@ import { SecaoAlertas } from './SecaoAlertas';
 import { SecaoAtalhos } from './SecaoAtalhos';
 import { SecaoBackup } from './SecaoBackup';
 import { SecaoSeguranca } from './SecaoSeguranca';
+import { SecaoSobre } from './SecaoSobre';
 import { SecaoCobranca } from './SecaoCobranca';
 import { SecaoPlanejamento } from './SecaoPlanejamento';
 
@@ -35,6 +36,7 @@ const SECOES = [
   { ancora: 'cobranca', rotulo: 'Cobrança' },
   { ancora: 'dados', rotulo: 'Dados e backup' },
   { ancora: 'atalhos', rotulo: 'Atalhos' },
+  { ancora: 'sobre', rotulo: 'Sobre' },
 ];
 
 const dia = (n: number) => `Dia ${String(n).padStart(2, '0')}`;
@@ -224,6 +226,7 @@ export function Configuracoes() {
         <SecaoCobranca />
         <SecaoBackup />
         <SecaoAtalhos />
+        <SecaoSobre />
       </div>
 
       <Dialog
