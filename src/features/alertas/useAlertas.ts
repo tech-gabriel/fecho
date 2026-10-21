@@ -1,19 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
-import type {
-  Assinatura,
-  Cartao,
-  Movimento,
-  PagamentoDeFatura,
-  ParcelaDoMes,
-  Preferencias,
-  Terceiro,
-} from '@/data';
+import type { Assinatura, Cartao, Preferencias, Terceiro } from '@/data';
 import { alertasDoDia, type Alerta } from '@/domain/alertas';
 import { competenciaDe, somarMeses, type DataLocal } from '@/domain/competencia';
-import { montarFaturas } from '@/features/faturas/Faturas';
-import { faltaNaFatura, montarSituacoes } from '@/features/receber/situacoes';
+import { carregarFaturas, faturasParaAlerta, type FaturasCarregadas } from './faturas';
 import { notificarNoWindows } from './notificar';
 import { textoDoAlerta } from './textos';
 
@@ -21,13 +12,7 @@ const UMA_HORA = 60 * 60 * 1000;
 // C−2 cobre atrasos de até 30 dias; C+1 cobre o fechamento que cai no mês seguinte
 const MESES_OLHADOS = [-2, -1, 0, 1];
 
-interface Dados {
-  cartoes: Cartao[];
-  terceiros: Terceiro[];
-  porMes: ParcelaDoMes[][];
-  pagamentos: PagamentoDeFatura[];
-  deTerceiros: ParcelaDoMes[];
-  movimentos: Movimento[];
+interface Dados extends FaturasCarregadas {
   preferencias: Preferencias;
   assinaturas: Assinatura[];
 }
@@ -40,27 +25,7 @@ export interface AlertaNaTela extends Alerta {
 }
 
 function calcular(dados: Dados, hoje: DataLocal): AlertaNaTela[] {
-  const atual = competenciaDe(hoje);
-  const situacoes = montarSituacoes({
-    ...dados,
-    parcelas: dados.deTerceiros,
-    competencia: somarMeses(atual, 1),
-    hoje,
-  });
-  const faturas = MESES_OLHADOS.flatMap((n, i) =>
-    montarFaturas({ ...dados, parcelas: dados.porMes[i] ?? [] }, somarMeses(atual, n), hoje).map(
-      (f) => ({
-        cartaoId: f.cartao.id,
-        competencia: f.competencia,
-        vencimento: f.vencimento,
-        total: f.resumo.total,
-        paga: f.pagamento !== undefined,
-        faltaPorTerceiro: faltaNaFatura(situacoes, f.cartao.id, f.competencia).map(
-          ({ terceiro, falta }) => ({ terceiroId: terceiro.id, falta }),
-        ),
-      }),
-    ),
-  );
+  const faturas = faturasParaAlerta(dados, hoje);
   const lidos = new Set(dados.preferencias.alertasLidos);
   return alertasDoDia(
     faturas,
@@ -107,41 +72,15 @@ export function useAlertas() {
     let montado = true;
     const atual = competenciaDe(hoje);
     void Promise.all([
-      repos.cartoes.listar(),
-      repos.terceiros.listar(),
-      Promise.all(
-        MESES_OLHADOS.map((n) => repos.compras.parcelasDaCompetencia(somarMeses(atual, n))),
+      carregarFaturas(
+        repos,
+        MESES_OLHADOS.map((n) => somarMeses(atual, n)),
       ),
-      repos.faturas.pagamentos(),
-      repos.compras.parcelasDeTerceiros(somarMeses(atual, 1)),
-      repos.receber.movimentos(),
       repos.preferencias.ler(),
       repos.assinaturas.listar(),
-    ]).then(
-      ([
-        cartoes,
-        terceiros,
-        porMes,
-        pagamentos,
-        deTerceiros,
-        movimentos,
-        preferencias,
-        assinaturas,
-      ]) => {
-        if (montado) {
-          setDados({
-            cartoes,
-            terceiros,
-            porMes,
-            pagamentos,
-            deTerceiros,
-            movimentos,
-            preferencias,
-            assinaturas,
-          });
-        }
-      },
-    );
+    ]).then(([faturas, preferencias, assinaturas]) => {
+      if (montado) setDados({ ...faturas, preferencias, assinaturas });
+    });
     return () => {
       montado = false;
     };

@@ -67,3 +67,11 @@ export function legendaDoMes(c: Competencia, hoje: DataLocal): LegendaDoMes {
   }
   return { tipo: assertCompetencia(c) > atual ? 'futuro' : 'passado' };
 }
+
+export function somarDias(d: DataLocal, dias: number): DataLocal {
+  assertDataLocal(d);
+  const data = new Date(
+    Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8)) + dias),
+  );
+  return `${String(data.getUTCFullYear())}-${dois(data.getUTCMonth() + 1)}-${dois(data.getUTCDate())}`;
+}
