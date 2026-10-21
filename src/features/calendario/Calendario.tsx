@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { CalendarClock, CircleCheck, CreditCard, HandCoins, Repeat } from 'lucide-react';
+import { CalendarClock, CircleCheck, CreditCard, HandCoins, Landmark, Repeat } from 'lucide-react';
 import { Link } from 'react-router';
 import { cn } from 'cn';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
-import type { Assinatura, Cartao, Terceiro } from '@/data';
-import type { FaturaParaAlerta } from '@/domain/alertas';
+import type { Assinatura, Cartao, EmprestimoTomado, Terceiro } from '@/data';
+import type { EmprestimosParaAlerta, FaturaParaAlerta } from '@/domain/alertas';
 import { diasDaGrade, eventosDoPeriodo, type Evento } from '@/domain/calendario';
 import {
   competenciaDe,
@@ -16,7 +16,11 @@ import {
   type DataLocal,
 } from '@/domain/competencia';
 import { datasDaFatura } from '@/domain/faturas';
-import { carregarFaturas, faturasParaAlerta } from '@/features/alertas/faturas';
+import {
+  carregarFaturas,
+  emprestimosParaAlerta,
+  faturasParaAlerta,
+} from '@/features/alertas/faturas';
 import { dataCurta } from '@/features/faturas/ListaDeCartoes';
 import { diaPorExtenso, formatarMoeda, nomeDoMes } from '@/lib/formato';
 
@@ -29,6 +33,8 @@ interface Dados {
   terceiros: Terceiro[];
   assinaturas: Assinatura[];
   faturas: FaturaParaAlerta[];
+  tomados: EmprestimoTomado[];
+  emprestimos: EmprestimosParaAlerta;
 }
 
 const curto = (nome: string) => nome.replace(/^cartão\s+/i, '');
@@ -98,12 +104,52 @@ function textos(evento: Evento, dados: Dados) {
       const nome = dados.assinaturas.find((a) => a.id === evento.assinaturaId)?.nome ?? '';
       return { chip: nome, titulo: nome, descricao: `${valor} no ${nomeCartao}`, valor };
     }
+    case 'emprestimo': {
+      const tomado = dados.tomados.find((e) => e.id === evento.emprestimoId);
+      const parcela = `${String(evento.numero ?? 0)}/${String(tomado?.numParcelas ?? 0)}`;
+      const nome = tomado?.descricao ?? 'Empréstimo';
+      const situacao =
+        evento.status === 'paga'
+          ? 'paga'
+          : evento.status === 'atrasada'
+            ? 'venceu e não está marcada como paga'
+            : 'debitada neste dia';
+      return {
+        chip: `Empréstimo ${parcela}`,
+        titulo: `${nome} ${parcela}`,
+        descricao: `${valor} · ${situacao}`,
+        valor,
+      };
+    }
+    case 'devolucao': {
+      const nome = dados.terceiros.find((t) => t.id === evento.terceiroId)?.nome ?? '';
+      if (evento.status === 'paga') {
+        return {
+          chip: `${nome} devolveu`,
+          titulo: `${nome} devolveu o empréstimo`,
+          descricao: 'Tudo depositado.',
+          valor: '',
+        };
+      }
+      return {
+        chip: `${nome} · ${valor}`,
+        titulo: `${nome} devolveria ${valor}`,
+        descricao:
+          evento.status === 'atrasada'
+            ? `Combinado para ${dataCurta(evento.data)}. Está atrasado.`
+            : `Combinado para ${dataCurta(evento.data)}.`,
+        valor,
+      };
+    }
   }
 }
 
 function destino(evento: Evento): string {
   if (evento.tipo === 'assinatura') return '/assinaturas';
-  if (evento.tipo === 'reembolso') return `/receber?pessoa=${String(evento.terceiroId)}`;
+  if (evento.tipo === 'emprestimo') return '/emprestimos';
+  if (evento.tipo === 'reembolso' || evento.tipo === 'devolucao') {
+    return `/receber?pessoa=${String(evento.terceiroId)}`;
+  }
   return `/faturas?cartao=${String(evento.cartaoId)}`;
 }
 
@@ -115,6 +161,9 @@ function Marcador({ evento, cor }: { evento: Evento; cor: string | undefined }) 
   }
   if (atrasado(evento)) {
     return <span aria-hidden className="size-1.5 flex-none rounded-full bg-danger" />;
+  }
+  if (evento.tipo === 'emprestimo' || evento.tipo === 'devolucao') {
+    return <span aria-hidden className="size-1.5 flex-none rounded-full bg-ink-muted" />;
   }
   return (
     <span
@@ -135,6 +184,8 @@ const ICONES = {
   fechamento: CreditCard,
   vencimento: CalendarClock,
   reembolso: HandCoins,
+  devolucao: HandCoins,
+  emprestimo: Landmark,
   assinatura: Repeat,
 };
 
@@ -163,6 +214,8 @@ export function Calendario() {
           terceiros: carregadas.terceiros,
           assinaturas,
           faturas: faturasParaAlerta(carregadas, hoje),
+          tomados: carregadas.tomados,
+          emprestimos: emprestimosParaAlerta(carregadas, hoje),
         });
       },
     );
@@ -346,7 +399,9 @@ export function Calendario() {
                     <Link
                       to={destino(evento)}
                       onClick={() => {
-                        if (evento.tipo !== 'assinatura') irParaCompetencia(evento.competencia);
+                        if (evento.tipo === 'vencimento' || evento.tipo === 'fechamento') {
+                          irParaCompetencia(evento.competencia);
+                        }
                       }}
                       className="flex items-start gap-3 rounded-md p-2 hover:bg-soft"
                     >

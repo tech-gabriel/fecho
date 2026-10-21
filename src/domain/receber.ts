@@ -4,6 +4,7 @@ import type { Centavos } from './money';
 import { type Rateio, ratear, type StatusTerceiro, statusTerceiro } from './terceiros';
 
 export interface ItemDevido {
+  emprestimoId?: number;
   chave: string;
   compraId: number;
   numero: number;
@@ -16,11 +17,11 @@ export interface ItemDevido {
   valor: Centavos;
 }
 
-export interface Abatimento {
-  compraId: number;
-  numero: number;
-  valor: Centavos;
-}
+export type Abatimento =
+  { compraId: number; numero: number; valor: Centavos } | { emprestimoId: number; valor: Centavos };
+
+const chaveDoAbatimento = (a: Abatimento) =>
+  'emprestimoId' in a ? `e:${String(a.emprestimoId)}` : chaveDoItem(a.compraId, a.numero);
 
 export interface DepositoDaPessoa {
   valor: Centavos;
@@ -81,7 +82,7 @@ export function situacaoDaPessoa(
   const abatidoPorItem = new Map<string, Centavos>();
   for (const { abatimentos } of depositos) {
     for (const a of abatimentos) {
-      const chave = chaveDoItem(a.compraId, a.numero);
+      const chave = chaveDoAbatimento(a);
       abatidoPorItem.set(chave, (abatidoPorItem.get(chave) ?? 0) + a.valor);
     }
   }
@@ -123,6 +124,7 @@ export function situacaoDaPessoa(
 
 interface Aberto {
   chave: string;
+  emprestimoId?: number | undefined;
   compraId: number;
   numero: number;
   vencimento: DataLocal;
@@ -152,7 +154,13 @@ export function distribuir(
   for (const item of [...escolhidos].sort(porVencimento)) {
     if (restante <= 0) break;
     const parte = Math.min(restante, item.aberto);
-    if (parte > 0) abatimentos.push({ compraId: item.compraId, numero: item.numero, valor: parte });
+    if (parte > 0) {
+      abatimentos.push(
+        item.emprestimoId === undefined
+          ? { compraId: item.compraId, numero: item.numero, valor: parte }
+          : { emprestimoId: item.emprestimoId, valor: parte },
+      );
+    }
     restante -= parte;
   }
   return { abatimentos, sobra: restante };

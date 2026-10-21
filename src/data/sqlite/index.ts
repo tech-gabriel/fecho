@@ -7,6 +7,9 @@ import type { Rateio } from '@/domain/terceiros';
 import {
   type Assinatura,
   type Cadastro,
+  type EmprestimoConcedido,
+  type EmprestimosRepository,
+  type EmprestimoTomado,
   type Cartao,
   type CartoesRepository,
   type FaturasRepository,
@@ -57,10 +60,12 @@ interface Mapeamento<T> {
   usoSql: string;
   ler(linha: Linha): T;
   gravar?: Partial<Record<keyof Novo<T>, (valor: unknown) => unknown>>;
+  fixo?: Record<string, string>;
 }
 
 function cadastroSqlite<T extends { id: number }>(banco: Banco, m: Mapeamento<T>): Cadastro<T> {
   const campos = Object.keys(m.colunas) as (keyof Novo<T>)[];
+  const fixos = Object.entries(m.fixo ?? {});
   const valor = (campo: keyof Novo<T>, v: unknown) => {
     const converter = m.gravar?.[campo];
     return converter ? converter(v) : v;
@@ -75,15 +80,16 @@ function cadastroSqlite<T extends { id: number }>(banco: Banco, m: Mapeamento<T>
     listar: async () => {
       const linhas = await banco.select<Linha[]>(
         `SELECT id, ${campos.map((c) => m.colunas[c]).join(', ')} FROM ${m.tabela}
-         WHERE deleted_at IS NULL ORDER BY id`,
+         WHERE deleted_at IS NULL${fixos.map(([c]) => ` AND ${c} = ?`).join('')} ORDER BY id`,
+        fixos.map(([, v]) => v),
       );
       return linhas.map((l) => m.ler(l));
     },
     criar: async (novo) => {
       const { lastInsertId } = await banco.execute(
-        `INSERT INTO ${m.tabela} (${campos.map((c) => m.colunas[c]).join(', ')})
-         VALUES (${campos.map(() => '?').join(', ')})`,
-        campos.map((c) => valor(c, novo[c])),
+        `INSERT INTO ${m.tabela} (${[...campos.map((c) => m.colunas[c]), ...fixos.map(([c]) => c)].join(', ')})
+         VALUES (${[...campos, ...fixos].map(() => '?').join(', ')})`,
+        [...campos.map((c) => valor(c, novo[c])), ...fixos.map(([, v]) => v)],
       );
       return Number(lastInsertId);
     },
@@ -403,6 +409,86 @@ function preferenciasSqlite(banco: Banco): PreferenciasRepository {
   };
 }
 
+function emprestimosSqlite(banco: Banco): EmprestimosRepository {
+  const data = (v: unknown) => String(v);
+  return {
+    tomados: cadastroSqlite<EmprestimoTomado>(banco, {
+      entidade: 'Empréstimo',
+      tabela: 'emprestimos',
+      fixo: { tipo: 'tomado' },
+      colunas: {
+        descricao: 'descricao',
+        valorCentavos: 'valor_centavos',
+        numParcelas: 'num_parcelas',
+        valorParcelaCentavos: 'valor_parcela_centavos',
+        dia: 'dia',
+        inicio: 'inicio',
+        data: 'data',
+      },
+      usoSql: 'SELECT 1 FROM emprestimo_pagamentos WHERE emprestimo_id = ?',
+      ler: (l) => ({
+        id: numero(l.id),
+        descricao: String(l.descricao),
+        valorCentavos: assertCentavos(numero(l.valor_centavos)),
+        numParcelas: numero(l.num_parcelas),
+        valorParcelaCentavos: assertCentavos(numero(l.valor_parcela_centavos)),
+        dia: numero(l.dia),
+        inicio: data(l.inicio),
+        data: data(l.data),
+      }),
+    }),
+    concedidos: cadastroSqlite<EmprestimoConcedido>(banco, {
+      entidade: 'Empréstimo',
+      tabela: 'emprestimos',
+      fixo: { tipo: 'concedido' },
+      colunas: {
+        terceiroId: 'terceiro_id',
+        descricao: 'descricao',
+        valorCentavos: 'valor_centavos',
+        data: 'data',
+        prazo: 'prazo',
+      },
+      usoSql: 'SELECT 1 FROM abatimentos WHERE emprestimo_id = ?',
+      ler: (l) => ({
+        id: numero(l.id),
+        terceiroId: numero(l.terceiro_id),
+        descricao: String(l.descricao),
+        valorCentavos: assertCentavos(numero(l.valor_centavos)),
+        data: data(l.data),
+        prazo: data(l.prazo),
+      }),
+    }),
+    pagamentos: async () => {
+      const linhas = await banco.select<Linha[]>(
+        'SELECT emprestimo_id, numero, pago_em FROM emprestimo_pagamentos ORDER BY emprestimo_id, numero',
+      );
+      return linhas.map((l) => ({
+        emprestimoId: numero(l.emprestimo_id),
+        numero: numero(l.numero),
+        pagoEm: data(l.pago_em),
+      }));
+    },
+    marcarPaga: async ({ emprestimoId, numero: n, pagoEm }) => {
+      const [existe] = await banco.select<Linha[]>(
+        "SELECT 1 FROM emprestimos WHERE id = ? AND tipo = 'tomado' AND deleted_at IS NULL",
+        [emprestimoId],
+      );
+      if (!existe) throw new RegistroNaoEncontrado('Empréstimo', emprestimoId);
+      await banco.execute(
+        `INSERT INTO emprestimo_pagamentos (emprestimo_id, numero, pago_em) VALUES (?, ?, ?)
+         ON CONFLICT (emprestimo_id, numero) DO UPDATE SET pago_em = excluded.pago_em`,
+        [emprestimoId, n, pagoEm],
+      );
+    },
+    desmarcar: async (emprestimoId, n) => {
+      await banco.execute(
+        'DELETE FROM emprestimo_pagamentos WHERE emprestimo_id = ? AND numero = ?',
+        [emprestimoId, n],
+      );
+    },
+  };
+}
+
 function receberSqlite(banco: Banco, comandos: ComandosAtomicos): ReceberRepository {
   const exigirLinha = async (id: number, sql: string, params: unknown[]) => {
     const { rowsAffected } = await banco.execute(sql, params);
@@ -416,7 +502,7 @@ function receberSqlite(banco: Banco, comandos: ComandosAtomicos): ReceberReposit
            WHERE deleted_at IS NULL ORDER BY data, id`,
         ),
         banco.select<Linha[]>(
-          'SELECT movimento_id, compra_id, numero, valor_centavos FROM abatimentos',
+          'SELECT movimento_id, compra_id, numero, emprestimo_id, valor_centavos FROM abatimentos',
         ),
       ]);
       return linhas.map((l): Movimento => ({
@@ -428,11 +514,12 @@ function receberSqlite(banco: Banco, comandos: ComandosAtomicos): ReceberReposit
         competencia: String(l.competencia),
         abatimentos: abatimentos
           .filter((a) => numero(a.movimento_id) === numero(l.id))
-          .map((a) => ({
-            compraId: numero(a.compra_id),
-            numero: numero(a.numero),
-            valor: assertCentavos(numero(a.valor_centavos)),
-          })),
+          .map((a) => {
+            const valor = assertCentavos(numero(a.valor_centavos));
+            return a.emprestimo_id === null
+              ? { compraId: numero(a.compra_id), numero: numero(a.numero), valor }
+              : { emprestimoId: numero(a.emprestimo_id), valor };
+          }),
       }));
     },
     registrarDeposito: async (deposito) => {
@@ -520,6 +607,7 @@ export function criarRepositoriosSqlite(
       }),
     }),
     compras: comprasSqlite(banco, comandos),
+    emprestimos: emprestimosSqlite(banco),
     assinaturas: {
       ...cadastroSqlite<Assinatura>(banco, {
         entidade: 'Assinatura',

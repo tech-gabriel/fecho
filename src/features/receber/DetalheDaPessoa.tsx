@@ -4,7 +4,7 @@ import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { Cartao, Preferencias } from '@/data';
-import type { Competencia, DataLocal } from '@/domain/competencia';
+import { diasEntre, type Competencia, type DataLocal } from '@/domain/competencia';
 import type { ItemComSituacao } from '@/domain/receber';
 import { dataCurta } from '@/features/faturas/ListaDeCartoes';
 import { formatarMoeda } from '@/lib/formato';
@@ -47,9 +47,16 @@ export function DetalheDaPessoa({
     .filter((i) => i.aberto > 0)
     .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
   const primeiro = abertos[0];
-  const faltaDaFatura = primeiro
-    ? (faltaNaFatura([situacao], primeiro.cartaoId, primeiro.competencia)[0]?.falta ?? 0)
-    : 0;
+  const faltaDaFatura =
+    primeiro?.emprestimoId !== undefined
+      ? primeiro.aberto
+      : primeiro
+        ? (faltaNaFatura([situacao], primeiro.cartaoId, primeiro.competencia)[0]?.falta ?? 0)
+        : 0;
+  const onde = (item: ItemComSituacao) =>
+    item.emprestimoId === undefined
+      ? nomeDoCartao(item.cartaoId)
+      : `Devolve até ${dataCurta(item.vencimento)}`;
   const visiveis = situacao.itens
     .filter((i) => i.aberto > 0 || i.competencia === competencia)
     .sort((a, b) => b.dataCompra.localeCompare(a.dataCompra) || b.numero - a.numero);
@@ -66,7 +73,7 @@ export function DetalheDaPessoa({
   const copiar = () =>
     copiarCobranca(
       terceiro,
-      { valor: falta, cartao: primeiro ? nomeDoCartao(primeiro.cartaoId) : '', vencimento: prazo },
+      { valor: falta, cartao: primeiro ? onde(primeiro) : '', vencimento: prazo },
       () => {
         setCopiado(true);
         setTimeout(() => {
@@ -83,9 +90,11 @@ export function DetalheDaPessoa({
           <div className="flex min-w-0 flex-1 flex-col">
             <h2 className="truncate text-xl font-semibold">{nome}</h2>
             <p className="truncate text-sm text-ink-muted">
-              {prazo
-                ? `Deposita ${ondeEQuando(situacao, cartoes)}`
-                : ondeEQuando(situacao, cartoes)}
+              {primeiro?.emprestimoId !== undefined && prazo
+                ? `Devolve o empréstimo até ${dataCurta(prazo)}`
+                : prazo
+                  ? `Deposita ${ondeEQuando(situacao, cartoes)}`
+                  : ondeEQuando(situacao, cartoes)}
             </p>
           </div>
           {falta > 0 && (
@@ -158,9 +167,21 @@ export function DetalheDaPessoa({
               aria-hidden
               className={cn('flex-none', status === 'atrasado' ? 'text-danger' : 'text-warning')}
             />
-            Faltam {formatarMoeda(faltaDaFatura)} de {nome} para fechar a fatura do{' '}
-            {nomeDoCartao(primeiro.cartaoId)}
-            {status === 'atrasado' ? `, que venceu em ${dataCurta(primeiro.vencimento)}.` : '.'}
+            {primeiro.emprestimoId === undefined ? (
+              <>
+                Faltam {formatarMoeda(faltaDaFatura)} de {nome} para fechar a fatura do{' '}
+                {nomeDoCartao(primeiro.cartaoId)}
+                {status === 'atrasado' ? `, que venceu em ${dataCurta(primeiro.vencimento)}.` : '.'}
+              </>
+            ) : (
+              <>
+                {nome} combinou devolver {formatarMoeda(faltaDaFatura)} do empréstimo até{' '}
+                {dataCurta(primeiro.vencimento)}
+                {diasEntre(primeiro.vencimento, hoje) > 0
+                  ? `. Já são ${String(diasEntre(primeiro.vencimento, hoje))} dias de atraso.`
+                  : '.'}
+              </>
+            )}
           </p>
         )}
       </div>
@@ -214,9 +235,7 @@ export function DetalheDaPessoa({
                         )}
                       </span>
                     </td>
-                    <td className="truncate px-3 font-normal text-ink-muted">
-                      {nomeDoCartao(item.cartaoId)}
-                    </td>
+                    <td className="truncate px-3 font-normal text-ink-muted">{onde(item)}</td>
                     <td className="px-3 text-right tabular-nums">{formatarMoeda(item.valor)}</td>
                     <td className="pr-4">
                       <SeloDoTerceiro status={item.status} />

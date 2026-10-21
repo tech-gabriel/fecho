@@ -4,7 +4,30 @@ import { competenciaDaCompra, datasDaFatura, type DiasDoCartao } from './faturas
 import type { Centavos } from './money';
 import { DIAS_DE_ANTECEDENCIA_DO_ALERTA, precisaAlertarReembolso } from './terceiros';
 
-export type TipoDeAlerta = 'reembolso' | 'fechamento' | 'vencimento' | 'atraso' | 'assinatura';
+export type TipoDeAlerta =
+  | 'reembolso'
+  | 'fechamento'
+  | 'vencimento'
+  | 'atraso'
+  | 'assinatura'
+  | 'devolucao'
+  | 'parcela-emprestimo';
+
+export interface EmprestimosParaAlerta {
+  devolucoes: readonly {
+    emprestimoId: number;
+    terceiroId: number;
+    prazo: DataLocal;
+    falta: Centavos;
+  }[];
+  parcelas: readonly {
+    emprestimoId: number;
+    numero: number;
+    vencimento: DataLocal;
+    valor: Centavos;
+    paga: boolean;
+  }[];
+}
 
 export const DIAS_ANTES_DO_FECHAMENTO = 3;
 export const DIAS_ANTES_DO_VENCIMENTO = 3;
@@ -26,6 +49,8 @@ export interface Alerta {
   competencia: Competencia;
   terceiroId?: number;
   assinaturaId?: number;
+  emprestimoId?: number;
+  numero?: number;
   valor?: Centavos;
   data: DataLocal;
   dias: number;
@@ -38,6 +63,7 @@ export function alertasDoDia(
   hoje: DataLocal,
   desligados: readonly TipoDeAlerta[] = [],
   assinaturas: readonly Assinatura[] = [],
+  emprestimos: EmprestimosParaAlerta = { devolucoes: [], parcelas: [] },
 ): Alerta[] {
   const alertas: Alerta[] = [];
 
@@ -105,6 +131,40 @@ export function alertasDoDia(
       data,
       dias: 1,
       idade: 0,
+    });
+  }
+
+  for (const { emprestimoId, terceiroId, prazo, falta } of emprestimos.devolucoes) {
+    const dias = diasEntre(hoje, prazo);
+    if (falta <= 0 || dias >= 0 || dias < -DIAS_DE_ATRASO_ALERTADOS) continue;
+    alertas.push({
+      chave: `devolucao:${String(emprestimoId)}`,
+      tipo: 'devolucao',
+      cartaoId: 0,
+      competencia: competenciaDe(prazo),
+      emprestimoId,
+      terceiroId,
+      valor: falta,
+      data: prazo,
+      dias,
+      idade: -dias - 1,
+    });
+  }
+
+  for (const { emprestimoId, numero, vencimento, valor, paga } of emprestimos.parcelas) {
+    const dias = diasEntre(hoje, vencimento);
+    if (paga || dias > 0 || dias < -DIAS_DE_ATRASO_ALERTADOS) continue;
+    alertas.push({
+      chave: `parcela-emprestimo:${String(emprestimoId)}:${String(numero)}`,
+      tipo: 'parcela-emprestimo',
+      cartaoId: 0,
+      competencia: competenciaDe(vencimento),
+      emprestimoId,
+      numero,
+      valor,
+      data: vencimento,
+      dias,
+      idade: Math.abs(dias),
     });
   }
 
