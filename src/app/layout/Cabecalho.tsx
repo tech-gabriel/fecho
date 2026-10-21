@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { CentralDeAlertas } from '@/features/alertas/CentralDeAlertas';
 import { usePaginaAtual } from '../paginas';
 import { useApp } from '../store';
-import { Dica, EM_BREVE, Kbd } from './apoio';
+import { Kbd } from './apoio';
 
 export function Cabecalho() {
   const pagina = usePaginaAtual();
   const abrirNovaCompra = useApp((s) => s.abrirNovaCompra);
+  const abrirOverlay = useApp((s) => s.abrirOverlay);
   const legendaDinamica = useApp((s) => s.legendaDaPagina);
   const legenda = legendaDinamica ?? pagina?.legenda;
 
@@ -21,18 +22,18 @@ export function Cabecalho() {
       </div>
 
       <div className="flex flex-none items-center gap-2">
-        <Dica texto={EM_BREVE}>
-          <Button
-            variant="outline"
-            aria-disabled="true"
-            aria-keyshortcuts="Control+K"
-            className="w-[200px] justify-start pr-2 pl-3 font-normal text-ink-muted"
-          >
-            <Search strokeWidth={1.75} />
-            <span className="flex-1 text-left">Buscar…</span>
-            <Kbd className="bg-soft">Ctrl K</Kbd>
-          </Button>
-        </Dica>
+        <Button
+          variant="outline"
+          aria-keyshortcuts="Control+K"
+          className="w-[200px] justify-start pr-2 pl-3 font-normal text-ink-muted"
+          onClick={() => {
+            abrirOverlay('paleta');
+          }}
+        >
+          <Search strokeWidth={1.75} />
+          <span className="flex-1 text-left">Buscar…</span>
+          <Kbd className="bg-soft">Ctrl K</Kbd>
+        </Button>
         <CentralDeAlertas />
         <Button
           aria-keyshortcuts="Control+N"

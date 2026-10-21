@@ -2,8 +2,6 @@ import type { ReactElement, ReactNode } from 'react';
 import { cn } from 'cn';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-export const EM_BREVE = 'Disponível em breve';
-
 export function Dica({
   texto,
   lado = 'bottom',

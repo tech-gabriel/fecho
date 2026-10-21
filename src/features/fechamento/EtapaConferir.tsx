@@ -239,6 +239,8 @@ function SemExtrato({
         <Button
           variant="ghost"
           size="sm"
+          aria-keyshortcuts="Space"
+          data-atalho="conferir"
           onClick={() =>
             void executar(async () => {
               await repos.fechamento.conferir({
@@ -472,6 +474,8 @@ function Comparacao({
       <Button
         variant="outline"
         className="self-end"
+        aria-keyshortcuts="Space"
+        data-atalho="conferir"
         onClick={() =>
           void executar(async () => {
             await repos.fechamento.conferir({

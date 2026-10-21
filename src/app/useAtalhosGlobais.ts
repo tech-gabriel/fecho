@@ -1,20 +1,33 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { type NavigateFunction, useNavigate } from 'react-router';
+import { acionar, desfazerUltimo, emCampoDeTexto } from '@/lib/atalhos';
 import { CONFIGURACOES, PAGINAS } from './paginas';
 import { useApp } from './store';
+
+export const A_RECEBER = '/receber';
+
+export function registrarDeposito(navigate: NavigateFunction) {
+  if (!acionar('outro-valor')) void navigate(A_RECEBER, { state: { registrar: true } });
+}
 
 export function useAtalhosGlobais() {
   const navigate = useNavigate();
 
   useEffect(() => {
     const aoTeclar = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof Element &&
-        e.target.closest('input, textarea, select, [contenteditable]')
-      ) {
+      const app = useApp.getState();
+      if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        app.abrirOverlay(app.overlay === 'paleta' ? null : 'paleta');
         return;
       }
+      if (emCampoDeTexto(e.target)) return;
 
+      if (e.key === '?' && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        app.abrirOverlay('atalhos');
+        return;
+      }
       if (e.altKey && !e.ctrlKey && e.key === 'ArrowLeft') {
         e.preventDefault();
         void navigate(-1);
@@ -22,12 +35,17 @@ export function useAtalhosGlobais() {
       }
       if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
 
-      const app = useApp.getState();
       const pagina = /^[1-8]$/.test(e.key) ? PAGINAS[Number(e.key) - 1] : undefined;
       const acoes: Record<string, (() => void) | undefined> = {
         b: app.alternarSidebar,
         n: () => {
           app.abrirNovaCompra();
+        },
+        r: () => {
+          registrarDeposito(navigate);
+        },
+        z: () => {
+          desfazerUltimo();
         },
         ArrowLeft: app.voltarMes,
         ArrowRight: app.avancarMes,
