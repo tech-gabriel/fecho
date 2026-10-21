@@ -20,6 +20,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import type { Cadastro, Novo } from '@/data';
+import { MesFechado } from '@/data/repositories';
+import { nomeDoMes } from '@/lib/formato';
 import type { PropsDoFormulario } from './formularios';
 
 export interface Item {
@@ -53,7 +55,19 @@ export interface ConfigDaSecao<T extends Item> {
 export async function executar(acao: () => Promise<void>) {
   try {
     await acao();
-  } catch {
+  } catch (erro) {
+    if (erro instanceof MesFechado) {
+      const mes = nomeDoMes(erro.competencia).split(' ')[0] ?? '';
+      toast.error(`${mes} está fechado. Reabra o mês para mudar.`, {
+        action: {
+          label: 'Reabrir',
+          onClick: () => {
+            window.location.hash = `#/fechar/${erro.competencia}`;
+          },
+        },
+      });
+      return;
+    }
     toast.error('Não foi possível salvar.', {
       action: { label: 'Tentar de novo', onClick: () => void executar(acao) },
     });

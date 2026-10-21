@@ -5,6 +5,7 @@ import {
   Landmark,
   LayoutDashboard,
   List,
+  Lock,
   PiggyBank,
   Repeat,
   Settings,
@@ -55,6 +56,13 @@ export const CONFIGURACOES: Pagina = {
   rotulo: 'Configurações',
   icone: Settings,
   legenda: 'Tudo fica salvo só neste computador',
+};
+
+export const FECHAR_O_MES: Pagina = {
+  caminho: '/fechar/:competencia',
+  titulo: 'Fechar o mês',
+  rotulo: 'Fechar o mês',
+  icone: Lock,
 };
 
 export function usePaginaAtual(): Pagina | undefined {

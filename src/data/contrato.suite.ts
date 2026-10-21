@@ -758,5 +758,68 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         ).rejects.toThrow();
       });
     });
+
+    describe('fechamento do mês', () => {
+      it('fecha, reabre e guarda as conferências', async () => {
+        await repos.fechamento.fechar('2026-10', '2026-11-05');
+        await repos.fechamento.fechar('2026-09', '2026-10-05');
+        expect(await repos.fechamento.fechados()).toEqual(['2026-09', '2026-10']);
+        await repos.fechamento.reabrir('2026-10');
+        expect(await repos.fechamento.fechados()).toEqual(['2026-09']);
+
+        await repos.fechamento.conferir({
+          cartaoId: cartaoRoxo,
+          competencia: '2026-10',
+          extrato: 'fatura.csv',
+          conferidaEm: '2026-11-03',
+        });
+        await repos.fechamento.conferir({
+          cartaoId: cartaoRoxo,
+          competencia: '2026-10',
+          extrato: null,
+          conferidaEm: '2026-11-04',
+        });
+        expect(await repos.fechamento.conferencias()).toEqual([
+          {
+            cartaoId: cartaoRoxo,
+            competencia: '2026-10',
+            extrato: null,
+            conferidaEm: '2026-11-04',
+          },
+        ]);
+        await repos.fechamento.desconferir(cartaoRoxo, '2026-10');
+        expect(await repos.fechamento.conferencias()).toEqual([]);
+      });
+
+      it('não deixa mexer em compra de mês fechado', async () => {
+        const id = await repos.compras.salvar(compra({ numParcelas: 1, dataCompra: '2026-10-02' }));
+        await repos.fechamento.fechar('2026-10', '2026-11-05');
+
+        await expect(
+          repos.compras.salvar(compra({ numParcelas: 1, dataCompra: '2026-10-03' })),
+        ).rejects.toMatchObject({ name: 'Error', competencia: '2026-10' });
+        await expect(repos.compras.excluir(id)).rejects.toMatchObject({ competencia: '2026-10' });
+        await expect(
+          repos.compras.substituir(id, compra({ numParcelas: 1, dataCompra: '2026-11-02' })),
+        ).rejects.toMatchObject({ competencia: '2026-10' });
+        await expect(
+          repos.faturas.marcarComoPaga({
+            cartaoId: cartaoRoxo,
+            competencia: '2026-10',
+            pagoEm: '2026-11-05',
+            valorPagoCentavos: 1,
+          }),
+        ).rejects.toMatchObject({ competencia: '2026-10' });
+        await expect(
+          repos.compras.salvar(compra({ numParcelas: 3, dataCompra: '2026-08-02' })),
+        ).rejects.toMatchObject({ competencia: '2026-10' });
+
+        expect(
+          await repos.compras.salvar(compra({ numParcelas: 1, dataCompra: '2026-11-02' })),
+        ).toBeGreaterThan(0);
+        await repos.fechamento.reabrir('2026-10');
+        await repos.compras.excluir(id);
+      });
+    });
   });
 }

@@ -1,13 +1,29 @@
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Lock } from 'lucide-react';
+import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { legendaDoMes, type Competencia } from '@/domain/competencia';
 import { mesAbreviado, nomeDoMes } from '@/lib/formato';
 import { hojeLocal, useApp } from '../store';
+import { useMesesFechados } from '../useMesesFechados';
 import { Dica } from './apoio';
 
-function Legenda({ competencia }: { competencia: Competencia }) {
-  const legenda = legendaDoMes(competencia, hojeLocal());
+function Legenda({
+  competencia,
+  fechados,
+}: {
+  competencia: Competencia;
+  fechados: ReadonlySet<Competencia>;
+}) {
+  const legenda = legendaDoMes(competencia, hojeLocal(), fechados);
   if (legenda.tipo === 'futuro') return <>Previsto</>;
+  if (legenda.tipo === 'fechado') {
+    return (
+      <>
+        <Lock size={12} strokeWidth={1.75} aria-hidden />
+        Mês fechado
+      </>
+    );
+  }
   if (legenda.tipo === 'passado') {
     return (
       <>
@@ -24,6 +40,9 @@ function Legenda({ competencia }: { competencia: Competencia }) {
 
 export function SeletorMes() {
   const { competencia, voltarMes, avancarMes } = useApp();
+  const fechados = useMesesFechados();
+  const podeFechar =
+    !fechados.has(competencia) && legendaDoMes(competencia, hojeLocal()).tipo !== 'futuro';
 
   return (
     <div
@@ -59,8 +78,16 @@ export function SeletorMes() {
         </Dica>
       </div>
       <p className="flex items-center justify-center gap-1 pb-2 text-xs text-ink-muted">
-        <Legenda competencia={competencia} />
+        <Legenda competencia={competencia} fechados={fechados} />
       </p>
+      {podeFechar && (
+        <Link
+          to={`/fechar/${competencia}`}
+          className="mx-auto mb-1 rounded-md px-2 py-0.5 text-xs font-medium text-brand-text hover:underline"
+        >
+          Fechar {nomeDoMes(competencia).split(' ')[0]}
+        </Link>
+      )}
     </div>
   );
 }

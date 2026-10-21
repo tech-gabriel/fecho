@@ -5,6 +5,8 @@ import type { Rateio } from '@/domain/terceiros';
 import {
   type Assinatura,
   type Cadastro,
+  type Conferencia,
+  type FechamentoRepository,
   type EmprestimoConcedido,
   type MetaDeEconomia,
   type MovimentoDeEconomia,
@@ -27,6 +29,7 @@ import {
   type Terceiro,
 } from '../repositories';
 import { backupIndisponivel } from '../backup';
+import { comMesesFechados } from '../fechamento';
 
 type CompraGravada = Compra & { id: number; rateios: Rateio[]; excluido: boolean };
 type ParcelaGravada = Parcela & { id: number; compraId: number };
@@ -205,6 +208,32 @@ function comprasEmMemoria(
   }
 }
 
+function fechamentoEmMemoria(): FechamentoRepository {
+  let fechados: { competencia: string; em: string }[] = [];
+  let conferencias: Conferencia[] = [];
+  const mesma = (c: Conferencia, cartaoId: number, competencia: string) =>
+    c.cartaoId === cartaoId && c.competencia === competencia;
+  return {
+    fechados: async () => fechados.map((f) => f.competencia).sort(),
+    fechar: async (competencia, em) => {
+      fechados = [...fechados.filter((f) => f.competencia !== competencia), { competencia, em }];
+    },
+    reabrir: async (competencia) => {
+      fechados = fechados.filter((f) => f.competencia !== competencia);
+    },
+    conferencias: async () => conferencias.map((c) => ({ ...c })),
+    conferir: async (conferencia) => {
+      conferencias = [
+        ...conferencias.filter((c) => !mesma(c, conferencia.cartaoId, conferencia.competencia)),
+        { ...conferencia },
+      ];
+    },
+    desconferir: async (cartaoId, competencia) => {
+      conferencias = conferencias.filter((c) => !mesma(c, cartaoId, competencia));
+    },
+  };
+}
+
 export function criarRepositoriosEmMemoria(): Repositorios {
   const compras: CompraGravada[] = [];
   const parcelas: ParcelaGravada[] = [];
@@ -280,7 +309,8 @@ export function criarRepositoriosEmMemoria(): Repositorios {
   const objetivos = cadastroEmMemoria<Objetivo>('Objetivo', () => false);
   const movimentosDeEconomia = cadastroEmMemoria<MovimentoDeEconomia>('Registro', () => false);
 
-  return {
+  return comMesesFechados({
+    fechamento: fechamentoEmMemoria(),
     economias: {
       metas: {
         listar: async () =>
@@ -390,5 +420,5 @@ export function criarRepositoriosEmMemoria(): Repositorios {
             : [chaveDaCobranca(c.assinaturaId, c.assinaturaMes)],
         ),
     },
-  };
+  });
 }

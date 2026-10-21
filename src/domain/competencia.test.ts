@@ -118,3 +118,12 @@ describe('legendaDoMes', () => {
     expect(legendaDoMes(c, '2026-10-20')).toEqual({ tipo });
   });
 });
+
+describe('legendaDoMes com meses fechados', () => {
+  it('diz fechado para o mês fechado, seja atual ou passado', () => {
+    const fechados = new Set(['2026-09', '2026-10']);
+    expect(legendaDoMes('2026-09', '2026-10-20', fechados)).toEqual({ tipo: 'fechado' });
+    expect(legendaDoMes('2026-10', '2026-10-20', fechados)).toEqual({ tipo: 'fechado' });
+    expect(legendaDoMes('2026-08', '2026-10-20', fechados)).toEqual({ tipo: 'passado' });
+  });
+});
