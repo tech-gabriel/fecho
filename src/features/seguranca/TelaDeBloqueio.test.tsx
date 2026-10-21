@@ -53,6 +53,31 @@ describe('Tela de bloqueio', () => {
     expect(await tela()).toHaveTextContent(/Bloqueado às \d\d:\d\d ao abrir o Fechô/);
   });
 
+  it('fecha os diálogos ao bloquear e ignora os atalhos do app enquanto bloqueado', async () => {
+    await repos.seguranca.definirPin('2580');
+    const router = await abrir('/faturas');
+    await digitar('2580');
+    await screen.findByRole('heading', { level: 1, name: 'Faturas' });
+    act(() => {
+      useApp.getState().abrirNovaCompra();
+      useApp.getState().abrirOverlay('paleta');
+    });
+
+    fireEvent.keyDown(document.body, { key: 'l', ctrlKey: true });
+    expect(await tela()).toBeInTheDocument();
+    expect(useApp.getState()).toMatchObject({ overlay: null, novaCompraAberta: false });
+    expect(screen.queryByRole('dialog', { name: 'Nova compra' })).not.toBeInTheDocument();
+
+    for (const key of ['k', 'r', 'z', 'n', '2']) {
+      fireEvent.keyDown(document.body, { key, ctrlKey: true });
+    }
+    fireEvent.keyDown(document.body, { key: '?', shiftKey: true });
+
+    expect(useApp.getState()).toMatchObject({ overlay: null, novaCompraAberta: false });
+    expect(router.state.location.pathname).toBe('/faturas');
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
+
   it('conta as tentativas erradas e libera com o PIN certo', async () => {
     await repos.seguranca.definirPin('2580');
     await abrir();

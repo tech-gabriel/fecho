@@ -1221,6 +1221,8 @@ dependencies = [
  "tauri-plugin-fs",
  "tauri-plugin-notification",
  "tauri-plugin-sql",
+ "webview2-com",
+ "windows",
 ]
 
 [[package]]
