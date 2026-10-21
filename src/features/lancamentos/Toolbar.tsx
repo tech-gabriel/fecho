@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { ChevronDown, Columns3, Search, Upload, X } from 'lucide-react';
+import { ChevronDown, Columns3, FileSpreadsheet, Search, Upload, X } from 'lucide-react';
 import { cn } from 'cn';
 import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { Cartao, Categoria } from '@/data';
+import { useExportarPlanilha } from '@/features/exportacao/useExportarPlanilha';
 
 export interface Filtros {
   q: string;
@@ -119,6 +120,7 @@ export function Toolbar({
   onMudar: (mudanca: Partial<Filtros>) => void;
   onColunas: (colunas: Colunas) => void;
 }) {
+  const exportarPlanilha = useExportarPlanilha();
   return (
     <div className="flex flex-none flex-wrap items-center gap-2">
       <div className="relative w-[200px]">
@@ -229,6 +231,15 @@ export function Toolbar({
           <Upload strokeWidth={1.75} />
           Importar .xlsx
         </Link>
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        aria-label="Exportar .xlsx"
+        onClick={() => void exportarPlanilha()}
+      >
+        <FileSpreadsheet strokeWidth={1.75} />
+        Exportar
       </Button>
     </div>
   );

@@ -125,6 +125,7 @@ pub fn run() {
             receber::registrar_deposito,
             backup::caminhos_de_dados,
             backup::exportar_backup,
+            backup::salvar_planilha,
             backup::backup_automatico,
             backup::inspecionar_backup,
             backup::restaurar_backup,
