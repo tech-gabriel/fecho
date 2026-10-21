@@ -221,3 +221,29 @@ describe('Alerta de assinatura', () => {
     expect(router.state.location.pathname).toBe('/assinaturas');
   });
 });
+
+describe('Alerta de parcela de empréstimo', () => {
+  it('lembra a parcela no dia do débito e marca como paga pelo sino', async () => {
+    const id = await repos.emprestimos.tomados.criar({
+      descricao: 'Celular',
+      valorCentavos: 100_000,
+      numParcelas: 10,
+      valorParcelaCentavos: 12_000,
+      dia: 2,
+      inicio: '2026-11',
+      data: '2026-10-20',
+    });
+    await abrir();
+
+    const central = await abrirSino();
+    expect(central.getByText('A 1ª parcela do Celular vence hoje. Já foi debitada?')).toBeVisible();
+    fireEvent.click(central.getByRole('button', { name: 'Marcar paga' }));
+
+    await waitFor(async () => {
+      expect(await repos.emprestimos.pagamentos()).toEqual([
+        { emprestimoId: id, numero: 1, pagoEm: '2026-11-02' },
+      ]);
+    });
+    expect(await sino('Alertas, 3 novos')).toBeInTheDocument();
+  });
+});

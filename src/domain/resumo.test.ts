@@ -141,9 +141,17 @@ describe('rendaComprometida', () => {
         valor: 221_000,
         parcelas: 221_000,
         assinaturas: 0,
+        emprestimos: 0,
         percentual: 30.69,
       },
-      { competencia: '2026-12', valor: 10_000, parcelas: 10_000, assinaturas: 0, percentual: null },
+      {
+        competencia: '2026-12',
+        valor: 10_000,
+        parcelas: 10_000,
+        assinaturas: 0,
+        emprestimos: 0,
+        percentual: null,
+      },
     ]);
   });
 });
@@ -160,8 +168,29 @@ describe('rendaComprometida com assinaturas', () => {
         valor: 216_000,
         parcelas: 200_000,
         assinaturas: 16_000,
+        emprestimos: 0,
         percentual: 30,
       },
     ]);
+  });
+});
+
+describe('resumo com empréstimos tomados', () => {
+  it('desconta as parcelas do mês dos meus gastos e do saldo real (regra 6)', () => {
+    const resumo = resumoDoMes({
+      receitas: [720_000],
+      linhas: [{ parcelaId: 1, dono: null, valorCentavos: 100_000 }],
+      faturas: [],
+      parcelasEmprestimos: 48_000,
+    });
+    expect(resumo).toMatchObject({ meusGastos: 148_000, saldoReal: 572_000 });
+  });
+
+  it('soma os empréstimos à renda comprometida', () => {
+    expect(
+      rendaComprometida([
+        { competencia: '2026-11', minhasParcelas: 100_000, emprestimos: 48_000, renda: 740_000 },
+      ])[0],
+    ).toMatchObject({ valor: 148_000, emprestimos: 48_000, percentual: 20 });
   });
 });

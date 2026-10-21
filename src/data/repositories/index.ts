@@ -7,8 +7,14 @@ import type { Centavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
 import type { TipoDeAlerta } from '@/domain/alertas';
 import type { Assinatura } from '@/domain/assinaturas';
+import type {
+  EmprestimoConcedido,
+  EmprestimoTomado,
+  PagamentoDeParcela,
+} from '@/domain/emprestimos';
+import type { Abatimento } from '@/domain/receber';
 
-export type { Assinatura };
+export type { Assinatura, EmprestimoConcedido, EmprestimoTomado, PagamentoDeParcela };
 
 export interface Cartao {
   id: number;
@@ -151,10 +157,14 @@ export interface PreferenciasRepository {
   gravar(preferencias: Partial<Preferencias>): Promise<void>;
 }
 
-export interface AbatimentoGravado {
-  compraId: number;
-  numero: number;
-  valor: Centavos;
+export type AbatimentoGravado = Abatimento;
+
+export interface EmprestimosRepository {
+  tomados: Omit<Cadastro<EmprestimoTomado>, 'possuiCompras'>;
+  concedidos: Omit<Cadastro<EmprestimoConcedido>, 'possuiCompras'>;
+  pagamentos(): Promise<PagamentoDeParcela[]>;
+  marcarPaga(pagamento: PagamentoDeParcela): Promise<void>;
+  desmarcar(emprestimoId: number, numero: number): Promise<void>;
 }
 
 export interface Movimento {
@@ -193,6 +203,7 @@ export interface Repositorios {
   backup: ServicoDeBackup;
   receber: ReceberRepository;
   assinaturas: AssinaturasRepository;
+  emprestimos: EmprestimosRepository;
 }
 
 export class RegistroNaoEncontrado extends Error {

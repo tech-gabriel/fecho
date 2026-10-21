@@ -18,6 +18,7 @@ export interface MesComprometido {
   valor: number;
   parcelas: number;
   assinaturas: number;
+  emprestimos: number;
   percentual: number | null;
 }
 
@@ -40,6 +41,7 @@ export function GraficoComprometida({
       percentual,
       parcelas: daParte(m.parcelas),
       assinaturas: daParte(m.assinaturas),
+      emprestimos: daParte(m.emprestimos),
     };
   });
   const maior = Math.max(limite, ...dados.map((d) => d.percentual));
@@ -67,6 +69,13 @@ export function GraficoComprometida({
             <span aria-hidden className="size-2.5 rounded-sm bg-chart-3" />
             Assinaturas
           </span>
+          <span className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className="size-2.5 rounded-sm bg-[repeating-linear-gradient(135deg,var(--chart-5)_0_2px,var(--surface)_2px_3px)]"
+            />
+            Empréstimos
+          </span>
         </span>
       </div>
 
@@ -78,6 +87,18 @@ export function GraficoComprometida({
         <div aria-hidden className="h-[220px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={dados} margin={{ top: 24, right: 8, bottom: 0, left: -16 }}>
+              <defs>
+                <pattern
+                  id="hachura-emprestimos"
+                  width="6"
+                  height="6"
+                  patternUnits="userSpaceOnUse"
+                  patternTransform="rotate(45)"
+                >
+                  <rect width="6" height="6" fill="var(--chart-5)" />
+                  <line x1="0" y1="0" x2="0" y2="6" stroke="var(--surface)" strokeWidth="2" />
+                </pattern>
+              </defs>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis
                 dataKey="mes"
@@ -121,6 +142,17 @@ export function GraficoComprometida({
                 fill="var(--chart-3)"
                 stroke="var(--surface)"
                 strokeWidth={2}
+                maxBarSize={40}
+                onMouseEnter={(_, indice) => {
+                  setAtivo(indice);
+                }}
+              />
+              <Bar
+                dataKey="emprestimos"
+                stackId="comprometida"
+                fill="url(#hachura-emprestimos)"
+                stroke="var(--surface)"
+                strokeWidth={2}
                 radius={[4, 4, 0, 0]}
                 maxBarSize={40}
                 onMouseEnter={(_, indice) => {
@@ -149,7 +181,8 @@ export function GraficoComprometida({
           {destaque.percentual !== null && ` · ${porcento(destaque.percentual)} da renda`}
           <span className="block text-xs">
             Parcelas {formatarMoeda(destaque.parcelas)} · Assinaturas{' '}
-            {formatarMoeda(destaque.assinaturas)}
+            {formatarMoeda(destaque.assinaturas)} · Empréstimos{' '}
+            {formatarMoeda(destaque.emprestimos)}
           </span>
         </p>
       )}
@@ -161,6 +194,7 @@ export function GraficoComprometida({
             <th scope="col">Mês</th>
             <th scope="col">Parcelas</th>
             <th scope="col">Assinaturas</th>
+            <th scope="col">Empréstimos</th>
             <th scope="col">Da renda</th>
           </tr>
         </thead>
@@ -170,6 +204,7 @@ export function GraficoComprometida({
               <th scope="row">{nomeDoMes(m.competencia)}</th>
               <td>{formatarMoeda(m.parcelas)}</td>
               <td>{formatarMoeda(m.assinaturas)}</td>
+              <td>{formatarMoeda(m.emprestimos)}</td>
               <td>{m.percentual === null ? 'sem renda' : porcento(m.percentual)}</td>
             </tr>
           ))}

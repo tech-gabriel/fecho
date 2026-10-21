@@ -1,6 +1,7 @@
 import { CircleCheck, Clock, HandCoins, TriangleAlert } from 'lucide-react';
 import { cn } from 'cn';
-import type { Cartao, Movimento, ParcelaDoMes, Terceiro } from '@/data';
+import type { Cartao, EmprestimoConcedido, Movimento, ParcelaDoMes, Terceiro } from '@/data';
+import { itemDoConcedido } from '@/domain/emprestimos';
 import { dataNaCompetencia, type Competencia, type DataLocal } from '@/domain/competencia';
 import { itensDaPessoa, situacaoDaPessoa } from '@/domain/receber';
 import type { StatusTerceiro } from '@/domain/terceiros';
@@ -18,7 +19,9 @@ export function montarSituacoes({
   movimentos,
   competencia,
   hoje,
+  concedidos = [],
 }: {
+  concedidos?: EmprestimoConcedido[];
   terceiros: Terceiro[];
   cartoes: Cartao[];
   parcelas: ParcelaDoMes[];
@@ -29,7 +32,12 @@ export function montarSituacoes({
   const fimDoMes = dataNaCompetencia(competencia, 31);
   const ate = parcelas.filter((p) => p.competencia <= competencia);
   return terceiros.flatMap((terceiro) => {
-    const itens = itensDaPessoa(ate, terceiro.id, cartoes);
+    const itens = [
+      ...itensDaPessoa(ate, terceiro.id, cartoes),
+      ...concedidos
+        .filter((c) => c.terceiroId === terceiro.id && c.data <= fimDoMes)
+        .map(itemDoConcedido),
+    ];
     const daPessoa = movimentos.filter((m) => m.terceiroId === terceiro.id && m.data <= fimDoMes);
     const depositos = daPessoa.filter((m) => m.tipo === 'deposito');
     if (!terceiro.ativo && itens.length === 0 && depositos.length === 0) return [];

@@ -3,7 +3,14 @@ import { HandCoins } from 'lucide-react';
 import { useSearchParams } from 'react-router';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
-import type { Cartao, Movimento, ParcelaDoMes, Preferencias, Terceiro } from '@/data';
+import type {
+  EmprestimoConcedido,
+  Cartao,
+  Movimento,
+  ParcelaDoMes,
+  Preferencias,
+  Terceiro,
+} from '@/data';
 import { DetalheDaPessoa } from './DetalheDaPessoa';
 import { ListaDePessoas } from './ListaDePessoas';
 import { montarSituacoes } from './situacoes';
@@ -14,6 +21,7 @@ interface Dados {
   parcelas: ParcelaDoMes[];
   movimentos: Movimento[];
   preferencias: Preferencias;
+  concedidos: EmprestimoConcedido[];
 }
 
 const ORDEM = { atrasado: 0, parcial: 1, pendente: 2, pago: 3 };
@@ -34,8 +42,11 @@ export function AReceber() {
       repos.compras.parcelasDeTerceiros(competencia),
       repos.receber.movimentos(),
       repos.preferencias.ler(),
-    ]).then(([cartoes, terceiros, parcelas, movimentos, preferencias]) => {
-      if (montado) setDados({ cartoes, terceiros, parcelas, movimentos, preferencias });
+      repos.emprestimos.concedidos.listar(),
+    ]).then(([cartoes, terceiros, parcelas, movimentos, preferencias, concedidos]) => {
+      if (montado) {
+        setDados({ cartoes, terceiros, parcelas, movimentos, preferencias, concedidos });
+      }
     });
     return () => {
       montado = false;

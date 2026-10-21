@@ -8,8 +8,12 @@ use crate::compras::BANCO;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Abatimento {
-    pub compra_id: i64,
-    pub numero: i64,
+    #[serde(default)]
+    pub compra_id: Option<i64>,
+    #[serde(default)]
+    pub numero: Option<i64>,
+    #[serde(default)]
+    pub emprestimo_id: Option<i64>,
     pub valor: i64,
 }
 
@@ -39,12 +43,13 @@ pub async fn gravar_deposito(pool: &SqlitePool, deposito: &Deposito) -> Result<i
 
     for abatimento in &deposito.abatimentos {
         sqlx::query(
-            "INSERT INTO abatimentos (movimento_id, compra_id, numero, valor_centavos)
-             VALUES (?, ?, ?, ?)",
+            "INSERT INTO abatimentos (movimento_id, compra_id, numero, emprestimo_id, valor_centavos)
+             VALUES (?, ?, ?, ?, ?)",
         )
         .bind(id)
         .bind(abatimento.compra_id)
         .bind(abatimento.numero)
+        .bind(abatimento.emprestimo_id)
         .bind(abatimento.valor)
         .execute(&mut *tx)
         .await?;
@@ -88,7 +93,9 @@ mod testes {
                  INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento, cor) VALUES ('Roxo', 28, 5, '#8B5CF6');
                  INSERT INTO terceiros (nome, cor) VALUES ('Ana', '#2563EB');
                  INSERT INTO compras (cartao_id, descricao, valor_total_centavos, num_parcelas, data_compra)
-                   VALUES (1, 'Tênis', 200, 2, '2026-10-02');",
+                   VALUES (1, 'Tênis', 200, 2, '2026-10-02');
+                 INSERT INTO emprestimos (tipo, descricao, terceiro_id, valor_centavos, data, prazo)
+                   VALUES ('concedido', 'Empréstimo', 1, 800, '2026-08-15', '2026-10-15');",
             )
             .execute(&pool)
             .await
@@ -114,13 +121,15 @@ mod testes {
             competencia: "2026-10".into(),
             abatimentos: vec![
                 Abatimento {
-                    compra_id: 1,
-                    numero: 1,
+                    compra_id: Some(1),
+                    numero: Some(1),
+                    emprestimo_id: None,
                     valor: 100,
                 },
                 Abatimento {
-                    compra_id,
-                    numero: 2,
+                    compra_id: Some(compra_id),
+                    numero: Some(2),
+                    emprestimo_id: None,
                     valor: 50,
                 },
             ],
@@ -135,6 +144,22 @@ mod testes {
 
         assert_eq!(contar(&pool, "movimentos"), 1);
         assert_eq!(contar(&pool, "abatimentos"), 2);
+    }
+
+    #[test]
+    fn abate_um_emprestimo_concedido() {
+        let pool = banco();
+        let mut com_emprestimo = deposito(1);
+        com_emprestimo.abatimentos.push(Abatimento {
+            compra_id: None,
+            numero: None,
+            emprestimo_id: Some(1),
+            valor: 300,
+        });
+
+        tauri::async_runtime::block_on(gravar_deposito(&pool, &com_emprestimo)).unwrap();
+
+        assert_eq!(contar(&pool, "abatimentos"), 3);
     }
 
     #[test]

@@ -5,10 +5,16 @@ import {
   BellOff,
   CalendarClock,
   Copy,
+  Check,
   CreditCard,
+  HandCoins,
+  Landmark,
   Repeat,
   TriangleAlert,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useRepositorios } from '@/app/repositorios';
+import { executar } from '@/features/cadastros/SecaoCadastro';
 import { cn } from 'cn';
 import { useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
@@ -25,6 +31,8 @@ const VISUAL: Record<TipoDeAlerta, { icone: typeof Bell; classe: string }> = {
   vencimento: { icone: CalendarClock, classe: 'bg-warning-bg text-warning-text' },
   fechamento: { icone: CreditCard, classe: 'bg-soft text-ink' },
   assinatura: { icone: Repeat, classe: 'bg-info-bg text-info-text' },
+  devolucao: { icone: HandCoins, classe: 'bg-danger-bg text-danger-text' },
+  'parcela-emprestimo': { icone: Landmark, classe: 'bg-warning-bg text-warning-text' },
 };
 
 const GRUPOS: GrupoDeAlerta[] = ['Hoje', 'Esta semana', 'Antes'];
@@ -33,6 +41,8 @@ export function CentralDeAlertas() {
   const { alertas, hoje, preferencias, marcarComoLidos } = useAlertas();
   const { copiarCobranca } = useAcoesDeCobranca(preferencias ?? PREFERENCIAS_PADRAO, hoje);
   const irParaCompetencia = useApp((s) => s.irParaCompetencia);
+  const dadosMudaram = useApp((s) => s.dadosMudaram);
+  const repos = useRepositorios();
   const navigate = useNavigate();
   const [aberta, setAberta] = useState(false);
   const naoLidos = alertas.filter((a) => !a.lido).length;
@@ -40,23 +50,46 @@ export function CentralDeAlertas() {
   const abrir = (alerta: AlertaNaTela) => {
     marcarComoLidos([alerta.chave]);
     setAberta(false);
-    if (alerta.tipo === 'assinatura') {
-      void navigate('/assinaturas');
+    if (alerta.tipo === 'assinatura' || alerta.tipo === 'parcela-emprestimo') {
+      void navigate(alerta.tipo === 'assinatura' ? '/assinaturas' : '/emprestimos');
       return;
     }
     irParaCompetencia(alerta.competencia);
     void navigate(
-      alerta.tipo === 'reembolso' && alerta.terceiro
+      alerta.terceiro && (alerta.tipo === 'reembolso' || alerta.tipo === 'devolucao')
         ? `/receber?pessoa=${String(alerta.terceiro.id)}`
-        : `/faturas?cartao=${String(alerta.cartao.id)}`,
+        : `/faturas?cartao=${String(alerta.cartaoId)}`,
     );
+  };
+
+  const marcarPaga = (alerta: AlertaNaTela) => {
+    const { emprestimoId, numero } = alerta;
+    if (emprestimoId === undefined || numero === undefined) return;
+    void executar(async () => {
+      await repos.emprestimos.marcarPaga({ emprestimoId, numero, pagoEm: hoje });
+      dadosMudaram();
+      toast.success(`${String(numero)}ª parcela marcada como paga`, {
+        action: {
+          label: 'Desfazer',
+          onClick: () =>
+            void executar(async () => {
+              await repos.emprestimos.desmarcar(emprestimoId, numero);
+              dadosMudaram();
+            }),
+        },
+      });
+    });
   };
 
   const cobrar = (alerta: AlertaNaTela) => {
     if (!alerta.terceiro) return;
     void copiarCobranca(
       alerta.terceiro,
-      { valor: alerta.valor ?? 0, cartao: alerta.cartao.nome, vencimento: alerta.data },
+      {
+        valor: alerta.valor ?? 0,
+        cartao: alerta.cartao?.nome ?? 'empréstimo',
+        vencimento: alerta.data,
+      },
       () => {
         marcarComoLidos([alerta.chave]);
       },
@@ -133,6 +166,7 @@ export function CentralDeAlertas() {
                         alerta={alerta}
                         onAbrir={abrir}
                         onCobrar={cobrar}
+                        onMarcarPaga={marcarPaga}
                       />
                     ))}
                   </ul>
@@ -164,10 +198,12 @@ function ItemDoAlerta({
   alerta,
   onAbrir,
   onCobrar,
+  onMarcarPaga,
 }: {
   alerta: AlertaNaTela;
   onAbrir: (alerta: AlertaNaTela) => void;
   onCobrar: (alerta: AlertaNaTela) => void;
+  onMarcarPaga: (alerta: AlertaNaTela) => void;
 }) {
   const { icone: Icone, classe } = VISUAL[alerta.tipo];
   return (
@@ -191,7 +227,20 @@ function ItemDoAlerta({
         </button>
         <div className="flex items-center gap-2 text-xs text-ink-muted">
           <span>{quandoComecou(alerta.idade)}</span>
-          {alerta.tipo === 'reembolso' && alerta.terceiro && (
+          {alerta.tipo === 'parcela-emprestimo' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="relative z-10 h-7"
+              onClick={() => {
+                onMarcarPaga(alerta);
+              }}
+            >
+              <Check strokeWidth={1.75} />
+              Marcar paga
+            </Button>
+          )}
+          {(alerta.tipo === 'reembolso' || alerta.tipo === 'devolucao') && alerta.terceiro && (
             <Button
               variant="outline"
               size="sm"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alertasDoDia, grupoDoAlerta, type FaturaParaAlerta } from './alertas';
+import { alertasDoDia, grupoDoAlerta, type FaturaParaAlerta, type TipoDeAlerta } from './alertas';
 
 const roxo = { id: 1, diaFechamento: 28, diaVencimento: 5 };
 const fatura = (extra: Partial<FaturaParaAlerta> = {}): FaturaParaAlerta => ({
@@ -169,5 +169,58 @@ describe('alerta de assinatura', () => {
   it('não avisa assinatura pausada nem desligada', () => {
     expect(alertasDoDia([], [], '2026-10-24', [], [{ ...nuvem, ativa: false }])).toEqual([]);
     expect(alertasDoDia([], [], '2026-10-24', ['assinatura'], [nuvem])).toEqual([]);
+  });
+});
+
+describe('alertas de empréstimo', () => {
+  const emprestimos = {
+    devolucoes: [{ emprestimoId: 3, terceiroId: 8, prazo: '2026-10-15', falta: 80_000 }],
+    parcelas: [
+      { emprestimoId: 1, numero: 7, vencimento: '2026-11-10', valor: 48_000, paga: false },
+      { emprestimoId: 1, numero: 6, vencimento: '2026-10-10', valor: 48_000, paga: true },
+    ],
+  };
+  const doDia = (hoje: string, desligados: TipoDeAlerta[] = []) =>
+    alertasDoDia([], [], hoje, desligados, [], emprestimos);
+
+  it('avisa a devolução atrasada por até 30 dias', () => {
+    const doDiaSo = (hoje: string) => doDia(hoje, ['parcela-emprestimo']);
+    expect(doDiaSo('2026-10-15')).toEqual([]);
+    expect(doDiaSo('2026-10-19')).toEqual([
+      {
+        chave: 'devolucao:3',
+        tipo: 'devolucao',
+        cartaoId: 0,
+        competencia: '2026-10',
+        emprestimoId: 3,
+        terceiroId: 8,
+        valor: 80_000,
+        data: '2026-10-15',
+        dias: -4,
+        idade: 3,
+      },
+    ]);
+    expect(doDiaSo('2026-11-14').map((a) => a.tipo)).toEqual(['devolucao']);
+    expect(doDiaSo('2026-11-15').map((a) => a.tipo)).toEqual([]);
+  });
+
+  it('lembra a parcela no dia do débito até ser marcada, por até 30 dias', () => {
+    expect(doDia('2026-11-09', ['devolucao'])).toEqual([]);
+    expect(doDia('2026-11-10', ['devolucao'])).toEqual([
+      {
+        chave: 'parcela-emprestimo:1:7',
+        tipo: 'parcela-emprestimo',
+        cartaoId: 0,
+        competencia: '2026-11',
+        emprestimoId: 1,
+        numero: 7,
+        valor: 48_000,
+        data: '2026-11-10',
+        dias: 0,
+        idade: 0,
+      },
+    ]);
+    expect(doDia('2026-12-10', ['devolucao'])[0]?.idade).toBe(30);
+    expect(doDia('2026-12-11', ['devolucao'])).toEqual([]);
   });
 });

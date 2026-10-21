@@ -116,7 +116,7 @@ describe('Dashboard', () => {
     expect(screen.getByRole('button', { name: /Renda/ })).toHaveTextContent(
       'R$ 7.200,00Salário + Freela',
     );
-    expect(kpi(/Meus gastos/)).toHaveTextContent('R$ 1.075,5515% da renda · só cartões');
+    expect(kpi(/Meus gastos/)).toHaveTextContent('R$ 1.075,5515% da renda · cartões e empréstimos');
     expect(kpi(/Meus gastos/)).toHaveAttribute('href', '/lancamentos?ver=meu');
     expect(kpi(/Saldo real/)).toHaveTextContent('R$ 6.124,45');
     expect(kpi(/A receber/)).toHaveTextContent('R$ 428,25Ana');
@@ -130,7 +130,7 @@ describe('Dashboard', () => {
       name: 'Renda comprometida nos próximos 6 meses',
     });
     expect(within(tabela).getByRole('row', { name: /Novembro 2026/ })).toHaveTextContent(
-      'R$ 588,25R$ 0,009%',
+      'R$ 588,25R$ 0,00R$ 0,009%',
     );
     const vencimentos = screen.getByRole('region', { name: 'Próximos vencimentos' });
     expect(

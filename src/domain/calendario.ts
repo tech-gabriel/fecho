@@ -1,4 +1,4 @@
-import type { FaturaParaAlerta } from './alertas';
+import type { EmprestimosParaAlerta, FaturaParaAlerta } from './alertas';
 import type { Assinatura } from './assinaturas';
 import {
   type Competencia,
@@ -12,7 +12,8 @@ import {
 import { type DiasDoCartao, type StatusDaFatura, datasDaFatura, statusDaFatura } from './faturas';
 import type { Centavos } from './money';
 
-export type TipoDeEvento = 'fechamento' | 'vencimento' | 'reembolso' | 'assinatura';
+export type TipoDeEvento =
+  'fechamento' | 'vencimento' | 'reembolso' | 'devolucao' | 'emprestimo' | 'assinatura';
 
 export interface Evento {
   data: DataLocal;
@@ -23,13 +24,17 @@ export interface Evento {
   valor?: Centavos;
   terceiroId?: number;
   assinaturaId?: number;
+  emprestimoId?: number;
+  numero?: number;
 }
 
 const ORDEM: Record<TipoDeEvento, number> = {
   fechamento: 0,
   vencimento: 1,
   reembolso: 2,
-  assinatura: 3,
+  devolucao: 3,
+  emprestimo: 4,
+  assinatura: 5,
 };
 
 export function diasDaGrade(competencia: Competencia): { data: DataLocal; doMes: boolean }[] {
@@ -56,7 +61,9 @@ export function eventosDoPeriodo({
   de,
   ate,
   hoje,
+  emprestimos = { parcelas: [], devolucoes: [] },
 }: {
+  emprestimos?: EmprestimosParaAlerta;
   faturas: readonly FaturaParaAlerta[];
   cartoes: readonly ({ id: number; ativo: boolean } & DiasDoCartao)[];
   assinaturas: readonly Assinatura[];
@@ -118,6 +125,34 @@ export function eventosDoPeriodo({
         valor: assinatura.valorCentavos,
       });
     }
+  }
+
+  for (const { emprestimoId, numero, vencimento, valor, paga } of emprestimos.parcelas) {
+    if (!dentro(vencimento)) continue;
+    eventos.push({
+      data: vencimento,
+      tipo: 'emprestimo',
+      cartaoId: 0,
+      competencia: competenciaDe(vencimento),
+      emprestimoId,
+      numero,
+      valor,
+      status: paga ? 'paga' : vencimento < hoje ? 'atrasada' : 'pendente',
+    });
+  }
+
+  for (const { emprestimoId, terceiroId, prazo, falta } of emprestimos.devolucoes) {
+    if (!dentro(prazo)) continue;
+    eventos.push({
+      data: prazo,
+      tipo: 'devolucao',
+      cartaoId: 0,
+      competencia: competenciaDe(prazo),
+      emprestimoId,
+      terceiroId,
+      valor: falta,
+      status: falta <= 0 ? 'paga' : prazo < hoje ? 'atrasada' : 'pendente',
+    });
   }
 
   return eventos.sort((a, b) => a.data.localeCompare(b.data) || ORDEM[a.tipo] - ORDEM[b.tipo]);
