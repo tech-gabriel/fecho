@@ -5,6 +5,9 @@ import type { Rateio } from '@/domain/terceiros';
 import {
   type Assinatura,
   type Cadastro,
+  type EmprestimoConcedido,
+  type EmprestimoTomado,
+  type PagamentoDeParcela,
   type Cartao,
   type CartoesRepository,
   type PagamentoDeFatura,
@@ -264,7 +267,38 @@ export function criarRepositoriosEmMemoria(): Repositorios {
     return id;
   };
 
+  const tomados = cadastroEmMemoria<EmprestimoTomado>('Empréstimo', () => false);
+  const concedidos = cadastroEmMemoria<EmprestimoConcedido>('Empréstimo', () => false);
+  let pagamentosDeParcela: PagamentoDeParcela[] = [];
+  const mesmaParcela = (p: PagamentoDeParcela, emprestimoId: number, numero: number) =>
+    p.emprestimoId === emprestimoId && p.numero === numero;
+
   return {
+    emprestimos: {
+      tomados,
+      concedidos: {
+        ...concedidos,
+        criar: (novo) => {
+          cadastroTerceiros.vigente(novo.terceiroId);
+          return concedidos.criar(novo);
+        },
+      },
+      pagamentos: async () => pagamentosDeParcela.map((p) => ({ ...p })),
+      marcarPaga: async (pagamento) => {
+        tomados.vigente(pagamento.emprestimoId);
+        pagamentosDeParcela = [
+          ...pagamentosDeParcela.filter(
+            (p) => !mesmaParcela(p, pagamento.emprestimoId, pagamento.numero),
+          ),
+          { ...pagamento },
+        ].sort((a, b) => a.emprestimoId - b.emprestimoId || a.numero - b.numero);
+      },
+      desmarcar: async (emprestimoId, numero) => {
+        pagamentosDeParcela = pagamentosDeParcela.filter(
+          (p) => !mesmaParcela(p, emprestimoId, numero),
+        );
+      },
+    },
     receber: {
       movimentos: async () =>
         movimentos

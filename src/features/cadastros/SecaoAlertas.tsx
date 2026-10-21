@@ -23,6 +23,16 @@ const TIPOS: { tipo: TipoDeAlerta; rotulo: string; dica: string }[] = [
   { tipo: 'vencimento', rotulo: 'Fatura vence', dica: 'Nos 3 dias antes do vencimento' },
   { tipo: 'atraso', rotulo: 'Fatura atrasada', dica: 'Até 30 dias depois do vencimento' },
   { tipo: 'assinatura', rotulo: 'Cobrança de assinatura', dica: 'Na véspera de cada cobrança' },
+  {
+    tipo: 'parcela-emprestimo',
+    rotulo: 'Parcela de empréstimo',
+    dica: 'No dia do débito, até você marcar como paga',
+  },
+  {
+    tipo: 'devolucao',
+    rotulo: 'Empréstimo não devolvido',
+    dica: 'Quando alguém passa da data combinada para devolver',
+  },
 ];
 
 type DeAlertas = Pick<Preferencias, 'alertasDesligados' | 'notificarNoWindows'>;

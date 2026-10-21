@@ -4,7 +4,12 @@ import { hojeLocal, useApp } from '@/app/store';
 import type { Assinatura, Cartao, Preferencias, Terceiro } from '@/data';
 import { alertasDoDia, type Alerta } from '@/domain/alertas';
 import { competenciaDe, somarMeses, type DataLocal } from '@/domain/competencia';
-import { carregarFaturas, faturasParaAlerta, type FaturasCarregadas } from './faturas';
+import {
+  carregarFaturas,
+  emprestimosParaAlerta,
+  faturasParaAlerta,
+  type FaturasCarregadas,
+} from './faturas';
 import { notificarNoWindows } from './notificar';
 import { textoDoAlerta } from './textos';
 
@@ -19,7 +24,7 @@ interface Dados extends FaturasCarregadas {
 
 export interface AlertaNaTela extends Alerta {
   texto: string;
-  cartao: Cartao;
+  cartao: Cartao | undefined;
   terceiro: Terceiro | undefined;
   lido: boolean;
 }
@@ -33,17 +38,22 @@ function calcular(dados: Dados, hoje: DataLocal): AlertaNaTela[] {
     hoje,
     dados.preferencias.alertasDesligados,
     dados.assinaturas,
+    emprestimosParaAlerta(dados, hoje),
   ).flatMap((alerta) => {
     const cartao = dados.cartoes.find((c) => c.id === alerta.cartaoId);
-    if (!cartao) return [];
+    if (!cartao && alerta.cartaoId !== 0) return [];
     const terceiro = dados.terceiros.find((t) => t.id === alerta.terceiroId);
+    const tomado = dados.tomados.find((e) => e.id === alerta.emprestimoId);
     return [
       {
         ...alerta,
         cartao,
         terceiro,
         texto: textoDoAlerta(alerta, {
-          cartao: cartao.nome,
+          cartao: cartao?.nome ?? '',
+          emprestimo: tomado
+            ? { descricao: tomado.descricao, numParcelas: tomado.numParcelas }
+            : undefined,
           terceiro: terceiro?.nome,
           assinatura: dados.assinaturas.find((a) => a.id === alerta.assinaturaId)?.nome,
         }),

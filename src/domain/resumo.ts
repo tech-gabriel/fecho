@@ -48,18 +48,20 @@ export function resumoDoMes(mes: {
   receitas: readonly Centavos[];
   linhas: readonly LinhaDaFatura[];
   faturas: readonly { total: Centavos; vencimento: DataLocal; paga: boolean }[];
+  parcelasEmprestimos?: Centavos;
 }) {
   const { meu, porTerceiro, total } = resumoDaFatura(mes.linhas);
+  const emprestimos = mes.parcelasEmprestimos ?? 0;
   const renda = somar(mes.receitas);
   const abertas = mes.faturas.filter((f) => !f.paga && f.total > 0);
   return {
     renda,
-    meusGastos: meu,
+    meusGastos: meu + emprestimos,
     saldoReal: saldoReal({
       receitas: mes.receitas,
       minhasParcelas: [meu],
       despesasFixas: [],
-      parcelasEmprestimosTomados: [],
+      parcelasEmprestimosTomados: [emprestimos],
     }),
     deTerceiros: total - meu,
     porTerceiro,
@@ -78,6 +80,7 @@ export function rendaComprometida(
     competencia: Competencia;
     minhasParcelas: Centavos;
     assinaturas?: Centavos;
+    emprestimos?: Centavos;
     renda: Centavos;
   }[],
 ): {
@@ -85,15 +88,17 @@ export function rendaComprometida(
   valor: Centavos;
   parcelas: Centavos;
   assinaturas: Centavos;
+  emprestimos: Centavos;
   percentual: number | null;
 }[] {
-  return meses.map(({ competencia, minhasParcelas, assinaturas = 0, renda }) => {
-    const valor = minhasParcelas + assinaturas;
+  return meses.map(({ competencia, minhasParcelas, assinaturas = 0, emprestimos = 0, renda }) => {
+    const valor = minhasParcelas + assinaturas + emprestimos;
     return {
       competencia,
       valor,
       parcelas: minhasParcelas,
       assinaturas,
+      emprestimos,
       percentual: renda > 0 ? Math.round((valor / renda) * 10_000) / 100 : null,
     };
   });

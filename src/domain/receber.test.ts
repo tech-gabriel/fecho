@@ -151,3 +151,48 @@ describe('mensagemDeCobranca', () => {
     ).toBe('Oi, Ana! Faltam R$ 320,00 no Cartão Roxo/Cartão Roxo, vence 05/11. Pix: eu@email.com');
   });
 });
+
+describe('empréstimo concedido em A receber', () => {
+  const emprestimo = {
+    chave: 'e:3',
+    emprestimoId: 3,
+    compraId: 0,
+    numero: 1,
+    numParcelas: 1,
+    descricao: 'Empréstimo',
+    dataCompra: '2026-08-15',
+    cartaoId: 0,
+    competencia: '2026-10',
+    vencimento: '2026-10-15',
+    valor: 80_000,
+  };
+
+  it('abate o empréstimo pelo depósito e atrasa depois da data combinada', () => {
+    const situacao = situacaoDaPessoa(
+      [emprestimo],
+      [{ valor: 30_000, abatimentos: [{ emprestimoId: 3, valor: 30_000 }] }],
+      '2026-10-19',
+    );
+    expect(situacao.itens[0]).toMatchObject({
+      abatido: 30_000,
+      aberto: 50_000,
+      status: 'atrasado',
+    });
+    expect(situacao).toMatchObject({ falta: 50_000, status: 'atrasado' });
+  });
+
+  it('distribui o depósito entre parcela e empréstimo escolhidos', () => {
+    expect(
+      distribuir(90_000, [
+        { ...emprestimo, aberto: 80_000 },
+        { chave: '1:1', compraId: 1, numero: 1, vencimento: '2026-11-05', aberto: 20_000 },
+      ]),
+    ).toEqual({
+      abatimentos: [
+        { emprestimoId: 3, valor: 80_000 },
+        { compraId: 1, numero: 1, valor: 10_000 },
+      ],
+      sobra: 0,
+    });
+  });
+});

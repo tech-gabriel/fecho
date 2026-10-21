@@ -25,6 +25,6 @@ test('mostra o caixa do mês, cadastra renda e reage a uma compra nova', async (
   await nova.getByLabel('Descrição').press('Enter');
   await expect(nova).toBeHidden();
   await expect(page.getByRole('main').getByRole('link', { name: /Meus gastos/ })).toContainText(
-    'só cartões',
+    'cartões e empréstimos',
   );
 });
