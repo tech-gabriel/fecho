@@ -6,12 +6,12 @@ const VK_ESQUERDA: u32 = 0x25;
 // O WebView2 trata estas teclas antes do JavaScript (procurar, recarregar, inspecionar e voltar),
 // e o Fechô usa cada uma como atalho próprio.
 pub fn tecla_do_app(tecla: u32, ctrl: bool, shift: bool, alt: bool) -> bool {
-    match (tecla, ctrl, shift, alt) {
-        (VK_F | VK_R, true, false, false) => true,
-        (VK_C, true, true, false) => true,
-        (VK_ESQUERDA, false, false, true) => true,
-        _ => false,
-    }
+    matches!(
+        (tecla, ctrl, shift, alt),
+        (VK_F | VK_R, true, false, false)
+            | (VK_C, true, true, false)
+            | (VK_ESQUERDA, false, false, true)
+    )
 }
 
 #[cfg(windows)]

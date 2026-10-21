@@ -70,7 +70,16 @@ export const useApp = create<EstadoApp>()((set) => ({
     set({ pinAtivo });
   },
   bloquear: (motivo) => {
-    set((s) => (s.bloqueio ? s : { bloqueio: { em: new Date(), motivo } }));
+    set((s) =>
+      s.bloqueio
+        ? s
+        : {
+            bloqueio: { em: new Date(), motivo },
+            overlay: null,
+            novaCompraAberta: false,
+            compraEmEdicao: null,
+          },
+    );
   },
   desbloquear: () => {
     set({ bloqueio: null, errosDoPin: 0, esperarAte: null });

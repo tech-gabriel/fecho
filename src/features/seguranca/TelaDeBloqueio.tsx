@@ -25,6 +25,7 @@ export function TelaDeBloqueio() {
   const [minutos, setMinutos] = useState<number | null>(null);
   const campo = useRef<HTMLInputElement>(null);
   const esperando = esperarAte !== null && esperarAte > agora;
+  const bloqueado = bloqueio !== null;
 
   useEffect(() => {
     void repos.seguranca.estado().then((e) => {
@@ -49,8 +50,14 @@ export function TelaDeBloqueio() {
   }, [esperarAte]);
 
   useEffect(() => {
-    if (!esperando && !conferindo) campo.current?.focus();
-  }, [esperando, conferindo]);
+    if (!bloqueado || esperando || conferindo) return;
+    campo.current?.focus();
+    // Um Dialog do Radix desmontado pelo bloqueio devolve o foco num setTimeout; este vem depois.
+    const depois = setTimeout(() => campo.current?.focus(), 0);
+    return () => {
+      clearTimeout(depois);
+    };
+  }, [bloqueado, esperando, conferindo]);
 
   const conferir = async (pin: string) => {
     setConferindo(true);

@@ -26,7 +26,7 @@ export function Raiz() {
       const arquivo = e.dataTransfer?.files[0];
       if (!arquivo || !PLANILHA.test(arquivo.name)) return;
       e.preventDefault();
-      if (noAssistente) return;
+      if (noAssistente || useApp.getState().bloqueio) return;
       lerPlanilha(arquivo)
         .then((planilha) => {
           receberPlanilha(planilha);
@@ -48,9 +48,7 @@ export function Raiz() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="contents" inert={bloqueado} aria-hidden={bloqueado || undefined}>
-        <Outlet />
-      </div>
+      {!bloqueado && <Outlet />}
       <TelaDeBloqueio />
       {!bloqueado && <Toaster />}
     </TooltipProvider>
