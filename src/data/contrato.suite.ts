@@ -702,5 +702,61 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         ]);
       });
     });
+
+    describe('economias', () => {
+      it('define a meta a partir de um mês, trocando a do mesmo mês', async () => {
+        await repos.economias.metas.definir({ valorCentavos: 80_000, inicio: '2026-01' });
+        await repos.economias.metas.definir({ valorCentavos: 90_000, inicio: '2026-12' });
+        await repos.economias.metas.definir({ valorCentavos: 100_000, inicio: '2026-12' });
+
+        expect(await repos.economias.metas.listar()).toEqual([
+          { valorCentavos: 80_000, inicio: '2026-01' },
+          { valorCentavos: 100_000, inicio: '2026-12' },
+        ]);
+      });
+
+      it('guarda objetivos e registros, inclusive retiradas', async () => {
+        const viagem = await repos.economias.objetivos.criar({
+          nome: 'Viagem',
+          alvoCentavos: 800_000,
+          prazo: '2027-07',
+        });
+        const reserva = await repos.economias.objetivos.criar({
+          nome: 'Reserva',
+          alvoCentavos: 2_000_000,
+          prazo: null,
+        });
+        const guardei = await repos.economias.movimentos.criar({
+          data: '2026-10-05',
+          valorCentavos: 30_000,
+          objetivoId: viagem,
+        });
+        await repos.economias.movimentos.criar({
+          data: '2026-10-06',
+          valorCentavos: -5_000,
+          objetivoId: null,
+        });
+
+        expect(await repos.economias.objetivos.listar()).toEqual([
+          { id: viagem, nome: 'Viagem', alvoCentavos: 800_000, prazo: '2027-07' },
+          { id: reserva, nome: 'Reserva', alvoCentavos: 2_000_000, prazo: null },
+        ]);
+        expect((await repos.economias.movimentos.listar()).map((m) => m.valorCentavos)).toEqual([
+          30_000, -5_000,
+        ]);
+
+        await repos.economias.movimentos.excluir(guardei);
+        expect(await repos.economias.movimentos.listar()).toHaveLength(1);
+        await repos.economias.movimentos.restaurar(guardei);
+        expect(await repos.economias.movimentos.listar()).toHaveLength(2);
+        await expect(
+          repos.economias.movimentos.criar({
+            data: '2026-10-06',
+            valorCentavos: 1,
+            objetivoId: 999,
+          }),
+        ).rejects.toThrow();
+      });
+    });
   });
 }
