@@ -205,6 +205,21 @@ pub fn caminhos_de_dados<R: Runtime>(app: AppHandle<R>) -> Result<Caminhos, Stri
     })
 }
 
+fn gravar_planilha(destino: &Path, bytes: &[u8]) -> Result<(), String> {
+    if !destino
+        .extension()
+        .is_some_and(|extensao| extensao.eq_ignore_ascii_case("xlsx"))
+    {
+        return Err("A planilha precisa terminar em .xlsx.".into());
+    }
+    fs::write(destino, bytes).map_err(|erro| erro.to_string())
+}
+
+#[tauri::command]
+pub fn salvar_planilha(destino: String, bytes: Vec<u8>) -> Result<(), String> {
+    gravar_planilha(Path::new(&destino), &bytes)
+}
+
 #[tauri::command]
 pub async fn exportar_backup<R: Runtime>(
     app: AppHandle<R>,
@@ -288,6 +303,18 @@ pub async fn restaurar_backup<R: Runtime>(
 mod testes {
     use super::*;
     use sqlx::sqlite::SqlitePoolOptions;
+
+    #[test]
+    fn so_grava_planilha_xlsx() {
+        let pasta = pasta_temporaria("planilha");
+        let planilha = pasta.join("fecho-2026-10.XLSX");
+
+        gravar_planilha(&planilha, b"PK").unwrap();
+        assert_eq!(fs::read(&planilha).unwrap(), b"PK");
+        assert!(gravar_planilha(&pasta.join("fecho.db"), b"PK").is_err());
+        assert!(!pasta.join("fecho.db").exists());
+        let _ = fs::remove_dir_all(&pasta);
+    }
 
     fn pasta_temporaria(nome: &str) -> PathBuf {
         let pasta = std::env::temp_dir().join(format!(
