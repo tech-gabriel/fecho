@@ -190,4 +190,42 @@ export async function semearDadosFicticios(repos: Repositorios) {
     data: '2026-08-15',
     prazo: '2026-10-15',
   });
+
+  await repos.economias.metas.definir({ valorCentavos: 80_000, inicio: '2025-11' });
+  const reserva = await repos.economias.objetivos.criar({
+    nome: 'Reserva de emergência',
+    alvoCentavos: 2_000_000,
+    prazo: null,
+  });
+  const apartamento = await repos.economias.objetivos.criar({
+    nome: 'Entrada do apartamento',
+    alvoCentavos: 6_000_000,
+    prazo: '2030-12',
+  });
+  const viagem = await repos.economias.objetivos.criar({
+    nome: 'Viagem para o Chile',
+    alvoCentavos: 800_000,
+    prazo: '2027-07',
+  });
+  const guardar = (data: string, valorCentavos: number, objetivoId: number) =>
+    repos.economias.movimentos.criar({ data, valorCentavos, objetivoId });
+  await guardar('2025-06-01', 445_000, reserva);
+  await guardar('2025-06-01', 1_800_000, apartamento);
+  await guardar('2025-06-01', 315_000, viagem);
+  const meses: [string, number][] = [
+    ['2025-11', 60_000],
+    ['2025-12', 80_000],
+    ['2026-01', 40_000],
+    ['2026-02', 80_000],
+    ['2026-03', 85_000],
+    ['2026-04', 80_000],
+    ['2026-05', 20_000],
+    ['2026-06', 70_000],
+    ['2026-07', 80_000],
+    ['2026-08', 90_000],
+    ['2026-09', 80_000],
+    ['2026-10', 50_000],
+  ];
+  for (const [mes, valor] of meses) await guardar(`${mes}-05`, valor, reserva);
+  await guardar('2026-05-20', -20_000, reserva);
 }

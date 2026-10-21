@@ -13,8 +13,26 @@ import type {
   PagamentoDeParcela,
 } from '@/domain/emprestimos';
 import type { Abatimento } from '@/domain/receber';
+import type { MetaDeEconomia, MovimentoDeEconomia, Objetivo } from '@/domain/economias';
 
-export type { Assinatura, EmprestimoConcedido, EmprestimoTomado, PagamentoDeParcela };
+export type {
+  Assinatura,
+  EmprestimoConcedido,
+  EmprestimoTomado,
+  MetaDeEconomia,
+  MovimentoDeEconomia,
+  Objetivo,
+  PagamentoDeParcela,
+};
+
+export interface EconomiasRepository {
+  metas: {
+    listar(): Promise<MetaDeEconomia[]>;
+    definir(meta: MetaDeEconomia): Promise<void>;
+  };
+  objetivos: Omit<Cadastro<Objetivo>, 'possuiCompras'>;
+  movimentos: Omit<Cadastro<MovimentoDeEconomia>, 'possuiCompras' | 'atualizar'>;
+}
 
 export interface Cartao {
   id: number;
@@ -204,6 +222,7 @@ export interface Repositorios {
   receber: ReceberRepository;
   assinaturas: AssinaturasRepository;
   emprestimos: EmprestimosRepository;
+  economias: EconomiasRepository;
 }
 
 export class RegistroNaoEncontrado extends Error {
