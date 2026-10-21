@@ -1,3 +1,4 @@
+import { segurancaDoNavegador } from '../seguranca';
 import { describe, expect, it } from 'vitest';
 import { backupIndisponivel } from '../backup';
 import { contratoDosRepositorios } from '../contrato.suite';
@@ -6,13 +7,18 @@ import { bancoDeTeste } from './node-sqlite';
 
 contratoDosRepositorios('sqlite', async () => {
   const { banco, comandos } = bancoDeTeste();
-  return criarRepositoriosSqlite(banco, comandos, backupIndisponivel);
+  return criarRepositoriosSqlite(banco, comandos, backupIndisponivel, segurancaDoNavegador());
 });
 
 describe('sqlite', () => {
   it('grava exclusão lógica em vez de apagar a linha', async () => {
     const { banco, comandos, db } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, comandos, backupIndisponivel);
+    const repos = criarRepositoriosSqlite(
+      banco,
+      comandos,
+      backupIndisponivel,
+      segurancaDoNavegador(),
+    );
     const id = await repos.categorias.criar({
       nome: 'Mercado',
       icone: 'shopping-cart',
@@ -27,13 +33,23 @@ describe('sqlite', () => {
 
   it('atualizar sem campos não faz nada', async () => {
     const { banco, comandos } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, comandos, backupIndisponivel);
+    const repos = criarRepositoriosSqlite(
+      banco,
+      comandos,
+      backupIndisponivel,
+      segurancaDoNavegador(),
+    );
     await expect(repos.categorias.atualizar(9999, {})).resolves.toBeUndefined();
   });
 
   it('grava a observação da compra', async () => {
     const { banco, comandos, db } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, comandos, backupIndisponivel);
+    const repos = criarRepositoriosSqlite(
+      banco,
+      comandos,
+      backupIndisponivel,
+      segurancaDoNavegador(),
+    );
     const cartao = await repos.cartoes.criar({
       nome: 'Roxo',
       diaFechamento: 28,
@@ -63,7 +79,12 @@ describe('sqlite', () => {
 
   it('a transação desfaz tudo quando uma parcela é recusada pelo banco', async () => {
     const { banco, comandos, db } = bancoDeTeste();
-    const repos = criarRepositoriosSqlite(banco, comandos, backupIndisponivel);
+    const repos = criarRepositoriosSqlite(
+      banco,
+      comandos,
+      backupIndisponivel,
+      segurancaDoNavegador(),
+    );
     const cartao = await repos.cartoes.criar({
       nome: 'Roxo',
       diaFechamento: 28,

@@ -20,6 +20,7 @@ import { CORES_DE_CARTAO, iconeDaCategoria } from './opcoes';
 import { executar, SecaoCadastro } from './SecaoCadastro';
 import { SecaoAlertas } from './SecaoAlertas';
 import { SecaoBackup } from './SecaoBackup';
+import { SecaoSeguranca } from './SecaoSeguranca';
 import { SecaoCobranca } from './SecaoCobranca';
 import { SecaoPlanejamento } from './SecaoPlanejamento';
 
@@ -28,6 +29,7 @@ const SECOES = [
   { ancora: 'pessoas', rotulo: 'Pessoas' },
   { ancora: 'categorias', rotulo: 'Categorias' },
   { ancora: 'planejamento', rotulo: 'Planejamento' },
+  { ancora: 'seguranca', rotulo: 'Segurança' },
   { ancora: 'alertas', rotulo: 'Alertas' },
   { ancora: 'cobranca', rotulo: 'Cobrança' },
   { ancora: 'dados', rotulo: 'Dados e backup' },
@@ -215,6 +217,7 @@ export function Configuracoes() {
         />
 
         <SecaoPlanejamento />
+        <SecaoSeguranca />
         <SecaoAlertas />
         <SecaoCobranca />
         <SecaoBackup />

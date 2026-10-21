@@ -29,6 +29,7 @@ import {
   type Terceiro,
 } from '../repositories';
 import { backupIndisponivel } from '../backup';
+import { segurancaDoNavegador } from '../seguranca';
 import { comMesesFechados } from '../fechamento';
 
 type CompraGravada = Compra & { id: number; rateios: Rateio[]; excluido: boolean };
@@ -380,6 +381,7 @@ export function criarRepositoriosEmMemoria(): Repositorios {
       },
     },
     backup: backupIndisponivel,
+    seguranca: segurancaDoNavegador(),
     receitas: cadastroEmMemoria<Receita>('Receita', () => false),
     preferencias: {
       ler: async () => ({ ...preferencias }),
