@@ -34,6 +34,17 @@ export function textoDoAlerta(
         ? `${parcela} vence hoje. Já foi debitada?`
         : `${parcela} venceu há ${String(-alerta.dias)} ${alerta.dias === -1 ? 'dia' : 'dias'} e não está marcada como paga`;
     }
+    case 'fechar-mes': {
+      const mes = nomeDoMes(alerta.competencia).split(' ')[0] ?? '';
+      if (alerta.dias < 0) return `${mes} ainda não foi fechado. Que tal conferir as faturas?`;
+      const quando =
+        alerta.dias === 0
+          ? 'hoje'
+          : alerta.dias === 1
+            ? 'amanhã'
+            : `em ${String(alerta.dias)} dias`;
+      return `${mes} fecha ${quando}. Que tal começar a conferir as faturas?`;
+    }
     case 'atraso':
       return `A fatura do ${cartao} está atrasada há ${String(-alerta.dias)} ${alerta.dias === -1 ? 'dia' : 'dias'}`;
   }
