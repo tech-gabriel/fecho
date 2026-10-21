@@ -277,3 +277,18 @@ describe('Configurações › cadastros', () => {
     expect(alertas.getByText('Só no app instalado')).toBeInTheDocument();
   });
 });
+
+describe('Configurações › Sobre', () => {
+  it('mostra a versão e copia o link dos instaladores', async () => {
+    const writeText = vi.fn<(texto: string) => Promise<void>>().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    await abrir();
+    const sobre = within(secao('Sobre'));
+
+    expect(sobre.getByText(`Fechô ${__VERSAO__}`)).toBeInTheDocument();
+    fireEvent.click(sobre.getByRole('button', { name: 'Copiar link' }));
+
+    expect(await screen.findByText('Link copiado')).toBeInTheDocument();
+    expect(writeText).toHaveBeenCalledWith('https://github.com/tech-gabriel/fecho/releases');
+  });
+});

@@ -29,6 +29,7 @@
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     "src/test-setup.ts",
+    "src/versao.d.ts",
     "src/data/sqlite/node-sqlite.ts",
     "src/**/*.suite.ts"
   ]
