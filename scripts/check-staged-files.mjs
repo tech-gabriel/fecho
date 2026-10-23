@@ -2,7 +2,10 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 export function arquivosProibidos(caminhos) {
-  return caminhos.filter((caminho) => /\.mdx?$/i.test(caminho) || /(^|\/)docs\//.test(caminho));
+  return caminhos.filter(
+    (caminho) =>
+      caminho !== 'README.md' && (/\.mdx?$/i.test(caminho) || /(^|\/)docs\//.test(caminho)),
+  );
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

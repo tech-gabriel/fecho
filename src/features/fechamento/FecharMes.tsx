@@ -303,6 +303,7 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
           {atual === 2 && (
             <EtapaTerceiros
               situacoes={situacoes}
+              cartoes={dados.cartoes}
               preferencias={dados.preferencias}
               competencia={competencia}
               hoje={hoje}

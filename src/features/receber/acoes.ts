@@ -44,7 +44,11 @@ export function useAcoesDeCobranca(preferencias: Preferencias, hoje: DataLocal) 
 
   const copiarCobranca = async (
     terceiro: Terceiro,
-    { valor, cartao, vencimento }: { valor: number; cartao: string; vencimento: DataLocal | null },
+    {
+      valor,
+      cartao,
+      vencimento,
+    }: { valor: number; cartao: string | null; vencimento: DataLocal | null },
     aoCopiar: () => void,
   ): Promise<void> => {
     const texto = mensagemDeCobranca(preferencias.modeloCobranca, {

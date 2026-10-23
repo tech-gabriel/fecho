@@ -13,7 +13,13 @@ import { formatarMoeda } from '@/lib/formato';
 import { useAcoesDeCobranca } from './acoes';
 import { ondeEQuando } from './ListaDePessoas';
 import { RegistrarDeposito } from './RegistrarDeposito';
-import { Avatar, faltaNaFatura, SeloDoTerceiro, type SituacaoDaPessoa } from './situacoes';
+import {
+  Avatar,
+  cartaoDaCobranca,
+  faltaNaFatura,
+  SeloDoTerceiro,
+  type SituacaoDaPessoa,
+} from './situacoes';
 
 const dataLonga = (data: DataLocal) => `${dataCurta(data)}/${data.slice(0, 4)}`;
 
@@ -78,7 +84,7 @@ export function DetalheDaPessoa({
   const copiar = () =>
     copiarCobranca(
       terceiro,
-      { valor: falta, cartao: primeiro ? onde(primeiro) : '', vencimento: prazo },
+      { valor: falta, cartao: cartaoDaCobranca(situacao, cartoes), vencimento: prazo },
       () => {
         setCopiado(true);
         setTimeout(() => {

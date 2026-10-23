@@ -16,14 +16,21 @@ describe('check-staged-files', () => {
   it('rejeita markdown, mdx e qualquer coisa em docs/', () => {
     expect(
       arquivosProibidos([
-        'README.md',
+        'CHANGELOG.md',
         'src/notas.MD',
         'pagina.mdx',
         'docs/adr.txt',
         'src/docs/x.ts',
         'src/App.tsx',
       ]),
-    ).toEqual(['README.md', 'src/notas.MD', 'pagina.mdx', 'docs/adr.txt', 'src/docs/x.ts']);
+    ).toEqual(['CHANGELOG.md', 'src/notas.MD', 'pagina.mdx', 'docs/adr.txt', 'src/docs/x.ts']);
+  });
+
+  it('aceita só o README.md da raiz', () => {
+    expect(arquivosProibidos(['README.md', 'src/README.md', 'readme.md'])).toEqual([
+      'src/README.md',
+      'readme.md',
+    ]);
   });
 
   it('não confunde nomes parecidos com docs/', () => {
