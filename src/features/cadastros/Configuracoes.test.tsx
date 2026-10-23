@@ -79,6 +79,34 @@ describe('Configurações › cadastros', () => {
     });
   });
 
+  it('aceita qualquer cor além das sugeridas', async () => {
+    await abrir();
+
+    fireEvent.click(within(secao('Cartões')).getByRole('button', { name: 'Adicionar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Novo cartão' });
+    preencher('Nome', 'Cartão Laranja');
+    fireEvent.change(within(dialog).getByLabelText('Outra cor'), { target: { value: '#ff8800' } });
+    expect(within(dialog).getByRole('radio', { name: 'Roxo' })).not.toBeChecked();
+    preencher('Fecha dia', '3');
+    preencher('Vence dia', '10');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByRole('row', { name: /Cartão Laranja/ })).toBeInTheDocument();
+    expect((await repos.cartoes.listar())[1]).toMatchObject({ cor: '#FF8800' });
+  });
+
+  it('troca o tema sem depender do Windows', async () => {
+    await abrir();
+    const tema = within(secao('Aparência'));
+
+    fireEvent.click(tema.getByRole('radio', { name: 'Escuro' }));
+    expect(document.documentElement).toHaveClass('dark');
+    expect(localStorage.getItem('fecho:tema')).toBe('escuro');
+
+    fireEvent.click(tema.getByRole('radio', { name: 'Igual ao Windows' }));
+    expect(document.documentElement).not.toHaveClass('dark');
+  });
+
   it('mostra os erros no campo e não salva', async () => {
     await abrir();
 
@@ -279,16 +307,11 @@ describe('Configurações › cadastros', () => {
 });
 
 describe('Configurações › Sobre', () => {
-  it('mostra a versão e copia o link dos instaladores', async () => {
-    const writeText = vi.fn<(texto: string) => Promise<void>>().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  it('mostra a versão; no navegador não procura atualização', async () => {
     await abrir();
     const sobre = within(secao('Sobre'));
 
     expect(sobre.getByText(`Fechô ${__VERSAO__}`)).toBeInTheDocument();
-    fireEvent.click(sobre.getByRole('button', { name: 'Copiar link' }));
-
-    expect(await screen.findByText('Link copiado')).toBeInTheDocument();
-    expect(writeText).toHaveBeenCalledWith('https://github.com/tech-gabriel/fecho/releases');
+    expect(sobre.getByRole('button', { name: 'Procurar atualizações' })).toBeDisabled();
   });
 });

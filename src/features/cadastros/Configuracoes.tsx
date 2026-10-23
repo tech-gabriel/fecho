@@ -16,9 +16,10 @@ import type { Cartao, Novo } from '@/data';
 import { recalcularFechamento, type MudancaDeFatura } from '@/domain/faturas';
 import { formatarMoeda, nomeDoMes } from '@/lib/formato';
 import { FormCartao, FormCategoria, FormPessoa } from './formularios';
-import { CORES_DE_CARTAO, iconeDaCategoria } from './opcoes';
+import { iconeDaCategoria } from './opcoes';
 import { executar, SecaoCadastro } from './SecaoCadastro';
 import { SecaoAlertas } from './SecaoAlertas';
+import { SecaoAparencia } from './SecaoAparencia';
 import { SecaoAtalhos } from './SecaoAtalhos';
 import { SecaoBackup } from './SecaoBackup';
 import { SecaoSeguranca } from './SecaoSeguranca';
@@ -30,6 +31,7 @@ const SECOES = [
   { ancora: 'cartoes', rotulo: 'Cartões' },
   { ancora: 'pessoas', rotulo: 'Pessoas' },
   { ancora: 'categorias', rotulo: 'Categorias' },
+  { ancora: 'aparencia', rotulo: 'Aparência' },
   { ancora: 'planejamento', rotulo: 'Planejamento' },
   { ancora: 'seguranca', rotulo: 'Segurança' },
   { ancora: 'alertas', rotulo: 'Alertas' },
@@ -162,19 +164,6 @@ export function Configuracoes() {
           ]}
           Formulario={FormCartao}
           salvarEdicao={salvarCartao}
-          rodape={
-            <div className="flex items-center gap-2 border-t px-6 py-3">
-              <span className="mr-2 text-xs text-ink-muted">Cores disponíveis</span>
-              {CORES_DE_CARTAO.map((cor) => (
-                <span
-                  key={cor.hex}
-                  title={cor.nome}
-                  style={{ backgroundColor: cor.hex }}
-                  className="size-4 rounded-sm"
-                />
-              ))}
-            </div>
-          }
         />
 
         <SecaoCadastro
@@ -220,6 +209,7 @@ export function Configuracoes() {
           Formulario={FormCategoria}
         />
 
+        <SecaoAparencia />
         <SecaoPlanejamento />
         <SecaoSeguranca />
         <SecaoAlertas />
