@@ -150,6 +150,20 @@ describe('mensagemDeCobranca', () => {
       ),
     ).toBe('Oi, Ana! Faltam R$ 320,00 no Cartão Roxo/Cartão Roxo, vence 05/11. Pix: eu@email.com');
   });
+
+  it('empréstimo sem cartão usa o texto próprio de empréstimo', () => {
+    expect(
+      mensagemDeCobranca('Oi, {nome}! Faltam {valor} das suas compras no meu {cartão}.', {
+        nome: 'Ana',
+        valor: 'R$ 500,00',
+        cartao: null,
+        vencimento: '12/11',
+        pix: 'eu@email.com',
+      }),
+    ).toBe(
+      'Oi, Ana! Faltam R$ 500,00 do empréstimo, que combinamos para 12/11. Meu Pix: eu@email.com',
+    );
+  });
 });
 
 describe('empréstimo concedido em A receber', () => {

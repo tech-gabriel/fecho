@@ -166,15 +166,26 @@ export function distribuir(
   return { abatimentos, sobra: restante };
 }
 
+const MODELO_DE_EMPRESTIMO =
+  'Oi, {nome}! Faltam {valor} do empréstimo, que combinamos para {vencimento}. Meu Pix: {pix}';
+
+// cartao null = cobrança só de empréstimo; o modelo do usuário fala em compras no cartão
 export function mensagemDeCobranca(
   modelo: string,
-  variaveis: { nome: string; valor: string; cartao: string; vencimento: string; pix: string },
+  variaveis: {
+    nome: string;
+    valor: string;
+    cartao: string | null;
+    vencimento: string;
+    pix: string;
+  },
 ): string {
-  return modelo
+  const cartao = variaveis.cartao ?? '';
+  return (variaveis.cartao === null ? MODELO_DE_EMPRESTIMO : modelo)
     .replaceAll('{nome}', variaveis.nome)
     .replaceAll('{valor}', variaveis.valor)
-    .replaceAll('{cartão}', variaveis.cartao)
-    .replaceAll('{cartao}', variaveis.cartao)
+    .replaceAll('{cartão}', cartao)
+    .replaceAll('{cartao}', cartao)
     .replaceAll('{vencimento}', variaveis.vencimento)
     .replaceAll('{pix}', variaveis.pix);
 }

@@ -93,7 +93,7 @@ export function CentralDeAlertas() {
       alerta.terceiro,
       {
         valor: alerta.valor ?? 0,
-        cartao: alerta.cartao?.nome ?? 'empréstimo',
+        cartao: alerta.cartao?.nome ?? null,
         vencimento: alerta.data,
       },
       () => {
