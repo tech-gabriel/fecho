@@ -49,7 +49,6 @@ export interface ConfigDaSecao<T extends Item> {
   colunas: Coluna<T>[];
   Formulario: (props: PropsDoFormulario<T>) => ReactNode;
   salvarEdicao?: (item: T, dados: Novo<T>, concluir: () => void) => Promise<void>;
-  rodape?: ReactNode;
 }
 
 export async function executar(acao: () => Promise<void>) {
@@ -258,8 +257,6 @@ export function SecaoCadastro<T extends Item>(config: ConfigDaSecao<T>) {
           </tbody>
         </table>
       )}
-
-      {config.rodape}
 
       <Dialog open={criando} onOpenChange={setCriando}>
         <DialogContent className="max-w-[480px]">
