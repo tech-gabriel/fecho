@@ -1,7 +1,8 @@
 import { useId } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
+import { cn } from 'cn';
 import { Input } from '@/components/ui/input';
 import type { Cartao, Categoria, Novo, Terceiro } from '@/data';
 import { lerReais } from '@/domain/money';
@@ -36,7 +37,7 @@ const reais = z.string().transform((texto, ctx) => {
 
 const esquemaCartao = z.object({
   nome,
-  cor: z.string(),
+  cor: z.string().regex(/^#[0-9A-F]{6}$/i, 'Escolha uma cor'),
   diaFechamento: dia,
   diaVencimento: dia,
   limite: reais,
@@ -50,6 +51,8 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
   const {
     register,
     handleSubmit,
+    control,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(esquemaCartao),
@@ -61,6 +64,8 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
       limite: inicial?.limiteCentavos ? formatarDecimal(inicial.limiteCentavos) : '',
     },
   });
+  const cor = useWatch({ control, name: 'cor' });
+  const personalizada = !CORES_DE_CARTAO.some((c) => c.hex === cor.toUpperCase());
 
   return (
     <form
@@ -100,6 +105,29 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
               />
             </label>
           ))}
+          <label className="relative cursor-pointer" title="Outra cor">
+            <input
+              type="color"
+              aria-label="Outra cor"
+              value={personalizada ? cor : '#FF6000'}
+              onChange={(e) => {
+                setValue('cor', e.target.value.toUpperCase(), { shouldDirty: true });
+              }}
+              className="peer sr-only"
+            />
+            <span
+              aria-hidden
+              style={{
+                background: personalizada
+                  ? cor
+                  : 'conic-gradient(#EF4444, #F59E0B, #84CC16, #06B6D4, #6366F1, #EC4899, #EF4444)',
+              }}
+              className={cn(
+                'block size-7 rounded-full ring-offset-2 ring-offset-surface peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-(--focus-ring)',
+                personalizada && 'ring-2 ring-ink',
+              )}
+            />
+          </label>
         </div>
       </fieldset>
 

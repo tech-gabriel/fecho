@@ -17,11 +17,6 @@ Thumbs.db
 src-tauri/target/
 src-tauri/gen/
 
-CLAUDE.md
-CLAUDE.local.md
-.claude/
-.mcp.json
-
 # documentação nunca entra no repositório
 *.md
 *.mdx

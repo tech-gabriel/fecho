@@ -4,10 +4,10 @@
 </picture>
 
 <p align="center">
-  <img alt="Versão 1.0.1" src="https://img.shields.io/badge/vers%C3%A3o-1.0.1-FF6000?style=flat-square">
+  <img alt="Versão 1.1.0" src="https://img.shields.io/badge/vers%C3%A3o-1.1.0-FF6000?style=flat-square">
   <img alt="Windows 10 e 11" src="https://img.shields.io/badge/Windows-10%20e%2011-57534E?style=flat-square">
   <img alt="Funciona sem internet" src="https://img.shields.io/badge/funciona-sem%20internet-16A34A?style=flat-square">
-  <img alt="618 testes" src="https://img.shields.io/badge/testes-618-2563EB?style=flat-square">
+  <img alt="628 testes" src="https://img.shields.io/badge/testes-628-2563EB?style=flat-square">
 </p>
 
 Você paga a fatura inteira, mas metade dela é da sua irmã, de um amigo, da sua mãe. Eles depositam depois, às vezes em partes, às vezes com atraso, e a conta vive numa planilha que só você entende.
@@ -40,7 +40,7 @@ Tudo roda no seu computador. Não tem conta, login nem servidor: os dados ficam 
 
 **Fechar o mês.** Um passo a passo confere cada fatura com o extrato do banco (`.csv` ou `.xlsx`), registra o pagamento, cobra quem falta e trava o mês contra edições acidentais.
 
-**Seus dados.** Backup automático guarda as dez últimas cópias, com criptografia opcional por senha (AES-GCM). Um PIN trava a tela. Você importa a planilha antiga com prévia de cada linha e exporta qualquer mês de volta para `.xlsx`.
+**Seus dados.** Backup automático guarda as dez últimas cópias, com criptografia opcional por senha (AES-GCM). Um PIN trava a tela, e você escolhe tema claro, escuro ou igual ao Windows. Você importa a planilha antiga com prévia de cada linha e exporta qualquer mês de volta para `.xlsx`.
 
 <table>
   <tr>
@@ -113,6 +113,10 @@ src-tauri/      comandos Rust: transações, backup, criptografia
 tests/e2e/      Playwright
 ```
 
+## Instalar
+
+Baixe o `.exe` ou o `.msi` da [última versão](https://github.com/tech-gabriel/fecho/releases/latest) e instale. O Windows pode mostrar o aviso do SmartScreen porque o instalador ainda não tem assinatura digital: clique em **Mais informações** e depois em **Executar assim mesmo**. Depois disso o Fechô avisa sozinho quando sair uma versão nova e se atualiza com um clique.
+
 ## Rodando
 
 Precisa de Node 24, pnpm e Rust estável.
@@ -129,3 +133,7 @@ pnpm tauri build    # instaladores .exe e .msi
 ## Como o código anda
 
 `develop` recebe as features por pull request com squash. As promoções seguem para `staging` e depois `main` com merge commit, e só uma tag `vX.Y.Z` na `main` gera os instaladores. Os commits seguem Conventional Commits em português, e os hooks rodam lint, tipos e testes antes de cada commit e push. O CI repete tudo e falha se a cobertura cair abaixo de 70% no projeto ou de 90% no domínio.
+
+## Licença
+
+O código está sob a [PolyForm Noncommercial 1.0.0](LICENSE). Você pode ler, estudar, modificar e usar o Fechô para fins pessoais e não comerciais. Uso comercial precisa de autorização: fale com [Gabriel de Paula](https://www.linkedin.com/in/gabrielspleite/).
