@@ -113,6 +113,10 @@ src-tauri/      comandos Rust: transações, backup, criptografia
 tests/e2e/      Playwright
 ```
 
+## Instalar
+
+Baixe o `.exe` ou o `.msi` da [última versão](https://github.com/tech-gabriel/fecho/releases/latest) e instale. O Windows pode mostrar o aviso do SmartScreen porque o instalador ainda não tem assinatura digital: clique em **Mais informações** e depois em **Executar assim mesmo**.
+
 ## Rodando
 
 Precisa de Node 24, pnpm e Rust estável.
@@ -129,3 +133,7 @@ pnpm tauri build    # instaladores .exe e .msi
 ## Como o código anda
 
 `develop` recebe as features por pull request com squash. As promoções seguem para `staging` e depois `main` com merge commit, e só uma tag `vX.Y.Z` na `main` gera os instaladores. Os commits seguem Conventional Commits em português, e os hooks rodam lint, tipos e testes antes de cada commit e push. O CI repete tudo e falha se a cobertura cair abaixo de 70% no projeto ou de 90% no domínio.
+
+## Licença
+
+O código está sob a [PolyForm Noncommercial 1.0.0](LICENSE). Você pode ler, estudar, modificar e usar o Fechô para fins pessoais e não comerciais. Uso comercial precisa de autorização: fale com [Gabriel de Paula](https://www.linkedin.com/in/gabrielspleite/).
