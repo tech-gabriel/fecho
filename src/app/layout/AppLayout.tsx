@@ -7,6 +7,7 @@ import { EditarCompra } from '@/features/nova-compra/EditarCompra';
 import { NovaCompra } from '@/features/nova-compra/NovaCompra';
 import { DURACAO, MOVIMENTO, gsap, useGSAP } from '@/lib/gsap';
 import { useAtalhosGlobais } from '../useAtalhosGlobais';
+import { useAtualizacaoAoAbrir } from '@/features/atualizacao/useAtualizacao';
 import { useBackupAutomatico } from '../useBackupAutomatico';
 import { Cabecalho } from './Cabecalho';
 import { Sidebar } from './Sidebar';
@@ -14,6 +15,7 @@ import { Sidebar } from './Sidebar';
 export function AppLayout() {
   useAtalhosGlobais();
   useBackupAutomatico();
+  useAtualizacaoAoAbrir();
   const { pathname } = useLocation();
   const pagina = useRef<HTMLDivElement>(null);
 
