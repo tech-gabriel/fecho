@@ -128,3 +128,13 @@ export function Avatar({ nome, tamanho }: { nome: string; tamanho: 32 | 40 }) {
     </span>
   );
 }
+
+export function cartaoDaCobranca(
+  situacao: SituacaoDaPessoa,
+  cartoes: readonly Cartao[],
+): string | null {
+  const item = situacao.itens
+    .filter((i) => i.aberto > 0 && i.emprestimoId === undefined)
+    .sort((a, b) => a.vencimento.localeCompare(b.vencimento))[0];
+  return item ? (cartoes.find((c) => c.id === item.cartaoId)?.nome ?? '') : null;
+}

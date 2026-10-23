@@ -36,7 +36,19 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "language": {
+          "pt-BR": {
+            "localePath": "./wix/pt-BR.wxl"
+          }
+        }
+      },
+      "nsis": {
+        "languages": ["PortugueseBR"]
+      }
+    }
   },
   "plugins": {
     "sql": {

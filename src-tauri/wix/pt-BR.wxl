@@ -1,0 +1,6 @@
+<WixLocalization Culture="pt-BR" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+    <String Id="LaunchApp">Abrir o Fechô</String>
+    <String Id="DowngradeErrorMessage">Uma versão mais recente do Fechô já está instalada.</String>
+    <String Id="PathEnvVarFeature">Adiciona a pasta do Fechô à variável de ambiente PATH, para abrir o fecho.exe de qualquer lugar.</String>
+    <String Id="InstallAppFeature">Instala o Fechô.</String>
+</WixLocalization>
