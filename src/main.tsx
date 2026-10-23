@@ -4,16 +4,14 @@ import { createHashRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { RepositoriosProvider } from './app/repositorios';
 import { rotas } from './app/router';
+import { iniciarTema } from './lib/tema';
 import '@fontsource-variable/inter';
 import './styles/globals.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Elemento #root não encontrado');
 
-const temaEscuro = window.matchMedia('(prefers-color-scheme: dark)');
-const aplicarTema = () => document.documentElement.classList.toggle('dark', temaEscuro.matches);
-aplicarTema();
-temaEscuro.addEventListener('change', aplicarTema);
+iniciarTema();
 
 createRoot(root).render(
   <StrictMode>
