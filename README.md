@@ -136,4 +136,4 @@ pnpm tauri build    # instaladores .exe e .msi
 
 ## Licença
 
-O código está sob a [PolyForm Noncommercial 1.0.0](LICENSE). Você pode ler, estudar, modificar e usar o Fechô para fins pessoais e não comerciais. Uso comercial precisa de autorização: fale com [Gabriel de Paula](https://www.linkedin.com/in/tech-gabriel/).
+O código está sob a [PolyForm Noncommercial 1.0.0](LICENSE). Você pode ler, estudar, modificar e usar o Fechô para fins pessoais e não comerciais. Uso comercial precisa de autorização: fale com [Gabriel de Paula](https://www.linkedin.com/in/gabrielspleite/).
