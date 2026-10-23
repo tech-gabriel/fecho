@@ -25,6 +25,7 @@ CLAUDE.local.md
 # documentação nunca entra no repositório
 *.md
 *.mdx
+!/README.md
 docs/
 
 Especificações do app de finanças/
