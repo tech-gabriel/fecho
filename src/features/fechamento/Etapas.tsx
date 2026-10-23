@@ -6,7 +6,7 @@ import { useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { Preferencias } from '@/data';
+import type { Cartao, Preferencias } from '@/data';
 import {
   type Competencia,
   type DataLocal,
@@ -20,7 +20,12 @@ import type { FaturaDoCartao } from '@/features/faturas/Faturas';
 import { dataCurta } from '@/features/faturas/ListaDeCartoes';
 import { SeletorData } from '@/features/nova-compra/SeletorData';
 import { useAcoesDeCobranca } from '@/features/receber/acoes';
-import { Avatar, SeloDoTerceiro, type SituacaoDaPessoa } from '@/features/receber/situacoes';
+import {
+  Avatar,
+  cartaoDaCobranca,
+  SeloDoTerceiro,
+  type SituacaoDaPessoa,
+} from '@/features/receber/situacoes';
 import { formatarComSinal, formatarDecimal, formatarMoeda, nomeDoMes } from '@/lib/formato';
 
 const mesCurto = (c: Competencia) => nomeDoMes(c).split(' ')[0] ?? '';
@@ -172,11 +177,13 @@ function CardDePagamento({ fatura, hoje }: { fatura: FaturaDoCartao; hoje: DataL
 
 export function EtapaTerceiros({
   situacoes,
+  cartoes,
   preferencias,
   competencia,
   hoje,
 }: {
   situacoes: SituacaoDaPessoa[];
+  cartoes: Cartao[];
   preferencias: Preferencias;
   competencia: Competencia;
   hoje: DataLocal;
@@ -221,7 +228,7 @@ export function EtapaTerceiros({
                 onClick={() =>
                   void copiarCobranca(
                     s.terceiro,
-                    { valor: s.falta, cartao: 'cartão', vencimento: s.prazo },
+                    { valor: s.falta, cartao: cartaoDaCobranca(s, cartoes), vencimento: s.prazo },
                     () => undefined,
                   )
                 }
