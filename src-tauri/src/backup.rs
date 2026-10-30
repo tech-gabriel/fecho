@@ -238,6 +238,13 @@ pub async fn exportar_backup<R: Runtime>(
     .await
 }
 
+pub fn nome_de_backup_valido(nome: &str) -> bool {
+    nome.len() == "fecho-2026-01-01-000000.db".len()
+        && nome.starts_with("fecho-")
+        && nome.ends_with(".db")
+        && nome[6..23].chars().all(|c| c.is_ascii_digit() || c == '-')
+}
+
 pub fn pasta_externa(pasta: &Path, chave: Option<&Segredo>) -> Result<PathBuf, String> {
     if chave.is_none() {
         return Err(COPIA_EXIGE_SENHA.into());
@@ -255,6 +262,9 @@ pub async fn backup_automatico<R: Runtime>(
     nome: String,
     pasta: Option<String>,
 ) -> Result<String, String> {
+    if !nome_de_backup_valido(&nome) {
+        return Err(NAO_E_BACKUP.into());
+    }
     let chave = chave_atual(&app)?;
     let pasta = match pasta {
         Some(externa) => pasta_externa(Path::new(&externa), chave.as_ref())?,
@@ -342,6 +352,14 @@ mod testes {
             Err(PASTA_INDISPONIVEL.to_string())
         );
         let _ = fs::remove_dir_all(&pasta);
+    }
+
+    #[test]
+    fn nome_do_backup_automatico_nao_sai_da_pasta() {
+        assert!(nome_de_backup_valido("fecho-2026-10-30-140000.db"));
+        assert!(!nome_de_backup_valido("..\\..\\fecho-2026-10-30.db"));
+        assert!(!nome_de_backup_valido("fecho-2026-10-30\\140.db"));
+        assert!(!nome_de_backup_valido("outro.db"));
     }
 
     #[test]
