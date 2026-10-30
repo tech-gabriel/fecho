@@ -47,14 +47,21 @@ export function useAcoesDeCobranca(preferencias: Preferencias, hoje: DataLocal) 
     {
       valor,
       cartao,
+      conta = null,
       vencimento,
-    }: { valor: number; cartao: string | null; vencimento: DataLocal | null },
+    }: {
+      valor: number;
+      cartao: string | null;
+      conta?: string | null;
+      vencimento: DataLocal | null;
+    },
     aoCopiar: () => void,
   ): Promise<void> => {
     const texto = mensagemDeCobranca(preferencias.modeloCobranca, {
       nome: terceiro.nome,
       valor: formatarMoeda(valor),
       cartao,
+      conta,
       vencimento: vencimento ? dataCurta(vencimento) : '',
       pix: preferencias.chavePix,
     });
@@ -64,7 +71,8 @@ export function useAcoesDeCobranca(preferencias: Preferencias, hoje: DataLocal) 
       toast.error('Não foi possível copiar a cobrança.', {
         action: {
           label: 'Tentar de novo',
-          onClick: () => void copiarCobranca(terceiro, { valor, cartao, vencimento }, aoCopiar),
+          onClick: () =>
+            void copiarCobranca(terceiro, { valor, cartao, conta, vencimento }, aoCopiar),
         },
       });
       return;

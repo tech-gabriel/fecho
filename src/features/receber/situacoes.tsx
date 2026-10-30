@@ -1,9 +1,18 @@
 import { CircleCheck, Clock, HandCoins, TriangleAlert } from 'lucide-react';
 import { cn } from 'cn';
-import type { Cartao, EmprestimoConcedido, Movimento, ParcelaDoMes, Terceiro } from '@/data';
+import type {
+  Cartao,
+  ContaFixa,
+  EmprestimoConcedido,
+  Movimento,
+  PagamentoDeConta,
+  ParcelaDoMes,
+  Terceiro,
+} from '@/data';
+import { itensDasContas } from '@/domain/contasFixas';
 import { itemDoConcedido } from '@/domain/emprestimos';
 import { dataNaCompetencia, type Competencia, type DataLocal } from '@/domain/competencia';
-import { itensDaPessoa, situacaoDaPessoa } from '@/domain/receber';
+import { itensDaPessoa, situacaoDaPessoa, type ItemComSituacao } from '@/domain/receber';
 import type { StatusTerceiro } from '@/domain/terceiros';
 
 export type SituacaoDaPessoa = ReturnType<typeof situacaoDaPessoa> & {
@@ -20,8 +29,14 @@ export function montarSituacoes({
   competencia,
   hoje,
   concedidos = [],
+  contasFixas = { contas: [], pagamentos: [] },
 }: {
   concedidos?: EmprestimoConcedido[];
+  contasFixas?: {
+    contas: readonly ContaFixa[];
+    pagamentos: readonly PagamentoDeConta[];
+    ate?: Competencia;
+  };
   terceiros: Terceiro[];
   cartoes: Cartao[];
   parcelas: ParcelaDoMes[];
@@ -37,6 +52,12 @@ export function montarSituacoes({
       ...concedidos
         .filter((c) => c.terceiroId === terceiro.id && c.data <= fimDoMes)
         .map(itemDoConcedido),
+      ...itensDasContas(
+        contasFixas.contas,
+        contasFixas.pagamentos,
+        contasFixas.ate ?? competencia,
+        terceiro.id,
+      ),
     ];
     const daPessoa = movimentos.filter((m) => m.terceiroId === terceiro.id && m.data <= fimDoMes);
     const depositos = daPessoa.filter((m) => m.tipo === 'deposito');
@@ -134,7 +155,21 @@ export function cartaoDaCobranca(
   cartoes: readonly Cartao[],
 ): string | null {
   const item = situacao.itens
-    .filter((i) => i.aberto > 0 && i.emprestimoId === undefined)
+    .filter((i) => i.aberto > 0 && i.emprestimoId === undefined && i.contaFixaId === undefined)
     .sort((a, b) => a.vencimento.localeCompare(b.vencimento))[0];
   return item ? (cartoes.find((c) => c.id === item.cartaoId)?.nome ?? '') : null;
+}
+
+export function contaDaCobranca(situacao: SituacaoDaPessoa): string | null {
+  return (
+    situacao.itens
+      .filter((i) => i.aberto > 0 && i.contaFixaId !== undefined)
+      .sort((a, b) => a.vencimento.localeCompare(b.vencimento))[0]?.descricao ?? null
+  );
+}
+
+export function ondeDoItem(item: ItemComSituacao, cartoes: readonly Cartao[]): string {
+  if (item.emprestimoId !== undefined) return 'Empréstimo';
+  if (item.contaFixaId !== undefined) return item.descricao;
+  return cartoes.find((c) => c.id === item.cartaoId)?.nome ?? '';
 }

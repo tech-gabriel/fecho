@@ -99,12 +99,16 @@ export function bancoDeTeste() {
         .run(deposito.terceiroId, deposito.valorCentavos, deposito.data, deposito.competencia);
       for (const a of deposito.abatimentos) {
         db.prepare(
-          'INSERT INTO abatimentos (movimento_id, compra_id, numero, emprestimo_id, valor_centavos) VALUES (?, ?, ?, ?, ?)',
+          `INSERT INTO abatimentos
+             (movimento_id, compra_id, numero, emprestimo_id, conta_fixa_id, competencia, valor_centavos)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
         ).run(
           lastInsertRowid,
-          'emprestimoId' in a ? null : a.compraId,
-          'emprestimoId' in a ? null : a.numero,
+          'compraId' in a ? a.compraId : null,
+          'compraId' in a ? a.numero : null,
           'emprestimoId' in a ? a.emprestimoId : null,
+          'contaFixaId' in a ? a.contaFixaId : null,
+          'contaFixaId' in a ? a.competencia : null,
           a.valor,
         );
       }

@@ -8,6 +8,7 @@ import {
   somarMeses,
 } from './competencia';
 import type { Centavos } from './money';
+import { chaveDaConta, type ItemDevido } from './receber';
 import { ratear, type Rateio } from './terceiros';
 
 export interface ContaFixa {
@@ -120,4 +121,39 @@ export function contasComoGastos(
     valorCentavos: i.valor,
     rateios: i.conta.rateios,
   }));
+}
+
+export function itensDasContas(
+  contas: readonly ContaFixa[],
+  pagamentos: readonly PagamentoDeConta[],
+  ate: Competencia,
+  terceiroId: number,
+): ItemDevido[] {
+  return contas.flatMap((conta) => {
+    if (!conta.rateios.some((r) => r.terceiroId === terceiroId)) return [];
+    const itens: ItemDevido[] = [];
+    for (
+      let competencia = conta.inicio;
+      competencia <= ate;
+      competencia = somarMeses(competencia, 1)
+    ) {
+      const [item] = contasDoMes([conta], pagamentos, competencia, dataNaCompetencia(ate, 31));
+      const valor = item ? (ratear(item.valor, conta.rateios).porTerceiro.get(terceiroId) ?? 0) : 0;
+      if (!item || valor <= 0) continue;
+      itens.push({
+        chave: chaveDaConta(conta.id, competencia),
+        contaFixaId: conta.id,
+        compraId: 0,
+        numero: 1,
+        numParcelas: 1,
+        descricao: conta.descricao,
+        dataCompra: item.vencimento,
+        cartaoId: 0,
+        competencia,
+        vencimento: item.vencimento,
+        valor,
+      });
+    }
+    return itens;
+  });
 }

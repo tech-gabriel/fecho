@@ -349,6 +349,32 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
     });
 
     describe('a receber', () => {
+      it('abate a parte de uma conta fixa no mês', async () => {
+        const aluguel = await repos.contasFixas.criar({
+          descricao: 'Aluguel',
+          categoriaId: null,
+          valorCentavos: 180_000,
+          dia: 10,
+          inicio: '2026-10',
+          ativa: true,
+          rateios: [
+            { terceiroId: null, percentual: 50 },
+            { terceiroId: ana, percentual: 50 },
+          ],
+        });
+        await repos.receber.registrarDeposito({
+          terceiroId: ana,
+          valorCentavos: 90_000,
+          data: '2026-10-12',
+          competencia: '2026-10',
+          abatimentos: [{ contaFixaId: aluguel, competencia: '2026-10', valor: 90_000 }],
+        });
+
+        expect((await repos.receber.movimentos())[0]?.abatimentos).toEqual([
+          { contaFixaId: aluguel, competencia: '2026-10', valor: 90_000 },
+        ]);
+      });
+
       it('registra depósito com abatimentos, cobrança, e exclui/restaura', async () => {
         const id = await repos.compras.salvar(
           compra({ rateios: [{ terceiroId: ana, percentual: 100 }] }),

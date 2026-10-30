@@ -627,7 +627,7 @@ function receberSqlite(banco: Banco, comandos: ComandosAtomicos): ReceberReposit
            WHERE deleted_at IS NULL ORDER BY data, id`,
         ),
         banco.select<Linha[]>(
-          'SELECT movimento_id, compra_id, numero, emprestimo_id, valor_centavos FROM abatimentos',
+          'SELECT movimento_id, compra_id, numero, emprestimo_id, conta_fixa_id, competencia, valor_centavos FROM abatimentos',
         ),
       ]);
       return linhas.map((l): Movimento => ({
@@ -641,9 +641,15 @@ function receberSqlite(banco: Banco, comandos: ComandosAtomicos): ReceberReposit
           .filter((a) => numero(a.movimento_id) === numero(l.id))
           .map((a) => {
             const valor = assertCentavos(numero(a.valor_centavos));
-            return a.emprestimo_id === null
-              ? { compraId: numero(a.compra_id), numero: numero(a.numero), valor }
-              : { emprestimoId: numero(a.emprestimo_id), valor };
+            if (a.emprestimo_id !== null) return { emprestimoId: numero(a.emprestimo_id), valor };
+            if (a.conta_fixa_id !== null) {
+              return {
+                contaFixaId: numero(a.conta_fixa_id),
+                competencia: String(a.competencia),
+                valor,
+              };
+            }
+            return { compraId: numero(a.compra_id), numero: numero(a.numero), valor };
           }),
       }));
     },

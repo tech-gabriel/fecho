@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   alertasDeContas,
   contasComoGastos,
+  itensDasContas,
   contasDoMes,
   minhaParteDasContas,
   type ContaFixa,
@@ -140,5 +141,27 @@ describe('contasComoGastos', () => {
       { categoriaId: null, valorCentavos: 18_700, rateios: [] },
     ]);
     expect(contasComoGastos([casa], [], '2026-04', '2026-03-05')).toEqual([]);
+  });
+});
+
+describe('itensDasContas', () => {
+  it('cria a dívida da pessoa em cada mês, do início até a competência', () => {
+    const dividida = conta({
+      inicio: '2026-09',
+      rateios: [
+        { terceiroId: null, percentual: 50 },
+        { terceiroId: 7, percentual: 50 },
+      ],
+    });
+
+    const itens = itensDasContas([dividida, luz], [], '2026-10', 7);
+
+    expect(
+      itens.map((i) => [i.chave, i.competencia, i.vencimento, i.valor, i.contaFixaId]),
+    ).toEqual([
+      ['f:1:2026-09', '2026-09', '2026-09-10', 90_000, 1],
+      ['f:1:2026-10', '2026-10', '2026-10-10', 90_000, 1],
+    ]);
+    expect(itens[0]).toMatchObject({ descricao: 'Aluguel', cartaoId: 0 });
   });
 });
