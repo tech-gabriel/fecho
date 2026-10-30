@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Nfc } from 'lucide-react';
 import { cn } from 'cn';
 import type { Bandeira, Cartao } from '@/data';
@@ -49,6 +50,7 @@ export function CartaoDesenhado({
 }) {
   const t = TAMANHOS[tamanho];
   const claro = textoSobre(cartao.cor) === 'claro';
+  const ouro = useId();
   return (
     <div
       role="img"
@@ -67,13 +69,30 @@ export function CartaoDesenhado({
         <span className={cn('truncate font-semibold', t.banco)}>{cartao.banco}</span>
         <Nfc size={t.icone} strokeWidth={1.75} className="flex-none opacity-80" />
       </div>
-      <span
-        aria-hidden
-        className={cn(
-          'rounded-[4px] bg-[linear-gradient(135deg,#F5D78E,#C9A24B)] ring-1 ring-black/15',
-          t.chip,
-        )}
-      />
+      <svg aria-hidden viewBox="0 0 40 30" className={cn('drop-shadow-sm', t.chip)}>
+        <defs>
+          <linearGradient id={ouro} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#F7E2A6" />
+            <stop offset="0.45" stopColor="#D9B45E" />
+            <stop offset="1" stopColor="#A9822F" />
+          </linearGradient>
+        </defs>
+        <rect
+          x="0.5"
+          y="0.5"
+          width="39"
+          height="29"
+          rx="5"
+          fill={`url(#${ouro})`}
+          stroke="#8A6A25"
+          strokeOpacity="0.6"
+        />
+        <g fill="none" stroke="#7A5C1E" strokeOpacity="0.55" strokeWidth="0.9">
+          <path d="M0.5 10H13M0.5 20H13M27 10H39.5M27 20H39.5" />
+          <path d="M13 0.5V29.5M27 0.5V29.5M13 15H27" />
+          <rect x="15.5" y="8" width="9" height="14" rx="2.5" />
+        </g>
+      </svg>
       <div aria-hidden className="flex flex-col">
         {cartao.final && (
           <span className={cn('font-medium tracking-wider tabular-nums', t.numero)}>

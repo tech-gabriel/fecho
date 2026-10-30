@@ -109,7 +109,11 @@ function FaturaNaCarteira({
         >
           {resumo.meu > 0 && <span className="bg-brand" style={{ flexGrow: resumo.meu }} />}
           {partes.map((p) => (
-            <span key={p.terceiro.id} className="bg-info" style={{ flexGrow: p.valor }} />
+            <span
+              key={p.terceiro.id}
+              className="bg-[repeating-linear-gradient(135deg,var(--color-brand)_0_2px,var(--color-brand-subtle)_2px_5px)]"
+              style={{ flexGrow: p.valor }}
+            />
           ))}
         </div>
         <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-[13px]">
@@ -121,7 +125,7 @@ function FaturaNaCarteira({
                 Seu <b className="tabular-nums">{formatarMoeda(resumo.meu)}</b>
               </span>
               {partes.map((p) => (
-                <span key={p.terceiro.id} className="text-info-text">
+                <span key={p.terceiro.id} className="text-ink-muted">
                   {p.terceiro.nome} <b className="tabular-nums">{formatarMoeda(p.valor)}</b>
                 </span>
               ))}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Wallet } from 'lucide-react';
 import { Link } from 'react-router';
 import { cn } from 'cn';
 import { toast } from 'sonner';
@@ -213,7 +213,7 @@ export function Dashboard() {
         <span className="flex size-12 items-center justify-center rounded-full bg-soft">
           <Plus size={24} strokeWidth={1.75} aria-hidden className="text-ink-muted-on-tint" />
         </span>
-        <p className="text-sm text-ink-muted">Nada lançado em {mes} ainda.</p>
+        <p className="text-sm text-ink-muted-on-tint">Nada lançado em {mes} ainda.</p>
         <div className="flex gap-2">
           <Button
             onClick={() => {
@@ -283,22 +283,25 @@ export function Dashboard() {
     <div ref={raiz} className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto pb-6">
       <section
         aria-labelledby="preciso-ter"
-        className="cartao-do-dashboard flex flex-wrap items-end justify-between gap-6"
+        className="cartao-do-dashboard flex flex-wrap items-center justify-between gap-6 rounded-[10px] bg-brand-subtle px-8 py-7 ring-1 ring-brand/25"
       >
         <div className="flex max-w-[640px] flex-col gap-1.5">
-          <p className="flex items-center gap-2 text-[13px] font-medium text-ink-muted">
+          <p className="flex items-center gap-2 text-sm font-semibold text-brand-text">
+            <Wallet size={16} strokeWidth={1.75} aria-hidden />
             <span id="preciso-ter">Preciso ter em caixa</span>
-            {resumo.ultimoVencimento && <span>até {dataCurta(resumo.ultimoVencimento)}</span>}
+            {resumo.ultimoVencimento && (
+              <span className="font-medium">até {dataCurta(resumo.ultimoVencimento)}</span>
+            )}
           </p>
-          <span className="text-[52px] leading-[56px] font-bold tracking-[-0.03em] tabular-nums">
+          <span className="text-[56px] leading-[60px] font-bold tracking-[-0.035em] tabular-nums">
             <Valor centavos={resumo.precisoTerEmCaixa} />
           </span>
-          <p className="text-sm text-ink-muted">
+          <p className="text-sm text-ink-muted-on-tint">
             {composicao.length > 0 ? `${composicao.join(' e ')}.` : `Tudo de ${mes} pago.`}
             {aReceber > 0 && (
               <>
                 <br />
-                <Link to="/receber" className="font-semibold text-info-text hover:underline">
+                <Link to="/receber" className="font-semibold text-brand-text hover:underline">
                   {formatarMoeda(aReceber)} voltam de{' '}
                   {listaDeNomes(devedores.map((s) => s.terceiro.nome))}.
                 </Link>
@@ -306,14 +309,14 @@ export function Dashboard() {
             )}
           </p>
         </div>
-        <div className="-ml-3 flex flex-wrap gap-2">
+        <div className="flex flex-wrap divide-x divide-border rounded-lg bg-surface ring-1 ring-border">
           <button
             type="button"
             aria-haspopup="dialog"
             onClick={() => {
               setRendaAberta(true);
             }}
-            className="flex flex-col items-start rounded-md px-3 py-2 text-left hover:bg-soft"
+            className="flex flex-col items-start px-5 py-3 text-left first:rounded-l-lg last:rounded-r-lg hover:bg-soft"
           >
             <span className="text-xs text-ink-muted">Renda</span>
             <span className="text-lg font-semibold tabular-nums">
@@ -322,7 +325,7 @@ export function Dashboard() {
           </button>
           <Link
             to="/lancamentos?ver=meu"
-            className="flex flex-col rounded-md px-3 py-2 hover:bg-soft"
+            className="flex flex-col px-5 py-3 first:rounded-l-lg last:rounded-r-lg hover:bg-soft"
           >
             <span className="text-xs text-ink-muted">
               Meus gastos
@@ -333,7 +336,10 @@ export function Dashboard() {
               {formatarMoeda(resumo.meusGastos)}
             </span>
           </Link>
-          <Link to="/lancamentos" className="flex flex-col rounded-md px-3 py-2 hover:bg-soft">
+          <Link
+            to="/lancamentos"
+            className="flex flex-col px-5 py-3 first:rounded-l-lg last:rounded-r-lg hover:bg-soft"
+          >
             <span className="text-xs text-ink-muted">Saldo real</span>
             <span
               className={cn(
