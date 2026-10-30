@@ -21,6 +21,7 @@ import { executar } from '@/features/cadastros/SecaoCadastro';
 import { ComboCategoria } from '@/features/nova-compra/ComboCategoria';
 import { entradaDaCompra } from '@/features/nova-compra/NovaCompra';
 import { ParaQuem } from '@/features/nova-compra/ParaQuem';
+import { entradaDeDinheiro, entradaDeInteiro } from '@/lib/entrada';
 import { formatarDecimal } from '@/lib/formato';
 
 function valorEmCentavos(texto: string): number | null {
@@ -34,7 +35,7 @@ function valorEmCentavos(texto: string): number | null {
 
 const esquema = z
   .object({
-    nome: z.string().trim().min(1, 'Digite um nome'),
+    nome: z.string().trim().min(1, 'Digite um nome').max(40, 'Use até 40 letras'),
     valor: z.string().refine((t) => valorEmCentavos(t) !== null, 'Digite um valor maior que zero'),
     cartaoId: z.number(),
     dia: z
@@ -148,6 +149,7 @@ export function FormularioDeAssinatura({
         <Campo id={`${id}-nome`} rotulo="Nome" erro={errors.nome?.message}>
           <Input
             {...atributosDeErro(`${id}-nome`, errors.nome?.message)}
+            maxLength={40}
             placeholder="Ex.: Streaming"
             autoComplete="off"
             {...register('nome')}
@@ -156,7 +158,7 @@ export function FormularioDeAssinatura({
         <Campo id={`${id}-valor`} rotulo="Valor por mês" erro={errors.valor?.message}>
           <Input
             {...atributosDeErro(`${id}-valor`, errors.valor?.message)}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             placeholder="0,00"
             autoComplete="off"
             className="text-right tabular-nums"
@@ -200,9 +202,7 @@ export function FormularioDeAssinatura({
         <Campo id={`${id}-dia`} rotulo="Cobra dia" erro={errors.dia?.message}>
           <Input
             {...atributosDeErro(`${id}-dia`, errors.dia?.message)}
-            type="number"
-            min={1}
-            max={31}
+            {...entradaDeInteiro(2)}
             className="tabular-nums"
             {...register('dia', { valueAsNumber: true })}
           />

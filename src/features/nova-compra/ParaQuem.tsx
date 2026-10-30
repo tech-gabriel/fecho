@@ -1,3 +1,4 @@
+import { entradaDeInteiro } from '@/lib/entrada';
 import { UserRound } from 'lucide-react';
 import { cn } from 'cn';
 import { Input } from '@/components/ui/input';
@@ -140,7 +141,7 @@ export function ParaQuem({
                     <span className="relative">
                       <Input
                         aria-label={`Percentual de ${nome(p.terceiroId)}`}
-                        inputMode="numeric"
+                        {...entradaDeInteiro(3)}
                         value={Number.isNaN(p.percentual) ? '' : String(p.percentual)}
                         onChange={(e) => {
                           onPessoas(

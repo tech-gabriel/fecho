@@ -366,3 +366,23 @@ describe('Configurações › Sobre', () => {
     expect(sobre.getByRole('button', { name: 'Procurar atualizações' })).toBeDisabled();
   });
 });
+
+describe('Restrição de digitação nos cadastros', () => {
+  it('dia e final só aceitam dígitos e o nome longo mostra o limite', async () => {
+    await abrir();
+
+    fireEvent.click(within(secao('Cartões')).getByRole('button', { name: 'Adicionar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Novo cartão' });
+    fireEvent.input(within(dialog).getByLabelText('Fecha dia'), { target: { value: '3x1' } });
+    fireEvent.input(within(dialog).getByLabelText('Final'), { target: { value: '12-345' } });
+    fireEvent.input(within(dialog).getByLabelText('Limite'), { target: { value: 'R$ 5.000,00' } });
+
+    expect(within(dialog).getByLabelText('Fecha dia')).toHaveValue('31');
+    expect(within(dialog).getByLabelText('Final')).toHaveValue('1234');
+    expect(within(dialog).getByLabelText('Limite')).toHaveValue('5.000,00');
+
+    preencher('Nome', 'C'.repeat(41));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    expect(await within(dialog).findByText('Use até 40 letras')).toBeInTheDocument();
+  });
+});

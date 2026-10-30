@@ -17,6 +17,7 @@ import {
 } from '@/domain/simulador';
 import { atributosDeErro, Campo } from '@/features/cadastros/Campo';
 import { EntradaEmReais } from '@/features/cadastros/formularios';
+import { entradaDeInteiro, entradaDeTaxa } from '@/lib/entrada';
 import { formatarMoeda } from '@/lib/formato';
 
 const TIPOS: [TipoDeRendimento, string][] = [
@@ -205,7 +206,7 @@ export function Simulador() {
           <Campo id={`${id}-meses`} rotulo="Prazo em meses" erro={erros.meses}>
             <Input
               {...atributosDeErro(`${id}-meses`, erros.meses)}
-              inputMode="numeric"
+              {...entradaDeInteiro(3)}
               className="tabular-nums"
               {...register('meses')}
             />
@@ -239,7 +240,7 @@ export function Simulador() {
             <Campo id={`${id}-cdi`} rotulo="% do CDI" erro={erros.percentualDoCdi}>
               <Input
                 {...atributosDeErro(`${id}-cdi`, erros.percentualDoCdi)}
-                inputMode="decimal"
+                {...entradaDeInteiro(3)}
                 className="tabular-nums"
                 {...register('percentualDoCdi')}
               />
@@ -254,7 +255,7 @@ export function Simulador() {
             >
               <Input
                 {...atributosDeErro(`${id}-taxa`, erros.taxaFixa)}
-                inputMode="decimal"
+                {...entradaDeTaxa}
                 placeholder="11,5"
                 className="tabular-nums"
                 {...register('taxaFixa')}

@@ -1,3 +1,4 @@
+import { entradaDeDinheiro } from '@/lib/entrada';
 import { useId, useState } from 'react';
 import { Check, CircleCheck, Copy, HandCoins } from 'lucide-react';
 import { toast } from 'sonner';
@@ -148,7 +149,7 @@ function CardDePagamento({ fatura, hoje }: { fatura: FaturaDoCartao; hoje: DataL
             <Label htmlFor={`${id}-valor`}>Valor pago</Label>
             <Input
               id={`${id}-valor`}
-              inputMode="decimal"
+              {...entradaDeDinheiro}
               value={valor}
               aria-invalid={pago === null ? true : undefined}
               onChange={(e) => {
@@ -314,7 +315,7 @@ export function EtapaEconomia({
           </span>
           <input
             id={`${id}-guardado`}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             value={valor}
             onChange={(e) => {
               setValor(e.target.value);
