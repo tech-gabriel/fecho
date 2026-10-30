@@ -409,3 +409,14 @@ describe('Editar compra', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('Restrição de digitação', () => {
+  it('o valor só aceita números, ponto de milhar e uma vírgula com 2 casas', async () => {
+    await abrirApp();
+    const dialog = await abrirDialog();
+    const valor = within(dialog).getByLabelText('Valor');
+
+    fireEvent.input(valor, { target: { value: 'abc12,345' } });
+    expect(valor).toHaveValue('12,34');
+  });
+});

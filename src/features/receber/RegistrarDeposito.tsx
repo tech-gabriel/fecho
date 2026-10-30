@@ -1,3 +1,4 @@
+import { entradaDeDinheiro } from '@/lib/entrada';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,7 +59,7 @@ export function RegistrarDeposito({
         </span>
         <Input
           id="valor-do-deposito"
-          inputMode="decimal"
+          {...entradaDeDinheiro}
           autoComplete="off"
           className="pl-9 tabular-nums"
           value={texto}

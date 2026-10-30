@@ -1,3 +1,4 @@
+import { entradaDeInteiro } from '@/lib/entrada';
 import { Fragment } from 'react';
 import { format, parse } from 'date-fns';
 import { Layers } from 'lucide-react';
@@ -53,7 +54,7 @@ export function Parcelas({
           aria-label="Outro número de parcelas"
           aria-invalid={erro ? true : undefined}
           aria-describedby={erro ? idDoErro(id) : undefined}
-          inputMode="numeric"
+          {...entradaDeInteiro(2)}
           placeholder="Outro"
           value={outro && !Number.isNaN(numParcelas) ? String(numParcelas) : ''}
           onChange={(e) => {

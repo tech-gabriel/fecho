@@ -40,6 +40,7 @@ import {
 import { competenciaDe, diaDe } from '@/domain/competencia';
 import { competenciaDaCompra } from '@/domain/faturas';
 import { lerReais } from '@/domain/money';
+import { entradaDeDinheiro } from '@/lib/entrada';
 import { formatarDecimal, nomeDoMes } from '@/lib/formato';
 import { MAXIMO_DE_PARCELAS } from '@/domain/parcelas';
 import { atributosDeErro, Campo } from '@/features/cadastros/Campo';
@@ -79,7 +80,7 @@ function valorEmCentavos(texto: string): number | null {
 const esquema = z
   .object({
     valor: z.string().refine((t) => valorEmCentavos(t) !== null, 'Digite um valor maior que zero'),
-    descricao: z.string().trim().min(1, 'Digite uma descrição'),
+    descricao: z.string().trim().min(1, 'Digite uma descrição').max(80, 'Use até 80 letras'),
     categoriaId: z.number().nullable(),
     cartaoId: z.number(),
     dataCompra: z.string(),
@@ -451,7 +452,7 @@ export function FormularioDeCompra({
           <input
             {...atributosDeErro(`${id}-valor`, errors.valor?.message)}
             {...register('valor')}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             placeholder="0,00"
             autoComplete="off"
             className="min-w-0 flex-1 bg-transparent text-[28px] leading-[34px] font-bold tabular-nums placeholder:text-ink-muted focus-visible:outline-none"
@@ -463,6 +464,7 @@ export function FormularioDeCompra({
         <Campo id={`${id}-descricao`} rotulo="Descrição" erro={errors.descricao?.message}>
           <Input
             {...atributosDeErro(`${id}-descricao`, errors.descricao?.message)}
+            maxLength={80}
             placeholder="Ex.: Mercado"
             autoComplete="off"
             {...register('descricao', {

@@ -1,3 +1,4 @@
+import { entradaDeDinheiro, entradaDeInteiro } from '@/lib/entrada';
 import { useEffect, useId } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -36,7 +37,7 @@ const inteiro = (min: number, max: number, mensagem: string) =>
 
 const esquemaTomado = z
   .object({
-    descricao: z.string().trim().min(1, 'Digite um nome'),
+    descricao: z.string().trim().min(1, 'Digite um nome').max(80, 'Use até 80 letras'),
     valor,
     numParcelas: inteiro(1, 360, 'Digite de 1 a 360 parcelas'),
     valorParcela: valor,
@@ -145,6 +146,7 @@ export function FormularioTomado({
         <Input
           {...atributosDeErro(`${id}-descricao`, errors.descricao?.message)}
           autoComplete="off"
+          maxLength={80}
           {...register('descricao')}
         />
       </Campo>
@@ -152,7 +154,7 @@ export function FormularioTomado({
         <Campo id={`${id}-valor`} rotulo="Quanto você recebeu" erro={errors.valor?.message}>
           <Input
             {...atributosDeErro(`${id}-valor`, errors.valor?.message)}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             placeholder="0,00"
             autoComplete="off"
             className="text-right tabular-nums"
@@ -175,8 +177,7 @@ export function FormularioTomado({
         <Campo id={`${id}-parcelas`} rotulo="Parcelas" erro={errors.numParcelas?.message}>
           <Input
             {...atributosDeErro(`${id}-parcelas`, errors.numParcelas?.message)}
-            type="number"
-            min={1}
+            {...entradaDeInteiro(2)}
             className="tabular-nums"
             {...register('numParcelas', { valueAsNumber: true })}
           />
@@ -188,7 +189,7 @@ export function FormularioTomado({
         >
           <Input
             {...atributosDeErro(`${id}-valor-parcela`, errors.valorParcela?.message)}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             placeholder="0,00"
             autoComplete="off"
             className="text-right tabular-nums"
@@ -200,9 +201,7 @@ export function FormularioTomado({
         <Campo id={`${id}-dia`} rotulo="Debitada no dia" erro={errors.dia?.message}>
           <Input
             {...atributosDeErro(`${id}-dia`, errors.dia?.message)}
-            type="number"
-            min={1}
-            max={31}
+            {...entradaDeInteiro(2)}
             className="tabular-nums"
             {...register('dia', { valueAsNumber: true })}
           />
@@ -303,7 +302,7 @@ export function FormularioConcedido({
         <Campo id={`${id}-valor`} rotulo="Valor" erro={errors.valor?.message}>
           <Input
             {...atributosDeErro(`${id}-valor`, errors.valor?.message)}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             placeholder="0,00"
             autoComplete="off"
             className="text-right tabular-nums"

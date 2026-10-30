@@ -13,6 +13,7 @@ import { executar } from '@/features/cadastros/SecaoCadastro';
 import { ComboCategoria } from '@/features/nova-compra/ComboCategoria';
 import { entradaDaCompra } from '@/features/nova-compra/NovaCompra';
 import { ParaQuem } from '@/features/nova-compra/ParaQuem';
+import { entradaDeInteiro } from '@/lib/entrada';
 import { formatarDecimal } from '@/lib/formato';
 
 export function valorPositivo(texto: string): number | null {
@@ -26,7 +27,7 @@ export function valorPositivo(texto: string): number | null {
 
 const esquema = z
   .object({
-    descricao: z.string().trim().min(1, 'Digite uma descrição'),
+    descricao: z.string().trim().min(1, 'Digite uma descrição').max(80, 'Use até 80 letras'),
     valor: z.string().refine((t) => valorPositivo(t) !== null, 'Digite um valor maior que zero'),
     dia: z
       .number('Digite um dia de 1 a 31')
@@ -124,6 +125,7 @@ export function FormularioDeConta({
       <Campo id={`${id}-descricao`} rotulo="Descrição" erro={errors.descricao?.message}>
         <Input
           {...atributosDeErro(`${id}-descricao`, errors.descricao?.message)}
+          maxLength={80}
           placeholder="Ex.: Plano de saúde"
           autoComplete="off"
           {...register('descricao')}
@@ -147,9 +149,7 @@ export function FormularioDeConta({
         <Campo id={`${id}-dia`} rotulo="Vence dia" erro={errors.dia?.message}>
           <Input
             {...atributosDeErro(`${id}-dia`, errors.dia?.message)}
-            type="number"
-            min={1}
-            max={31}
+            {...entradaDeInteiro(2)}
             className="tabular-nums"
             {...register('dia', { valueAsNumber: true })}
           />

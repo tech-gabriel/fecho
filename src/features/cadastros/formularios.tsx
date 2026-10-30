@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import type { Bandeira, Cartao, Categoria, Novo, Terceiro } from '@/data';
 import { lerReais } from '@/domain/money';
+import { entradaDeDinheiro, entradaDeInteiro } from '@/lib/entrada';
 import { formatarDecimal } from '@/lib/formato';
 import { atributosDeErro, Campo } from './Campo';
 import { COR_DE_PESSOA, CORES_DE_CARTAO, ICONES_DE_CATEGORIA } from './opcoes';
@@ -24,7 +25,7 @@ export interface PropsDoFormulario<T> {
   onEnviar: (dados: Novo<T>) => void;
 }
 
-const nome = z.string().trim().min(1, 'Digite um nome');
+const nome = z.string().trim().min(1, 'Digite um nome').max(40, 'Use até 40 letras');
 
 const dia = z
   .string()
@@ -122,6 +123,7 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
       <Campo id={`${id}-nome`} rotulo="Nome" erro={errors.nome?.message}>
         <Input
           {...atributosDeErro(`${id}-nome`, errors.nome?.message)}
+          maxLength={40}
           placeholder="Cartão Roxo"
           {...register('nome')}
         />
@@ -145,8 +147,7 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
         >
           <Input
             {...atributosDeErro(`${id}-final`, errors.final?.message)}
-            inputMode="numeric"
-            maxLength={4}
+            {...entradaDeInteiro(4)}
             placeholder="1234"
             className="tabular-nums"
             {...register('final')}
@@ -224,7 +225,7 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
         <Campo id={`${id}-fecha`} rotulo="Fecha dia" erro={errors.diaFechamento?.message}>
           <Input
             {...atributosDeErro(`${id}-fecha`, errors.diaFechamento?.message)}
-            inputMode="numeric"
+            {...entradaDeInteiro(2)}
             placeholder="28"
             {...register('diaFechamento')}
           />
@@ -232,7 +233,7 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
         <Campo id={`${id}-vence`} rotulo="Vence dia" erro={errors.diaVencimento?.message}>
           <Input
             {...atributosDeErro(`${id}-vence`, errors.diaVencimento?.message)}
-            inputMode="numeric"
+            {...entradaDeInteiro(2)}
             placeholder="5"
             {...register('diaVencimento')}
           />
@@ -264,7 +265,7 @@ export function EntradaEmReais(props: ComponentProps<typeof Input>) {
       >
         R$
       </span>
-      <Input inputMode="decimal" className="pl-9 tabular-nums" {...props} />
+      <Input {...entradaDeDinheiro} className="pl-9 tabular-nums" {...props} />
     </div>
   );
 }
@@ -304,6 +305,7 @@ export function FormPessoa({ idForm, inicial, onEnviar }: PropsDoFormulario<Terc
       >
         <Input
           {...atributosDeErro(`${id}-nome`, errors.nome?.message)}
+          maxLength={40}
           placeholder="Ana"
           {...register('nome')}
         />
@@ -351,6 +353,7 @@ export function FormCategoria({ idForm, inicial, onEnviar }: PropsDoFormulario<C
       <Campo id={`${id}-nome`} rotulo="Nome" erro={errors.nome?.message}>
         <Input
           {...atributosDeErro(`${id}-nome`, errors.nome?.message)}
+          maxLength={40}
           placeholder="Mercado"
           {...register('nome')}
         />

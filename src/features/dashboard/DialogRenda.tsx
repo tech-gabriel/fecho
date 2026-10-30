@@ -1,3 +1,4 @@
+import { entradaDeDinheiro } from '@/lib/entrada';
 import { useId, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Repeat } from 'lucide-react';
@@ -35,7 +36,7 @@ const valorPositivo = z.string().transform((texto, ctx) => {
 });
 
 const esquema = z.object({
-  descricao: z.string().trim().min(1, 'Digite de onde vem'),
+  descricao: z.string().trim().min(1, 'Digite de onde vem').max(80, 'Use até 80 letras'),
   valor: valorPositivo,
   recorrente: z.boolean(),
 });
@@ -74,6 +75,7 @@ function NovaEntrada({
         <Campo id={`${id}-descricao`} rotulo="De onde vem" erro={errors.descricao?.message}>
           <Input
             {...atributosDeErro(`${id}-descricao`, errors.descricao?.message)}
+            maxLength={80}
             placeholder="Salário"
             {...register('descricao')}
           />
@@ -81,7 +83,7 @@ function NovaEntrada({
         <Campo id={`${id}-valor`} rotulo="Valor" erro={errors.valor?.message}>
           <Input
             {...atributosDeErro(`${id}-valor`, errors.valor?.message)}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             placeholder="6.500,00"
             className="tabular-nums"
             {...register('valor')}
@@ -238,7 +240,7 @@ export function DialogRenda({
                 {alterando?.id === r.id ? (
                   <Input
                     aria-label={`Novo valor de ${r.descricao}`}
-                    inputMode="decimal"
+                    {...entradaDeDinheiro}
                     value={alterando.texto}
                     ref={(el) => {
                       el?.focus();
