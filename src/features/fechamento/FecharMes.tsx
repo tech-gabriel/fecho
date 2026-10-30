@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { cn } from 'cn';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
+import { copiarParaFora } from '@/app/useBackupAutomatico';
 import { Kbd } from '@/app/layout/apoio';
 import { LogoSimbolo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
@@ -141,6 +142,7 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
       setEtapa(null);
       dadosMudaram();
       toast.success(`${mesCurto(competencia)} fechado`);
+      void copiarParaFora(repos, dadosMudaram);
     });
 
   const proximo = () => {

@@ -1,8 +1,27 @@
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
+import type { Repositorios } from '@/data';
 import { backupAutomaticoPendente, nomeDoBackup } from '@/domain/backup';
 import { useRepositorios } from './repositorios';
 import { useApp } from './store';
+
+export async function copiarParaFora(repos: Repositorios, aoTerminar: () => void) {
+  const { pastaDaCopiaExterna: pasta } = await repos.preferencias.ler();
+  if (!repos.backup.disponivel || !pasta) return;
+  const tentar = () => {
+    const agora = new Date();
+    repos.backup
+      .automatico(nomeDoBackup(agora), pasta)
+      .then(() => repos.preferencias.gravar({ ultimaCopiaExterna: agora.toISOString() }))
+      .then(aoTerminar)
+      .catch(() => {
+        toast.error(`A cópia em ${pasta} falhou.`, {
+          action: { label: 'Tentar de novo', onClick: tentar },
+        });
+      });
+  };
+  tentar();
+}
 
 export function useBackupAutomatico() {
   const repos = useRepositorios();
@@ -34,5 +53,11 @@ export function useBackupAutomatico() {
       });
     };
     tentar();
+
+    void repos.preferencias.ler().then(({ ultimaCopiaExterna }) => {
+      if (backupAutomaticoPendente(ultimaCopiaExterna, new Date(), 7)) {
+        void copiarParaFora(repos, dadosMudaram);
+      }
+    });
   }, [repos, dadosMudaram]);
 }

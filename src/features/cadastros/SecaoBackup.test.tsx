@@ -32,6 +32,7 @@ function servicoFalso() {
       modificadoEm: new Date(2026, 9, 20, 8, 12).getTime(),
     }),
     restaurar: vi.fn().mockResolvedValue(undefined),
+    escolherPasta: vi.fn().mockResolvedValue('D:\\OneDrive'),
   };
 }
 
@@ -124,6 +125,80 @@ describe('Dados e backup', () => {
 
     expect(await screen.findByText('Este arquivo não é um backup do Fechô.')).toBeInTheDocument();
     expect(backup.restaurar).not.toHaveBeenCalled();
+  });
+
+  describe('cópia em outra pasta', () => {
+    let criptografado: boolean;
+    const definirSenhaDeBackup = vi.fn();
+
+    beforeEach(() => {
+      criptografado = false;
+      definirSenhaDeBackup.mockReset().mockImplementation((senha: string | null) => {
+        criptografado = senha !== null;
+        return Promise.resolve();
+      });
+      repos = {
+        ...repos,
+        seguranca: {
+          ...repos.seguranca,
+          criptografiaDeBackupDisponivel: true,
+          estado: () =>
+            Promise.resolve({ pinAtivo: false, backupCriptografado: criptografado, arquivo: '' }),
+          definirSenhaDeBackup,
+        },
+      };
+    });
+
+    it('pede a senha dos backups antes de escolher a pasta e já faz a primeira cópia', async () => {
+      const secao = await abrir();
+
+      fireEvent.click(await within(secao).findByRole('button', { name: 'Escolher pasta…' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Criptografar backups' });
+      fireEvent.change(within(dialog).getByLabelText('Senha'), { target: { value: 'segredo123' } });
+      fireEvent.change(within(dialog).getByLabelText('Repita a senha'), {
+        target: { value: 'segredo123' },
+      });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Criptografar' }));
+
+      expect(await screen.findByText('A cópia vai para D:\\OneDrive')).toBeInTheDocument();
+      expect(definirSenhaDeBackup).toHaveBeenCalledWith('segredo123');
+      expect(backup.automatico).toHaveBeenCalledWith('fecho-2026-10-20-140000.db', 'D:\\OneDrive');
+      expect((await repos.preferencias.ler()).pastaDaCopiaExterna).toBe('D:\\OneDrive');
+      expect(within(secao).getByText('D:\\OneDrive')).toBeInTheDocument();
+    });
+
+    it('com criptografia ligada vai direto para a pasta, e desliga', async () => {
+      criptografado = true;
+      const secao = await abrir();
+
+      fireEvent.click(await within(secao).findByRole('button', { name: 'Escolher pasta…' }));
+      expect(await screen.findByText('A cópia vai para D:\\OneDrive')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      fireEvent.click(within(secao).getByRole('button', { name: 'Desligar cópia em outra pasta' }));
+      await waitFor(async () => {
+        expect((await repos.preferencias.ler()).pastaDaCopiaExterna).toBeNull();
+      });
+    });
+
+    it('desligar a criptografia desliga também a cópia externa', async () => {
+      criptografado = true;
+      await repos.preferencias.gravar({ pastaDaCopiaExterna: 'D:\\OneDrive' });
+      const secao = await abrir();
+
+      const chave = await within(secao).findByRole('switch', { name: 'Criptografar backups' });
+      await waitFor(() => {
+        expect(chave).toBeChecked();
+      });
+      fireEvent.click(chave);
+
+      expect(
+        await screen.findByText(
+          'Os próximos backups saem sem criptografia e a cópia em outra pasta foi desligada',
+        ),
+      ).toBeInTheDocument();
+      expect((await repos.preferencias.ler()).pastaDaCopiaExterna).toBeNull();
+    });
   });
 
   it('cancelar a escolha do arquivo não faz nada', async () => {
