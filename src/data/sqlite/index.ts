@@ -16,6 +16,7 @@ import {
   type Objetivo,
   type EmprestimosRepository,
   type EmprestimoTomado,
+  type Bandeira,
   type Cartao,
   type CartoesRepository,
   type FaturasRepository,
@@ -124,6 +125,7 @@ function cadastroSqlite<T extends { id: number }>(banco: Banco, m: Mapeamento<T>
 
 const numero = (v: unknown) => Number(v);
 const booleano = (v: unknown) => (v ? 1 : 0);
+const ouNulo = (v: unknown) => v ?? null;
 
 function cartoesSqlite(banco: Banco, comandos: ComandosAtomicos): CartoesRepository {
   const cadastro = cadastroSqlite<Cartao>(banco, {
@@ -131,6 +133,9 @@ function cartoesSqlite(banco: Banco, comandos: ComandosAtomicos): CartoesReposit
     tabela: 'cartoes',
     colunas: {
       nome: 'nome',
+      banco: 'banco',
+      final: 'final',
+      bandeira: 'bandeira',
       diaFechamento: 'dia_fechamento',
       diaVencimento: 'dia_vencimento',
       limiteCentavos: 'limite_centavos',
@@ -138,10 +143,13 @@ function cartoesSqlite(banco: Banco, comandos: ComandosAtomicos): CartoesReposit
       ativo: 'ativo',
     },
     usoSql: 'SELECT 1 FROM compras WHERE cartao_id = ?',
-    gravar: { ativo: booleano },
+    gravar: { ativo: booleano, banco: ouNulo, final: ouNulo, bandeira: ouNulo },
     ler: (l) => ({
       id: numero(l.id),
       nome: String(l.nome),
+      ...(typeof l.banco === 'string' ? { banco: l.banco } : {}),
+      ...(typeof l.final === 'string' ? { final: l.final } : {}),
+      ...(typeof l.bandeira === 'string' ? { bandeira: l.bandeira as Bandeira } : {}),
       diaFechamento: numero(l.dia_fechamento),
       diaVencimento: numero(l.dia_vencimento),
       limiteCentavos: assertCentavos(numero(l.limite_centavos)),

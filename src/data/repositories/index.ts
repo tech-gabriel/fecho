@@ -51,9 +51,14 @@ export interface EconomiasRepository {
   movimentos: Omit<Cadastro<MovimentoDeEconomia>, 'possuiCompras' | 'atualizar'>;
 }
 
+export type Bandeira = 'visa' | 'mastercard' | 'elo' | 'amex' | 'hipercard';
+
 export interface Cartao {
   id: number;
   nome: string;
+  banco?: string;
+  final?: string;
+  bandeira?: Bandeira;
   diaFechamento: number;
   diaVencimento: number;
   limiteCentavos: Centavos;

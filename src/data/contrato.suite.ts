@@ -73,6 +73,41 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         ]);
       });
 
+      it('guarda banco, final e bandeira só quando informados', async () => {
+        const verde = await repos.cartoes.criar({
+          nome: 'Cartão Verde',
+          banco: 'Banco Aurora',
+          final: '4821',
+          bandeira: 'visa',
+          diaFechamento: 5,
+          diaVencimento: 15,
+          limiteCentavos: 0,
+          cor: '#14B8A6',
+          ativo: true,
+        });
+        await repos.cartoes.atualizarComParcelas(
+          verde,
+          {
+            nome: 'Cartão Verde',
+            banco: 'Banco Aurora',
+            final: '0007',
+            bandeira: 'elo',
+            diaFechamento: 5,
+            diaVencimento: 15,
+            limiteCentavos: 0,
+            cor: '#14B8A6',
+            ativo: true,
+          },
+          [],
+        );
+
+        const [roxo, lido] = await repos.cartoes.listar();
+        expect(lido).toMatchObject({ banco: 'Banco Aurora', final: '0007', bandeira: 'elo' });
+        expect(roxo).not.toHaveProperty('banco');
+        expect(roxo).not.toHaveProperty('final');
+        expect(roxo).not.toHaveProperty('bandeira');
+      });
+
       it('categorias e terceiros seguem o mesmo contrato', async () => {
         const feira = await repos.categorias.criar({ nome: 'Feira', icone: 'carrot', ativo: true });
         await repos.categorias.atualizar(feira, { ativo: false });

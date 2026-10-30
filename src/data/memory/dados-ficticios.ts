@@ -3,6 +3,9 @@ import type { Repositorios } from '../repositories';
 export async function semearDadosFicticios(repos: Repositorios) {
   const roxo = await repos.cartoes.criar({
     nome: 'Cartão Roxo',
+    banco: 'Banco Aurora',
+    final: '4821',
+    bandeira: 'visa',
     diaFechamento: 28,
     diaVencimento: 5,
     limiteCentavos: 500_000,
@@ -11,6 +14,9 @@ export async function semearDadosFicticios(repos: Repositorios) {
   });
   const azul = await repos.cartoes.criar({
     nome: 'Cartão Azul',
+    banco: 'Banco Horizonte',
+    final: '0937',
+    bandeira: 'mastercard',
     diaFechamento: 3,
     diaVencimento: 10,
     limiteCentavos: 800_000,
@@ -19,6 +25,9 @@ export async function semearDadosFicticios(repos: Repositorios) {
   });
   const verdeAgua = await repos.cartoes.criar({
     nome: 'Cartão Verde-água',
+    banco: 'Banco Cerrado',
+    final: '5510',
+    bandeira: 'elo',
     diaFechamento: 20,
     diaVencimento: 28,
     limiteCentavos: 300_000,

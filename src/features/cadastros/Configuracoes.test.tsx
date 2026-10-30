@@ -79,6 +79,34 @@ describe('Configurações › cadastros', () => {
     });
   });
 
+  it('cadastra banco e final, com prévia do cartão desenhado', async () => {
+    await abrir();
+
+    fireEvent.click(within(secao('Cartões')).getByRole('button', { name: 'Adicionar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Novo cartão' });
+    preencher('Nome', 'Cartão Verde');
+    preencher('Banco', 'Banco Aurora');
+    preencher('Final', '482');
+    preencher('Fecha dia', '3');
+    preencher('Vence dia', '10');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+
+    expect(await within(dialog).findByText('Digite os 4 últimos números')).toBeInTheDocument();
+    preencher('Final', '4821');
+    expect(
+      within(dialog).getByRole('img', { name: 'Cartão Verde, Banco Aurora, final 4821' }),
+    ).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByRole('row', { name: /Cartão Verde/ })).toHaveTextContent(
+      'Banco Aurora · final 4821',
+    );
+    expect((await repos.cartoes.listar())[1]).toMatchObject({
+      banco: 'Banco Aurora',
+      final: '4821',
+    });
+  });
+
   it('aceita qualquer cor além das sugeridas', async () => {
     await abrir();
 
