@@ -211,7 +211,14 @@ export function Configuracoes() {
               />
             );
           }}
-          colunas={[]}
+          colunas={[
+            {
+              cabecalho: 'Limite por mês',
+              largura: '144px',
+              direita: true,
+              celula: (c) => (c.limiteCentavos ? formatarMoeda(c.limiteCentavos) : '—'),
+            },
+          ]}
           Formulario={FormCategoria}
         />
 

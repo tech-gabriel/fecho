@@ -38,11 +38,13 @@ export async function semearDadosFicticios(repos: Repositorios) {
   const mercado = await repos.categorias.criar({
     nome: 'Mercado',
     icone: 'shopping-cart',
+    limiteCentavos: 50_000,
     ativo: true,
   });
   const restaurante = await repos.categorias.criar({
     nome: 'Restaurante',
     icone: 'utensils',
+    limiteCentavos: 30_000,
     ativo: true,
   });
   const transporte = await repos.categorias.criar({

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
-import type { Assinatura, Cartao, Preferencias, Terceiro } from '@/data';
+import type { Assinatura, Cartao, Categoria, Preferencias, Terceiro } from '@/data';
 import { alertasDoDia, type Alerta } from '@/domain/alertas';
 import { competenciaDe, somarMeses, type DataLocal } from '@/domain/competencia';
+import { alertasDeOrcamento, situacaoDoOrcamento } from '@/domain/orcamento';
 import {
   carregarFaturas,
   emprestimosParaAlerta,
@@ -20,6 +21,7 @@ const MESES_OLHADOS = [-2, -1, 0, 1];
 interface Dados extends FaturasCarregadas {
   preferencias: Preferencias;
   assinaturas: Assinatura[];
+  categorias: Categoria[];
   fechados: string[];
 }
 
@@ -33,15 +35,32 @@ export interface AlertaNaTela extends Alerta {
 function calcular(dados: Dados, hoje: DataLocal): AlertaNaTela[] {
   const faturas = faturasParaAlerta(dados, hoje);
   const lidos = new Set(dados.preferencias.alertasLidos);
-  return alertasDoDia(
-    faturas,
-    dados.cartoes.filter((c) => c.ativo),
-    hoje,
-    dados.preferencias.alertasDesligados,
-    dados.assinaturas,
-    emprestimosParaAlerta(dados, hoje),
-    new Set(dados.fechados),
-  ).flatMap((alerta) => {
+  const { alertasDesligados } = dados.preferencias;
+  const atual = competenciaDe(hoje);
+  const deOrcamento = alertasDesligados.includes('orcamento')
+    ? []
+    : [atual, somarMeses(atual, 1)].flatMap((competencia) =>
+        alertasDeOrcamento(
+          situacaoDoOrcamento(
+            dados.categorias,
+            dados.porMes.find((m) => m.competencia === competencia)?.parcelas ?? [],
+          ),
+          competencia,
+          hoje,
+        ),
+      );
+  return [
+    ...deOrcamento,
+    ...alertasDoDia(
+      faturas,
+      dados.cartoes.filter((c) => c.ativo),
+      hoje,
+      alertasDesligados,
+      dados.assinaturas,
+      emprestimosParaAlerta(dados, hoje),
+      new Set(dados.fechados),
+    ),
+  ].flatMap((alerta) => {
     const cartao = dados.cartoes.find((c) => c.id === alerta.cartaoId);
     if (!cartao && alerta.cartaoId !== 0) return [];
     const terceiro = dados.terceiros.find((t) => t.id === alerta.terceiroId);
@@ -58,6 +77,7 @@ function calcular(dados: Dados, hoje: DataLocal): AlertaNaTela[] {
             : undefined,
           terceiro: terceiro?.nome,
           assinatura: dados.assinaturas.find((a) => a.id === alerta.assinaturaId)?.nome,
+          categoria: dados.categorias.find((c) => c.id === alerta.categoriaId)?.nome,
         }),
         lido: lidos.has(alerta.chave),
       },
@@ -90,9 +110,10 @@ export function useAlertas() {
       ),
       repos.preferencias.ler(),
       repos.assinaturas.listar(),
+      repos.categorias.listar(),
       repos.fechamento.fechados(),
-    ]).then(([faturas, preferencias, assinaturas, fechados]) => {
-      if (montado) setDados({ ...faturas, preferencias, assinaturas, fechados });
+    ]).then(([faturas, preferencias, assinaturas, categorias, fechados]) => {
+      if (montado) setDados({ ...faturas, preferencias, assinaturas, categorias, fechados });
     });
     return () => {
       montado = false;

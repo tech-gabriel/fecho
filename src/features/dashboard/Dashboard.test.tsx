@@ -281,3 +281,56 @@ describe('Dashboard', () => {
     expect(screen.getByRole('button', { name: 'Cadastrar renda' })).toBeInTheDocument();
   });
 });
+
+describe('Orçamento no Dashboard', () => {
+  const orcamento = () => screen.findByRole('region', { name: 'Orçamento de Outubro' });
+
+  it('convida a definir limites quando nenhuma categoria tem', async () => {
+    await abrir();
+
+    expect(
+      await within(await orcamento()).findByRole('link', { name: 'Ir para Categorias' }),
+    ).toHaveAttribute('href', '/configuracoes?secao=categorias');
+  });
+
+  it('mostra cada categoria com limite, perto e estourada, contando só a minha parte', async () => {
+    const lazer = await repos.categorias.criar({
+      nome: 'Lazer',
+      icone: 'tag',
+      limiteCentavos: 10_000,
+      ativo: true,
+    });
+    const casa = await repos.categorias.criar({
+      nome: 'Casa',
+      icone: 'tag',
+      limiteCentavos: 20_000,
+      ativo: true,
+    });
+    const [roxo] = await repos.cartoes.listar();
+    const compra = (categoriaId: number, valorTotal: number) =>
+      repos.compras.salvar({
+        cartaoId: roxo?.id ?? 0,
+        descricao: 'Compra',
+        categoriaId,
+        valorTotal,
+        numParcelas: 1,
+        dataCompra: '2026-10-12',
+        recorrente: false,
+        rateios: [
+          { terceiroId: null, percentual: 50 },
+          { terceiroId: ids.ana, percentual: 50 },
+        ],
+      });
+    await compra(lazer, 24_000);
+    await compra(casa, 34_000);
+    await abrir();
+
+    const lista = within(await orcamento());
+    expect(
+      (await lista.findByRole('progressbar', { name: 'Lazer' })).getAttribute('aria-valuetext'),
+    ).toMatch(/^R\$\s120,00 de R\$\s100,00$/);
+    expect(lista.getByText('Passou R$ 20,00')).toBeInTheDocument();
+    expect(lista.getByRole('progressbar', { name: 'Casa' })).toHaveAttribute('aria-valuenow', '85');
+    expect(lista.getByText('Perto do limite')).toBeInTheDocument();
+  });
+});

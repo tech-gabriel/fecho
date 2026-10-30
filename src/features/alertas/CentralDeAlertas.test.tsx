@@ -266,3 +266,48 @@ describe('Lembrete de fechar o mês', () => {
     });
   });
 });
+
+describe('Alerta de orçamento', () => {
+  beforeEach(async () => {
+    const mercado = await repos.categorias.criar({
+      nome: 'Mercado',
+      icone: 'shopping-cart',
+      limiteCentavos: 50_000,
+      ativo: true,
+    });
+    await repos.compras.salvar({
+      cartaoId: ids.roxo,
+      descricao: 'Feira do mês',
+      categoriaId: mercado,
+      valorTotal: 52_000,
+      numParcelas: 1,
+      dataCompra: '2026-10-30',
+      recorrente: false,
+      rateios: [],
+    });
+  });
+
+  it('avisa quando a categoria passa do limite e leva ao Dashboard do mês', async () => {
+    useApp.setState({ competencia: '2026-10' });
+    await abrir();
+
+    const central = await abrirSino();
+    fireEvent.click(
+      central.getByRole('button', {
+        name: /Mercado passou do limite de Novembro: R\$\s520,00 de R\$\s500,00/,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(useApp.getState().competencia).toBe('2026-11');
+    });
+  });
+
+  it('some quando o tipo está desligado', async () => {
+    await repos.preferencias.gravar({ alertasDesligados: ['orcamento'] });
+    await abrir();
+
+    const central = await abrirSino();
+    expect(central.queryByText(/Mercado passou do limite/)).not.toBeInTheDocument();
+  });
+});

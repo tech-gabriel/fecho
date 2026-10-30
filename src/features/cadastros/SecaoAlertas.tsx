@@ -38,6 +38,11 @@ const TIPOS: { tipo: TipoDeAlerta; rotulo: string; dica: string }[] = [
     rotulo: 'Empréstimo não devolvido',
     dica: 'Quando alguém passa da data combinada para devolver',
   },
+  {
+    tipo: 'orcamento',
+    rotulo: 'Orçamento',
+    dica: 'Quando uma categoria chega a 80% e a 100% do limite do mês',
+  },
 ];
 
 type DeAlertas = Pick<Preferencias, 'alertasDesligados' | 'notificarNoWindows'>;

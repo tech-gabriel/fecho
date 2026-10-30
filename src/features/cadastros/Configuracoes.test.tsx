@@ -107,6 +107,29 @@ describe('Configurações › cadastros', () => {
     });
   });
 
+  it('põe e tira o limite mensal de uma categoria', async () => {
+    await abrir();
+
+    fireEvent.click(within(secao('Categorias')).getByRole('button', { name: 'Adicionar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nova categoria' });
+    preencher('Nome', 'Feira');
+    preencher('Limite por mês', '500,00');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByRole('row', { name: /Feira/ })).toHaveTextContent('R$ 500,00');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Feira' }));
+    await screen.findByRole('dialog', { name: 'Feira' });
+    preencher('Limite por mês', '');
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(async () => {
+      const feira = (await repos.categorias.listar()).find((c) => c.nome === 'Feira');
+      expect(feira?.limiteCentavos ?? null).toBeNull();
+    });
+    expect(screen.getByRole('row', { name: /Feira/ })).toHaveTextContent('—');
+  });
+
   it('aceita qualquer cor além das sugeridas', async () => {
     await abrir();
 
