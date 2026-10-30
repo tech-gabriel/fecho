@@ -1,3 +1,4 @@
+import { entradaDeDinheiro } from '@/lib/entrada';
 import { useId, useState } from 'react';
 import { Check, CircleCheck, Copy, HandCoins } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,6 +24,7 @@ import { useAcoesDeCobranca } from '@/features/receber/acoes';
 import {
   Avatar,
   cartaoDaCobranca,
+  contaDaCobranca,
   SeloDoTerceiro,
   type SituacaoDaPessoa,
 } from '@/features/receber/situacoes';
@@ -147,7 +149,7 @@ function CardDePagamento({ fatura, hoje }: { fatura: FaturaDoCartao; hoje: DataL
             <Label htmlFor={`${id}-valor`}>Valor pago</Label>
             <Input
               id={`${id}-valor`}
-              inputMode="decimal"
+              {...entradaDeDinheiro}
               value={valor}
               aria-invalid={pago === null ? true : undefined}
               onChange={(e) => {
@@ -228,7 +230,12 @@ export function EtapaTerceiros({
                 onClick={() =>
                   void copiarCobranca(
                     s.terceiro,
-                    { valor: s.falta, cartao: cartaoDaCobranca(s, cartoes), vencimento: s.prazo },
+                    {
+                      valor: s.falta,
+                      cartao: cartaoDaCobranca(s, cartoes),
+                      conta: contaDaCobranca(s),
+                      vencimento: s.prazo,
+                    },
                     () => undefined,
                   )
                 }
@@ -308,7 +315,7 @@ export function EtapaEconomia({
           </span>
           <input
             id={`${id}-guardado`}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             value={valor}
             onChange={(e) => {
               setValor(e.target.value);

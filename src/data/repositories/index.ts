@@ -6,8 +6,10 @@ import type { ServicoDeSeguranca } from '../seguranca';
 import type { CompraParaRecalculo, MudancaDeFatura } from '@/domain/faturas';
 import type { Centavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
+import type { Taxas } from '@/domain/simulador';
 import type { TipoDeAlerta } from '@/domain/alertas';
 import type { Assinatura } from '@/domain/assinaturas';
+import type { ContaFixa, PagamentoDeConta } from '@/domain/contasFixas';
 import type {
   EmprestimoConcedido,
   EmprestimoTomado,
@@ -18,11 +20,13 @@ import type { MetaDeEconomia, MovimentoDeEconomia, Objetivo } from '@/domain/eco
 
 export type {
   Assinatura,
+  ContaFixa,
   EmprestimoConcedido,
   EmprestimoTomado,
   MetaDeEconomia,
   MovimentoDeEconomia,
   Objetivo,
+  PagamentoDeConta,
   PagamentoDeParcela,
 };
 
@@ -51,9 +55,14 @@ export interface EconomiasRepository {
   movimentos: Omit<Cadastro<MovimentoDeEconomia>, 'possuiCompras' | 'atualizar'>;
 }
 
+export type Bandeira = 'visa' | 'mastercard' | 'elo' | 'amex' | 'hipercard';
+
 export interface Cartao {
   id: number;
   nome: string;
+  banco?: string;
+  final?: string;
+  bandeira?: Bandeira;
   diaFechamento: number;
   diaVencimento: number;
   limiteCentavos: Centavos;
@@ -65,6 +74,7 @@ export interface Categoria {
   id: number;
   nome: string;
   icone: string;
+  limiteCentavos?: Centavos | null;
   ativo: boolean;
 }
 
@@ -166,6 +176,8 @@ export interface Preferencias {
   limiteRendaComprometida: number;
   backupAutomatico: boolean;
   ultimoBackup: string | null;
+  pastaDaCopiaExterna: string | null;
+  ultimaCopiaExterna: string | null;
   modeloCobranca: string;
   chavePix: string;
   alertasDesligados: TipoDeAlerta[];
@@ -174,12 +186,15 @@ export interface Preferencias {
   notificarNoWindows: boolean;
   etapaDoFechamento: { competencia: Competencia; etapa: number } | null;
   bloquearAposMinutos: number | null;
+  taxas: Taxas | null;
 }
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
   limiteRendaComprometida: 30,
   backupAutomatico: true,
   ultimoBackup: null,
+  pastaDaCopiaExterna: null,
+  ultimaCopiaExterna: null,
   modeloCobranca:
     'Oi, {nome}! Faltam {valor} das suas compras no meu {cartão}, que vence em {vencimento}. Meu Pix: {pix}',
   chavePix: '',
@@ -189,6 +204,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   notificarNoWindows: true,
   etapaDoFechamento: null,
   bloquearAposMinutos: 5,
+  taxas: null,
 };
 
 export interface PreferenciasRepository {
@@ -231,6 +247,12 @@ export interface AssinaturasRepository extends Cadastro<Assinatura> {
   geradas(): Promise<string[]>;
 }
 
+export interface ContasFixasRepository extends Cadastro<ContaFixa> {
+  pagamentos(): Promise<PagamentoDeConta[]>;
+  marcarPaga(pagamento: PagamentoDeConta): Promise<void>;
+  desmarcar(contaId: number, competencia: Competencia): Promise<void>;
+}
+
 export interface Repositorios {
   cartoes: CartoesRepository;
   categorias: Cadastro<Categoria>;
@@ -243,6 +265,7 @@ export interface Repositorios {
   seguranca: ServicoDeSeguranca;
   receber: ReceberRepository;
   assinaturas: AssinaturasRepository;
+  contasFixas: ContasFixasRepository;
   emprestimos: EmprestimosRepository;
   economias: EconomiasRepository;
   fechamento: FechamentoRepository;

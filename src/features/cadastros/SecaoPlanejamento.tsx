@@ -1,3 +1,4 @@
+import { entradaDeInteiro } from '@/lib/entrada';
 import { useEffect, useId, useState } from 'react';
 import { toast } from 'sonner';
 import { useRepositorios } from '@/app/repositorios';
@@ -58,7 +59,7 @@ export function SecaoPlanejamento() {
           <div className="relative w-28">
             <Input
               {...atributosDeErro(`${id}-limite`, erro)}
-              inputMode="numeric"
+              {...entradaDeInteiro(3)}
               value={texto}
               onChange={(e) => {
                 setTexto(e.target.value);

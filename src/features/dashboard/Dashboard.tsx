@@ -1,21 +1,16 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  HandCoins,
-  Plus,
-  Scale,
-  UserRound,
-  Wallet,
-  type LucideIcon,
-} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Plus, Wallet } from 'lucide-react';
 import { Link } from 'react-router';
 import { cn } from 'cn';
+import { toast } from 'sonner';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
 import type {
   Assinatura,
+  Categoria,
+  ContaFixa,
+  PagamentoDeConta,
   EmprestimoConcedido,
   EmprestimoTomado,
   Cartao,
@@ -29,16 +24,25 @@ import type {
 import { projecaoDeAssinaturas } from '@/domain/assinaturas';
 import { parcelasTomadasDoMes } from '@/domain/emprestimos';
 import { somarMeses } from '@/domain/competencia';
-import { linhasPorDono, resumoDaFatura } from '@/domain/faturas';
+import { linhasPorDono, ordemDaCarteira, resumoDaFatura } from '@/domain/faturas';
+import {
+  contasDoMes,
+  contasParaResumo,
+  minhaParteDasContas,
+  type ContaDoMes,
+} from '@/domain/contasFixas';
+import { executar } from '@/features/cadastros/SecaoCadastro';
+import { situacaoDoOrcamento } from '@/domain/orcamento';
 import { receitasDoMes, rendaComprometida, resumoDoMes } from '@/domain/resumo';
 import { montarFaturas } from '@/features/faturas/Faturas';
 import { dataCurta } from '@/features/faturas/ListaDeCartoes';
-import { faltaNaFatura, montarSituacoes } from '@/features/receber/situacoes';
+import { montarSituacoes } from '@/features/receber/situacoes';
 import { formatarComSinal, formatarMoeda, nomeDoMes } from '@/lib/formato';
-import { DURACAO, MOVIMENTO, gsap, useGSAP } from '@/lib/gsap';
 import { DialogRenda } from './DialogRenda';
 import { GraficoComprometida } from './GraficoComprometida';
-import { ProximosVencimentos } from './ProximosVencimentos';
+import { Carteira } from './Carteira';
+import { ForaDoCartao } from './ForaDoCartao';
+import { Orcamento } from './Orcamento';
 import { useContagem } from './useContagem';
 
 interface Dados {
@@ -55,6 +59,9 @@ interface Dados {
   geradas: string[];
   tomados: EmprestimoTomado[];
   concedidos: EmprestimoConcedido[];
+  categorias: Categoria[];
+  contas: ContaFixa[];
+  pagamentosDeConta: PagamentoDeConta[];
 }
 
 const MESES_DO_GRAFICO = 6;
@@ -62,43 +69,6 @@ const MESES_DO_GRAFICO = 6;
 function Valor({ centavos, sinal = false }: { centavos: number; sinal?: boolean }) {
   const exibido = useContagem(centavos);
   return <>{sinal ? formatarComSinal(exibido) : formatarMoeda(exibido)}</>;
-}
-
-function Kpi({
-  rotulo,
-  icone: Icone,
-  corDoIcone,
-  centavos,
-  legenda,
-  perigo = false,
-  envolver,
-}: {
-  rotulo: string;
-  icone: LucideIcon;
-  corDoIcone: string;
-  centavos: number;
-  legenda: string;
-  perigo?: boolean;
-  envolver: (conteudo: ReactNode, classe: string) => ReactNode;
-}) {
-  return envolver(
-    <>
-      <span className="flex items-center gap-2 text-[13px] font-medium text-ink-muted">
-        <Icone size={16} strokeWidth={1.75} aria-hidden className={corDoIcone} />
-        {rotulo}
-      </span>
-      <span
-        className={cn(
-          'text-[32px] leading-9 font-bold tracking-[-0.02em] tabular-nums',
-          perigo && 'text-danger-text',
-        )}
-      >
-        <Valor centavos={centavos} sinal />
-      </span>
-      <span className="truncate text-xs text-ink-muted">{legenda}</span>
-    </>,
-    'cartao-do-dashboard flex flex-col gap-2 rounded-lg border bg-surface p-4 text-left hover:border-border-strong',
-  );
 }
 
 const listaDeNomes = (nomes: string[]) =>
@@ -135,6 +105,9 @@ export function Dashboard() {
       repos.assinaturas.geradas(),
       repos.emprestimos.tomados.listar(),
       repos.emprestimos.concedidos.listar(),
+      repos.categorias.listar(),
+      repos.contasFixas.listar(),
+      repos.contasFixas.pagamentos(),
     ]).then(
       ([
         cartoes,
@@ -150,6 +123,9 @@ export function Dashboard() {
         geradas,
         tomados,
         concedidos,
+        categorias,
+        contas,
+        pagamentosDeConta,
       ]) => {
         if (montado) {
           setDados({
@@ -166,6 +142,9 @@ export function Dashboard() {
             geradas,
             tomados,
             concedidos,
+            categorias,
+            contas,
+            pagamentosDeConta,
           });
         }
       },
@@ -182,28 +161,11 @@ export function Dashboard() {
     };
   }, [definirLegenda, competencia]);
 
-  const carregado = dados !== null;
-  useGSAP(
-    () => {
-      if (!carregado) return;
-      gsap.matchMedia().add(MOVIMENTO, (contexto) => {
-        const { reduzido } = contexto.conditions as { reduzido: boolean };
-        gsap.from('.cartao-do-dashboard', {
-          opacity: 0,
-          y: reduzido ? 0 : 8,
-          duration: reduzido ? DURACAO.micro : DURACAO.componente,
-          stagger: reduzido ? 0 : 0.05,
-          ease: 'power2.out',
-        });
-      });
-    },
-    { scope: raiz, dependencies: [carregado] },
-  );
-
   if (!dados) return null;
 
   const faturas = montarFaturas(dados, competencia, hoje);
   const receitas = receitasDoMes(dados.receitas, competencia);
+  const contasDoMesAtual = contasDoMes(dados.contas, dados.pagamentosDeConta, competencia, hoje);
   const resumo = resumoDoMes({
     receitas: receitas.map((r) => r.valorCentavos),
     linhas: linhasPorDono(dados.parcelas),
@@ -213,6 +175,7 @@ export function Dashboard() {
       paga: f.pagamento !== undefined,
     })),
     parcelasEmprestimos: parcelasTomadasDoMes(dados.tomados, competencia),
+    contas: contasParaResumo(contasDoMesAtual),
   });
   const comprometida = rendaComprometida(
     dados.futuras.map((parcelas, i) => {
@@ -226,6 +189,7 @@ export function Dashboard() {
           new Set(dados.geradas),
           dados.cartoes,
         ),
+        contas: minhaParteDasContas(contasDoMes(dados.contas, dados.pagamentosDeConta, mes, hoje)),
         emprestimos: parcelasTomadasDoMes(dados.tomados, mes),
         renda: receitasDoMes(dados.receitas, mes).reduce((s, r) => s + r.valorCentavos, 0),
       };
@@ -233,29 +197,23 @@ export function Dashboard() {
   );
 
   const mes = nomeDoMes(competencia).split(' ')[0] ?? '';
-  const situacoes = montarSituacoes({ ...dados, parcelas: dados.deTerceiros, competencia, hoje });
-  const faltaDoMes = faturas
-    .flatMap((f) => faltaNaFatura(situacoes, f.cartao.id, competencia))
-    .reduce((soma, f) => soma + f.falta, 0);
-  const depositadoDoMes = resumo.deTerceiros - faltaDoMes;
-  const percentual =
-    resumo.deTerceiros > 0 ? Math.round((depositadoDoMes / resumo.deTerceiros) * 100) : 0;
+  const situacoes = montarSituacoes({
+    ...dados,
+    parcelas: dados.deTerceiros,
+    competencia,
+    hoje,
+    contasFixas: { contas: dados.contas, pagamentos: dados.pagamentosDeConta },
+  });
   const devedores = situacoes.filter((s) => s.falta > 0);
   const aReceber = devedores.reduce((soma, s) => soma + s.falta, 0);
-  const temFaturas = faturas.some((f) => f.resumo.total > 0);
-  const legendaDoCaixa = !temFaturas
-    ? `Nenhuma fatura em ${mes}`
-    : resumo.faturasAbertas === 0
-      ? `Faturas de ${mes} pagas`
-      : `para pagar ${resumo.faturasAbertas === 1 ? 'a fatura aberta' : `as ${resumo.faturasAbertas} faturas abertas`} de ${mes}`;
-
+  const temFaturas = faturas.some((f) => f.resumo.total > 0) || contasDoMesAtual.length > 0;
   if (!temFaturas && receitas.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <span className="flex size-12 items-center justify-center rounded-full bg-soft">
           <Plus size={24} strokeWidth={1.75} aria-hidden className="text-ink-muted-on-tint" />
         </span>
-        <p className="text-sm text-ink-muted">Nada lançado em {mes} ainda.</p>
+        <p className="text-sm text-ink-muted-on-tint">Nada lançado em {mes} ainda.</p>
         <div className="flex gap-2">
           <Button
             onClick={() => {
@@ -286,130 +244,132 @@ export function Dashboard() {
     );
   }
 
-  const link = (para: string) => (conteudo: ReactNode, classe: string) => (
-    <Link to={para} className={classe}>
-      {conteudo}
-    </Link>
-  );
+  const pagarConta = (item: ContaDoMes) =>
+    executar(async () => {
+      await repos.contasFixas.marcarPaga({
+        contaId: item.conta.id,
+        competencia: item.competencia,
+        valorCentavos: item.valor,
+        pagoEm: hoje,
+      });
+      dadosMudaram();
+      toast.success(`${item.conta.descricao} marcada como paga`, {
+        action: {
+          label: 'Desfazer',
+          onClick: () =>
+            void executar(async () => {
+              await repos.contasFixas.desmarcar(item.conta.id, item.competencia);
+              dadosMudaram();
+            }),
+        },
+      });
+    });
+
+  const abertas = faturas.filter((f) => !f.pagamento && f.resumo.total > 0);
+  const contasAbertas = contasDoMesAtual.filter((i) => !i.pagamento);
+  const plural = (n: number, um: string, varios: string) => `${String(n)} ${n === 1 ? um : varios}`;
+  const composicao = [
+    abertas.length > 0 &&
+      `${formatarMoeda(abertas.reduce((s, f) => s + f.resumo.total, 0))} em ${plural(abertas.length, 'fatura', 'faturas')}`,
+    contasAbertas.length > 0 &&
+      `${formatarMoeda(contasAbertas.reduce((s, i) => s + i.valor, 0))} em ${plural(contasAbertas.length, 'conta', 'contas')}`,
+  ].filter(Boolean);
+  const naCarteira = ordemDaCarteira(faturas.filter((f) => f.resumo.total > 0));
+  const semFatura = faturas
+    .filter((f) => f.resumo.total === 0 && f.cartao.ativo)
+    .map((f) => f.cartao.nome);
 
   return (
-    <div ref={raiz} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-      <div className="grid grid-cols-[minmax(340px,400px)_minmax(0,1fr)] gap-4">
-        <section
-          aria-labelledby="preciso-ter"
-          className="cartao-do-dashboard flex flex-col gap-4 rounded-lg bg-brand p-6 text-on-brand"
-        >
-          <div className="flex items-center gap-2">
-            <Wallet size={20} strokeWidth={1.75} aria-hidden />
-            <h2 id="preciso-ter" className="flex-1 text-base font-semibold">
-              Preciso ter em caixa
-            </h2>
+    <div ref={raiz} className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto pb-6">
+      <section
+        aria-labelledby="preciso-ter"
+        className="cartao-do-dashboard flex flex-wrap items-center justify-between gap-6 rounded-[10px] bg-brand-subtle px-8 py-7 ring-1 ring-brand/25"
+      >
+        <div className="flex max-w-[640px] flex-col gap-1.5">
+          <p className="flex items-center gap-2 text-sm font-semibold text-brand-text">
+            <Wallet size={16} strokeWidth={1.75} aria-hidden />
+            <span id="preciso-ter">Preciso ter em caixa</span>
             {resumo.ultimoVencimento && (
-              <span className="rounded-full bg-on-brand/12 px-2 text-xs font-semibold">
-                até {dataCurta(resumo.ultimoVencimento)}
-              </span>
+              <span className="font-medium">até {dataCurta(resumo.ultimoVencimento)}</span>
             )}
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[40px] leading-[44px] font-bold tracking-[-0.02em] tabular-nums">
-              <Valor centavos={resumo.precisoTerEmCaixa} />
-            </span>
-            <span className="text-sm">{legendaDoCaixa}</span>
-          </div>
-          <div className="flex flex-col gap-1 border-t border-on-brand/20 pt-4">
-            <span className="flex items-center gap-2 text-sm font-semibold">
-              <UserRound size={16} strokeWidth={1.75} aria-hidden />
-              <span className="flex-1">Reembolso de terceiros</span>
-              <span className="tabular-nums">{formatarMoeda(resumo.deTerceiros)}</span>
-            </span>
-            {resumo.deTerceiros > 0 ? (
+          </p>
+          <span className="text-[56px] leading-[60px] font-bold tracking-[-0.035em] tabular-nums">
+            <Valor centavos={resumo.precisoTerEmCaixa} />
+          </span>
+          <p className="text-sm text-ink-muted-on-tint">
+            {composicao.length > 0 ? `${composicao.join(' e ')}.` : `Tudo de ${mes} pago.`}
+            {aReceber > 0 && (
               <>
-                <div
-                  role="progressbar"
-                  aria-label="Reembolso já depositado"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={percentual}
-                  className="my-1 h-2 overflow-hidden rounded-full bg-on-brand/15"
-                >
-                  <div
-                    className="h-full rounded-full bg-on-brand"
-                    style={{ width: `${String(percentual)}%` }}
-                  />
-                </div>
-                <span className="text-[13px] tabular-nums">
-                  {percentual}% · {formatarMoeda(depositadoDoMes)} de{' '}
-                  {formatarMoeda(resumo.deTerceiros)} já depositados
-                  {faltaDoMes > 0 && ` · faltam ${formatarMoeda(faltaDoMes)}`}
-                </span>
+                <br />
+                <Link to="/receber" className="font-semibold text-brand-text hover:underline">
+                  {formatarMoeda(aReceber)} voltam de{' '}
+                  {listaDeNomes(devedores.map((s) => s.terceiro.nome))}.
+                </Link>
               </>
-            ) : (
-              <span className="text-[13px]">Nenhuma compra de outras pessoas em {mes}</span>
             )}
-          </div>
-        </section>
-
-        <div className="grid grid-cols-2 gap-4">
-          <Kpi
-            rotulo="Renda"
-            icone={ArrowDownLeft}
-            corDoIcone="text-success"
-            centavos={resumo.renda}
-            legenda={
-              receitas.length > 0
-                ? receitas.map((r) => r.descricao).join(' + ')
-                : 'Toque para cadastrar sua renda'
-            }
-            envolver={(conteudo, classe) => (
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                onClick={() => {
-                  setRendaAberta(true);
-                }}
-                className={classe}
-              >
-                {conteudo}
-              </button>
-            )}
-          />
-          <Kpi
-            rotulo="Meus gastos"
-            icone={ArrowUpRight}
-            corDoIcone="text-ink-muted"
-            centavos={resumo.meusGastos}
-            legenda={
-              resumo.renda > 0
-                ? `${Math.round((resumo.meusGastos / resumo.renda) * 100)}% da renda · cartões e empréstimos`
-                : 'cartões e empréstimos'
-            }
-            envolver={link('/lancamentos?ver=meu')}
-          />
-          <Kpi
-            rotulo="Saldo real"
-            icone={Scale}
-            corDoIcone={resumo.saldoReal < 0 ? 'text-danger' : 'text-ink-muted'}
-            centavos={resumo.saldoReal}
-            perigo={resumo.saldoReal < 0}
-            legenda="Renda menos os seus gastos"
-            envolver={link('/lancamentos')}
-          />
-          <Kpi
-            rotulo="A receber"
-            icone={HandCoins}
-            corDoIcone="text-info"
-            centavos={aReceber}
-            legenda={
-              devedores.length > 0
-                ? listaDeNomes(devedores.map((s) => s.terceiro.nome))
-                : 'Ninguém te deve nada neste mês'
-            }
-            envolver={link('/receber')}
-          />
+          </p>
         </div>
-      </div>
+        <div className="flex flex-wrap divide-x divide-border rounded-lg bg-surface ring-1 ring-border">
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            onClick={() => {
+              setRendaAberta(true);
+            }}
+            className="flex flex-col items-start px-5 py-3 text-left first:rounded-l-lg last:rounded-r-lg hover:bg-soft"
+          >
+            <span className="text-xs text-ink-muted">Renda</span>
+            <span className="text-lg font-semibold tabular-nums">
+              {receitas.length > 0 ? formatarMoeda(resumo.renda) : 'Cadastrar'}
+            </span>
+          </button>
+          <Link
+            to="/lancamentos?ver=meu"
+            className="flex flex-col px-5 py-3 first:rounded-l-lg last:rounded-r-lg hover:bg-soft"
+          >
+            <span className="text-xs text-ink-muted">
+              Meus gastos
+              {resumo.renda > 0 &&
+                ` · ${String(Math.round((resumo.meusGastos / resumo.renda) * 100))}% da renda`}
+            </span>
+            <span className="text-lg font-semibold tabular-nums">
+              {formatarMoeda(resumo.meusGastos)}
+            </span>
+          </Link>
+          <Link
+            to="/lancamentos"
+            className="flex flex-col px-5 py-3 first:rounded-l-lg last:rounded-r-lg hover:bg-soft"
+          >
+            <span className="text-xs text-ink-muted">Saldo real</span>
+            <span
+              className={cn(
+                'text-lg font-semibold tabular-nums',
+                resumo.saldoReal < 0 ? 'text-danger-text' : 'text-success-text',
+              )}
+            >
+              <Valor centavos={resumo.saldoReal} sinal />
+            </span>
+          </Link>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-[1.15fr_1fr] gap-4">
+      <Carteira
+        mes={mes}
+        faturas={naCarteira}
+        semFatura={semFatura}
+        terceiros={dados.terceiros}
+        situacoes={situacoes}
+        preferencias={dados.preferencias}
+        hoje={hoje}
+        onMudou={dadosMudaram}
+        onRegistrar={() => {
+          abrirNovaCompra();
+        }}
+      />
+
+      <ForaDoCartao itens={contasDoMesAtual} onPagar={(item) => void pagarConta(item)} />
+
+      <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-5">
         <div className="cartao-do-dashboard">
           <GraficoComprometida
             meses={comprometida}
@@ -417,11 +377,10 @@ export function Dashboard() {
           />
         </div>
         <div className="cartao-do-dashboard">
-          <ProximosVencimentos
-            faturas={faturas}
-            situacoes={situacoes}
-            preferencias={dados.preferencias}
-            hoje={hoje}
+          <Orcamento
+            competencia={competencia}
+            categorias={dados.categorias}
+            situacoes={situacaoDoOrcamento(dados.categorias, dados.parcelas)}
           />
         </div>
       </div>

@@ -10,8 +10,9 @@ export interface ServicoDeBackup {
   disponivel: boolean;
   caminhos(): Promise<{ banco: string; backups: string }>;
   exportar(nomeSugerido: string): Promise<string | null>;
-  automatico(nome: string): Promise<string>;
+  automatico(nome: string, pasta?: string): Promise<string>;
   escolherBackup(): Promise<string | null>;
+  escolherPasta(): Promise<string | null>;
   inspecionar(origem: string, senha?: string): Promise<InfoDoBackup>;
   restaurar(origem: string, nome: string, senha?: string): Promise<void>;
 }
@@ -25,6 +26,7 @@ export const backupIndisponivel: ServicoDeBackup = {
   exportar: indisponivel,
   automatico: indisponivel,
   escolherBackup: indisponivel,
+  escolherPasta: indisponivel,
   inspecionar: indisponivel,
   restaurar: indisponivel,
 };
@@ -40,9 +42,10 @@ export function backupDoTauri(): ServicoDeBackup {
       await invoke('exportar_backup', { destino });
       return destino;
     },
-    automatico: (nome) => invoke('backup_automatico', { nome }),
+    automatico: (nome, pasta) => invoke('backup_automatico', { nome, pasta: pasta ?? null }),
     escolherBackup: async () =>
       (await dialogo()).open({ multiple: false, directory: false, filters: FILTROS }),
+    escolherPasta: async () => (await dialogo()).open({ multiple: false, directory: true }),
     inspecionar: (origem, senha) => invoke('inspecionar_backup', { origem, senha: senha ?? null }),
     restaurar: (origem, nome, senha) =>
       invoke('restaurar_backup', { origem, nome, senha: senha ?? null }),

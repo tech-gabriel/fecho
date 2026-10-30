@@ -153,6 +153,12 @@ export function Configuracoes() {
             />
           )}
           colunas={[
+            {
+              cabecalho: 'Banco',
+              largura: '208px',
+              celula: (c) =>
+                [c.banco, c.final && `final ${c.final}`].filter(Boolean).join(' · ') || '—',
+            },
             { cabecalho: 'Fecha dia', largura: '96px', celula: (c) => dia(c.diaFechamento) },
             { cabecalho: 'Vence dia', largura: '96px', celula: (c) => dia(c.diaVencimento) },
             {
@@ -205,7 +211,14 @@ export function Configuracoes() {
               />
             );
           }}
-          colunas={[]}
+          colunas={[
+            {
+              cabecalho: 'Limite por mês',
+              largura: '144px',
+              direita: true,
+              celula: (c) => (c.limiteCentavos ? formatarMoeda(c.limiteCentavos) : '—'),
+            },
+          ]}
           Formulario={FormCategoria}
         />
 

@@ -1,11 +1,20 @@
-import { useId } from 'react';
+import { useId, type ComponentProps } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { cn } from 'cn';
+import { CartaoDesenhado, NOMES_DAS_BANDEIRAS } from '@/components/CartaoDesenhado';
 import { Input } from '@/components/ui/input';
-import type { Cartao, Categoria, Novo, Terceiro } from '@/data';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import type { Bandeira, Cartao, Categoria, Novo, Terceiro } from '@/data';
 import { lerReais } from '@/domain/money';
+import { entradaDeDinheiro, entradaDeInteiro } from '@/lib/entrada';
 import { formatarDecimal } from '@/lib/formato';
 import { atributosDeErro, Campo } from './Campo';
 import { COR_DE_PESSOA, CORES_DE_CARTAO, ICONES_DE_CATEGORIA } from './opcoes';
@@ -16,7 +25,7 @@ export interface PropsDoFormulario<T> {
   onEnviar: (dados: Novo<T>) => void;
 }
 
-const nome = z.string().trim().min(1, 'Digite um nome');
+const nome = z.string().trim().min(1, 'Digite um nome').max(40, 'Use até 40 letras');
 
 const dia = z
   .string()
@@ -35,8 +44,16 @@ const reais = z.string().transform((texto, ctx) => {
   }
 });
 
+const SEM_BANDEIRA = 'nenhuma';
+
 const esquemaCartao = z.object({
   nome,
+  banco: z.string().trim().max(40, 'Use até 40 letras'),
+  final: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || /^\d{4}$/.test(v), 'Digite os 4 últimos números'),
+  bandeira: z.string(),
   cor: z.string().regex(/^#[0-9A-F]{6}$/i, 'Escolha uma cor'),
   diaFechamento: dia,
   diaVencimento: dia,
@@ -58,13 +75,19 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
     resolver: zodResolver(esquemaCartao),
     defaultValues: {
       nome: inicial?.nome ?? '',
+      banco: inicial?.banco ?? '',
+      final: inicial?.final ?? '',
+      bandeira: inicial?.bandeira ?? SEM_BANDEIRA,
       cor: inicial?.cor ?? CORES_DE_CARTAO[0].hex,
       diaFechamento: inicial ? String(inicial.diaFechamento) : '',
       diaVencimento: inicial ? String(inicial.diaVencimento) : '',
       limite: inicial?.limiteCentavos ? formatarDecimal(inicial.limiteCentavos) : '',
     },
   });
-  const cor = useWatch({ control, name: 'cor' });
+  const [cor, nomeDigitado, banco, final, bandeira] = useWatch({
+    control,
+    name: ['cor', 'nome', 'banco', 'final', 'bandeira'],
+  });
   const personalizada = !CORES_DE_CARTAO.some((c) => c.hex === cor.toUpperCase());
 
   return (
@@ -73,18 +96,85 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
       noValidate
       className="flex flex-col gap-4"
       onSubmit={(e) =>
-        void handleSubmit(({ limite, ...dados }) => {
-          onEnviar({ ...dados, limiteCentavos: limite, ativo: inicial?.ativo ?? true });
+        void handleSubmit(({ limite, banco, final, bandeira, ...dados }) => {
+          onEnviar({
+            ...dados,
+            ...(banco ? { banco } : {}),
+            ...(final ? { final } : {}),
+            ...(bandeira === SEM_BANDEIRA ? {} : { bandeira: bandeira as Bandeira }),
+            limiteCentavos: limite,
+            ativo: inicial?.ativo ?? true,
+          });
         })(e)
       }
     >
+      <CartaoDesenhado
+        tamanho="g"
+        className="self-center"
+        cartao={{
+          nome: nomeDigitado.trim() || 'Novo cartão',
+          cor,
+          ...(banco.trim() ? { banco: banco.trim() } : {}),
+          ...(final.trim() ? { final: final.trim() } : {}),
+          ...(bandeira === SEM_BANDEIRA ? {} : { bandeira: bandeira as Bandeira }),
+        }}
+      />
+
       <Campo id={`${id}-nome`} rotulo="Nome" erro={errors.nome?.message}>
         <Input
           {...atributosDeErro(`${id}-nome`, errors.nome?.message)}
+          maxLength={40}
           placeholder="Cartão Roxo"
           {...register('nome')}
         />
       </Campo>
+
+      <Campo id={`${id}-banco`} rotulo="Banco" erro={errors.banco?.message} dica="Opcional.">
+        <Input
+          {...atributosDeErro(`${id}-banco`, errors.banco?.message)}
+          placeholder="Banco do Brasil"
+          maxLength={40}
+          {...register('banco')}
+        />
+      </Campo>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Campo
+          id={`${id}-final`}
+          rotulo="Final"
+          erro={errors.final?.message}
+          dica="Só os 4 últimos números. O Fechô nunca pede o número inteiro."
+        >
+          <Input
+            {...atributosDeErro(`${id}-final`, errors.final?.message)}
+            {...entradaDeInteiro(4)}
+            placeholder="1234"
+            className="tabular-nums"
+            {...register('final')}
+          />
+        </Campo>
+        <Campo id={`${id}-bandeira`} rotulo="Bandeira">
+          <Controller
+            control={control}
+            name="bandeira"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id={`${id}-bandeira`} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SEM_BANDEIRA}>Nenhuma</SelectItem>
+                  {Object.entries(NOMES_DAS_BANDEIRAS).map(([valor, rotulo]) => (
+                    <SelectItem key={valor} value={valor}>
+                      {rotulo}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Campo>
+      </div>
 
       <fieldset className={classeDoGrupo}>
         <legend className={classeDaLegenda}>Cor</legend>
@@ -135,7 +225,7 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
         <Campo id={`${id}-fecha`} rotulo="Fecha dia" erro={errors.diaFechamento?.message}>
           <Input
             {...atributosDeErro(`${id}-fecha`, errors.diaFechamento?.message)}
-            inputMode="numeric"
+            {...entradaDeInteiro(2)}
             placeholder="28"
             {...register('diaFechamento')}
           />
@@ -143,7 +233,7 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
         <Campo id={`${id}-vence`} rotulo="Vence dia" erro={errors.diaVencimento?.message}>
           <Input
             {...atributosDeErro(`${id}-vence`, errors.diaVencimento?.message)}
-            inputMode="numeric"
+            {...entradaDeInteiro(2)}
             placeholder="5"
             {...register('diaVencimento')}
           />
@@ -156,23 +246,27 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
         erro={errors.limite?.message}
         dica="Opcional. Serve para mostrar quanto do limite você já usou."
       >
-        <div className="relative">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-ink-muted"
-          >
-            R$
-          </span>
-          <Input
-            {...atributosDeErro(`${id}-limite`, errors.limite?.message)}
-            inputMode="decimal"
-            placeholder="5.000,00"
-            className="pl-9 tabular-nums"
-            {...register('limite')}
-          />
-        </div>
+        <EntradaEmReais
+          {...atributosDeErro(`${id}-limite`, errors.limite?.message)}
+          placeholder="5.000,00"
+          {...register('limite')}
+        />
       </Campo>
     </form>
+  );
+}
+
+export function EntradaEmReais(props: ComponentProps<typeof Input>) {
+  return (
+    <div className="relative">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-ink-muted"
+      >
+        R$
+      </span>
+      <Input {...entradaDeDinheiro} className="pl-9 tabular-nums" {...props} />
+    </div>
   );
 }
 
@@ -211,6 +305,7 @@ export function FormPessoa({ idForm, inicial, onEnviar }: PropsDoFormulario<Terc
       >
         <Input
           {...atributosDeErro(`${id}-nome`, errors.nome?.message)}
+          maxLength={40}
           placeholder="Ana"
           {...register('nome')}
         />
@@ -219,7 +314,7 @@ export function FormPessoa({ idForm, inicial, onEnviar }: PropsDoFormulario<Terc
   );
 }
 
-const esquemaCategoria = z.object({ nome, icone: z.string() });
+const esquemaCategoria = z.object({ nome, icone: z.string(), limite: reais });
 
 export function FormCategoria({ idForm, inicial, onEnviar }: PropsDoFormulario<Categoria>) {
   const id = useId();
@@ -229,7 +324,11 @@ export function FormCategoria({ idForm, inicial, onEnviar }: PropsDoFormulario<C
     formState: { errors },
   } = useForm({
     resolver: zodResolver(esquemaCategoria),
-    defaultValues: { nome: inicial?.nome ?? '', icone: inicial?.icone ?? 'tag' },
+    defaultValues: {
+      nome: inicial?.nome ?? '',
+      icone: inicial?.icone ?? 'tag',
+      limite: inicial?.limiteCentavos ? formatarDecimal(inicial.limiteCentavos) : '',
+    },
   });
 
   return (
@@ -238,16 +337,38 @@ export function FormCategoria({ idForm, inicial, onEnviar }: PropsDoFormulario<C
       noValidate
       className="flex flex-col gap-4"
       onSubmit={(e) =>
-        void handleSubmit((dados) => {
-          onEnviar({ ...dados, ativo: inicial?.ativo ?? true });
+        void handleSubmit(({ limite, ...dados }) => {
+          onEnviar({
+            ...dados,
+            ...(limite
+              ? { limiteCentavos: limite }
+              : inicial?.limiteCentavos
+                ? { limiteCentavos: null }
+                : {}),
+            ativo: inicial?.ativo ?? true,
+          });
         })(e)
       }
     >
       <Campo id={`${id}-nome`} rotulo="Nome" erro={errors.nome?.message}>
         <Input
           {...atributosDeErro(`${id}-nome`, errors.nome?.message)}
+          maxLength={40}
           placeholder="Mercado"
           {...register('nome')}
+        />
+      </Campo>
+
+      <Campo
+        id={`${id}-limite`}
+        rotulo="Limite por mês"
+        erro={errors.limite?.message}
+        dica="Opcional. Conta só a sua parte das compras, e avisa em 80% e 100%."
+      >
+        <EntradaEmReais
+          {...atributosDeErro(`${id}-limite`, errors.limite?.message)}
+          placeholder="500,00"
+          {...register('limite')}
         />
       </Campo>
 

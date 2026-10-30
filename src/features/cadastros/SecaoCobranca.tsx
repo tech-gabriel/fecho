@@ -78,6 +78,7 @@ export function SecaoCobranca() {
               ref={modelo}
               id={`${id}-modelo`}
               rows={3}
+              maxLength={500}
               value={atual.modeloCobranca}
               aria-invalid={erro ? true : undefined}
               onChange={(e) => {
@@ -114,6 +115,7 @@ export function SecaoCobranca() {
               id={`${id}-pix`}
               className="max-w-80"
               autoComplete="off"
+              maxLength={77}
               value={atual.chavePix}
               onChange={(e) => {
                 setAtual({ ...atual, chavePix: e.target.value });

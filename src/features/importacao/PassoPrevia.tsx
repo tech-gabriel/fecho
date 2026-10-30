@@ -1,3 +1,4 @@
+import { entradaDeInteiro } from '@/lib/entrada';
 import { useId, useState, type ReactNode } from 'react';
 import {
   CircleCheck,
@@ -114,7 +115,7 @@ function DiasDoCartao({
       <Input
         aria-label="Fecha dia"
         placeholder="Fecha dia"
-        inputMode="numeric"
+        {...entradaDeInteiro(2)}
         value={fecha}
         onChange={(e) => {
           setFecha(e.target.value);
@@ -124,7 +125,7 @@ function DiasDoCartao({
       <Input
         aria-label="Vence dia"
         placeholder="Vence dia"
-        inputMode="numeric"
+        {...entradaDeInteiro(2)}
         value={vence}
         onChange={(e) => {
           setVence(e.target.value);

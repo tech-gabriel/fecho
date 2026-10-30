@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  ChartColumn,
   CreditCard,
   HandCoins,
   Landmark,
@@ -7,8 +8,10 @@ import {
   List,
   Lock,
   PiggyBank,
+  ReceiptText,
   Repeat,
   Settings,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 import { useMatches } from 'react-router';
@@ -40,6 +43,13 @@ export const PAGINAS: Pagina[] = [
     legenda: 'Tudo o que se repete todo mês',
   },
   {
+    caminho: '/contas',
+    titulo: 'Contas fixas',
+    rotulo: 'Contas fixas',
+    icone: ReceiptText,
+    legenda: 'O que você paga todo mês fora do cartão',
+  },
+  {
     caminho: '/emprestimos',
     titulo: 'Meus empréstimos',
     rotulo: 'Empréstimos',
@@ -47,7 +57,21 @@ export const PAGINAS: Pagina[] = [
     legenda: 'O que você pegou emprestado e ainda está pagando',
   },
   { caminho: '/economias', titulo: 'Economias', rotulo: 'Economias', icone: PiggyBank },
+  {
+    caminho: '/simulador',
+    titulo: 'Simulador',
+    rotulo: 'Simulador',
+    icone: TrendingUp,
+    legenda: 'Quanto seu dinheiro pode render',
+  },
   { caminho: '/calendario', titulo: 'Calendário', rotulo: 'Calendário', icone: CalendarDays },
+  {
+    caminho: '/relatorio',
+    titulo: 'Relatório',
+    rotulo: 'Relatório',
+    icone: ChartColumn,
+    legenda: 'Seus gastos no cartão e nas contas fixas, mês a mês',
+  },
 ];
 
 export const CONFIGURACOES: Pagina = {

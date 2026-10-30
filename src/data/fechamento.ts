@@ -59,6 +59,17 @@ export function comMesesFechados(repos: Repositorios): Repositorios {
         return repos.cartoes.atualizarComParcelas(id, cartao, mudancas);
       },
     },
+    contasFixas: {
+      ...repos.contasFixas,
+      marcarPaga: async (pagamento) => {
+        await exigirAbertos([pagamento.competencia]);
+        return repos.contasFixas.marcarPaga(pagamento);
+      },
+      desmarcar: async (contaId, competencia) => {
+        await exigirAbertos([competencia]);
+        return repos.contasFixas.desmarcar(contaId, competencia);
+      },
+    },
     faturas: {
       ...repos.faturas,
       marcarComoPaga: async (pagamento) => {

@@ -1,3 +1,4 @@
+import { entradaDeDinheiro } from '@/lib/entrada';
 import { useId } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -177,7 +178,7 @@ function FormularioRegistro({
         <Campo id={`${id}-valor`} rotulo="Valor" erro={errors.valor?.message}>
           <Input
             {...atributosDeErro(`${id}-valor`, errors.valor?.message)}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             placeholder="0,00"
             autoComplete="off"
             className="text-right tabular-nums"
@@ -295,7 +296,7 @@ function FormularioMeta({
         <Campo id={`${id}-valor`} rotulo="Guardar por mês" erro={errors.valor?.message}>
           <Input
             {...atributosDeErro(`${id}-valor`, errors.valor?.message)}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             placeholder="0,00"
             autoComplete="off"
             className="text-right tabular-nums"
@@ -317,7 +318,7 @@ function FormularioMeta({
 
 const esquemaObjetivo = z
   .object({
-    nome: z.string().trim().min(1, 'Digite um nome'),
+    nome: z.string().trim().min(1, 'Digite um nome').max(40, 'Use até 40 letras'),
     valor,
     prazo: z.string().regex(/^(\d{4}-\d{2})?$/, 'Escolha o mês'),
   })
@@ -384,6 +385,7 @@ function FormularioObjetivo({
       <Campo id={`${id}-nome`} rotulo="Nome" erro={errors.nome?.message}>
         <Input
           {...atributosDeErro(`${id}-nome`, errors.nome?.message)}
+          maxLength={40}
           placeholder="Ex.: Viagem"
           autoComplete="off"
           {...register('nome')}
@@ -393,7 +395,7 @@ function FormularioObjetivo({
         <Campo id={`${id}-valor`} rotulo="Quanto quer juntar" erro={errors.valor?.message}>
           <Input
             {...atributosDeErro(`${id}-valor`, errors.valor?.message)}
-            inputMode="decimal"
+            {...entradaDeDinheiro}
             placeholder="0,00"
             autoComplete="off"
             className="text-right tabular-nums"

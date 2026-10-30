@@ -97,6 +97,11 @@
     color-scheme: light;
   }
 
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+
   html.dark {
     color-scheme: dark;
   }

@@ -1,9 +1,17 @@
-import { useEffect, useId, useState } from 'react';
-import { ArchiveRestore, Download, FileSpreadsheet, FileUp, HardDrive } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import {
+  ArchiveRestore,
+  Download,
+  FileSpreadsheet,
+  FileUp,
+  FolderSync,
+  HardDrive,
+} from 'lucide-react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { useRepositorios } from '@/app/repositorios';
 import { useApp } from '@/app/store';
+import { copiarParaFora } from '@/app/useBackupAutomatico';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -55,6 +63,7 @@ export function SecaoBackup() {
   const [pedirSenha, setPedirSenha] = useState<string | null>(null);
   const [criptografado, setCriptografado] = useState(false);
   const [ligandoCriptografia, setLigandoCriptografia] = useState(false);
+  const pastaDepoisDaSenha = useRef(false);
   const { seguranca } = repos;
 
   useEffect(() => {
@@ -118,7 +127,40 @@ export function SecaoBackup() {
     executar(async () => {
       await seguranca.definirSenhaDeBackup(null);
       setCriptografado(false);
+      if (preferencias?.pastaDaCopiaExterna) {
+        await repos.preferencias.gravar({ pastaDaCopiaExterna: null });
+        dadosMudaram();
+        toast.success(
+          'Os próximos backups saem sem criptografia e a cópia em outra pasta foi desligada',
+        );
+        return;
+      }
       toast.success('Os próximos backups saem sem criptografia');
+    });
+
+  const escolherPasta = () =>
+    executar(async () => {
+      const pasta = await backup.escolherPasta();
+      if (!pasta) return;
+      await repos.preferencias.gravar({ pastaDaCopiaExterna: pasta });
+      dadosMudaram();
+      toast.success(`A cópia vai para ${pasta}`);
+      await copiarParaFora(repos, dadosMudaram);
+    });
+
+  const pedirPasta = () => {
+    if (criptografado) void escolherPasta();
+    else {
+      pastaDepoisDaSenha.current = true;
+      setLigandoCriptografia(true);
+    }
+  };
+
+  const desligarCopia = () =>
+    executar(async () => {
+      await repos.preferencias.gravar({ pastaDaCopiaExterna: null });
+      dadosMudaram();
+      toast.success('Cópia em outra pasta desligada');
     });
 
   const alternarAutomatico = (ligado: boolean) =>
@@ -197,6 +239,46 @@ export function SecaoBackup() {
                 onCheckedChange={(ligado) => void alternarAutomatico(ligado)}
               />
             )}
+          </div>
+
+          <div className="flex items-center gap-4 border-t pt-4">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="text-sm font-medium">Cópia em outra pasta</span>
+              <span className="text-[13px] text-ink-muted">
+                Toda semana e ao fechar o mês, criptografada, guardando as 10 mais recentes. Use uma
+                pasta do OneDrive ou um pendrive.
+              </span>
+              {preferencias?.pastaDaCopiaExterna && (
+                <>
+                  <span
+                    className="truncate text-[13px] text-ink-muted"
+                    title={preferencias.pastaDaCopiaExterna}
+                  >
+                    {preferencias.pastaDaCopiaExterna}
+                  </span>
+                  <span className="text-[13px] text-ink-muted">
+                    {preferencias.ultimaCopiaExterna
+                      ? `Última cópia: ${quandoFoi(new Date(preferencias.ultimaCopiaExterna), new Date())}`
+                      : 'Nenhuma cópia ainda'}
+                  </span>
+                </>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-2">
+              {preferencias?.pastaDaCopiaExterna && (
+                <Button
+                  variant="ghost"
+                  aria-label="Desligar cópia em outra pasta"
+                  onClick={() => void desligarCopia()}
+                >
+                  Desligar
+                </Button>
+              )}
+              <Button variant="outline" onClick={pedirPasta}>
+                <FolderSync strokeWidth={1.75} />
+                {preferencias?.pastaDaCopiaExterna ? 'Trocar pasta…' : 'Escolher pasta…'}
+              </Button>
+            </div>
           </div>
 
           <div className="flex items-center gap-4 border-t pt-4">
@@ -283,6 +365,7 @@ export function SecaoBackup() {
           </p>
         }
         onFechar={() => {
+          pastaDepoisDaSenha.current = false;
           setLigandoCriptografia(false);
         }}
         onConfirmar={async ([senha = '', confirmacao = '']) => {
@@ -292,6 +375,10 @@ export function SecaoBackup() {
           setCriptografado(true);
           setLigandoCriptografia(false);
           toast.success('Os próximos backups saem criptografados');
+          if (pastaDepoisDaSenha.current) {
+            pastaDepoisDaSenha.current = false;
+            void escolherPasta();
+          }
           return null;
         }}
       />
