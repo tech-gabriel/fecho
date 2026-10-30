@@ -73,6 +73,101 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         ]);
       });
 
+      it('guarda banco, final e bandeira só quando informados', async () => {
+        const verde = await repos.cartoes.criar({
+          nome: 'Cartão Verde',
+          banco: 'Banco Aurora',
+          final: '4821',
+          bandeira: 'visa',
+          diaFechamento: 5,
+          diaVencimento: 15,
+          limiteCentavos: 0,
+          cor: '#14B8A6',
+          ativo: true,
+        });
+        await repos.cartoes.atualizarComParcelas(
+          verde,
+          {
+            nome: 'Cartão Verde',
+            banco: 'Banco Aurora',
+            final: '0007',
+            bandeira: 'elo',
+            diaFechamento: 5,
+            diaVencimento: 15,
+            limiteCentavos: 0,
+            cor: '#14B8A6',
+            ativo: true,
+          },
+          [],
+        );
+
+        const [roxo, lido] = await repos.cartoes.listar();
+        expect(lido).toMatchObject({ banco: 'Banco Aurora', final: '0007', bandeira: 'elo' });
+        expect(roxo).not.toHaveProperty('banco');
+        expect(roxo).not.toHaveProperty('final');
+        expect(roxo).not.toHaveProperty('bandeira');
+      });
+
+      it('cadastra conta fixa e marca, corrige e desmarca o pagamento do mês', async () => {
+        const aluguel = await repos.contasFixas.criar({
+          descricao: 'Aluguel',
+          categoriaId: null,
+          valorCentavos: 180_000,
+          dia: 10,
+          inicio: '2026-10',
+          ativa: true,
+          rateios: [
+            { terceiroId: null, percentual: 50 },
+            { terceiroId: ana, percentual: 50 },
+          ],
+        });
+        expect(await repos.contasFixas.listar()).toEqual([
+          expect.objectContaining({
+            id: aluguel,
+            descricao: 'Aluguel',
+            rateios: [
+              { terceiroId: null, percentual: 50 },
+              { terceiroId: ana, percentual: 50 },
+            ],
+          }),
+        ]);
+        expect(await repos.contasFixas.possuiCompras(aluguel)).toBe(false);
+
+        const pagamento = {
+          contaId: aluguel,
+          competencia: '2026-10',
+          valorCentavos: 180_000,
+          pagoEm: '2026-10-09',
+        };
+        await repos.contasFixas.marcarPaga(pagamento);
+        await repos.contasFixas.marcarPaga({ ...pagamento, valorCentavos: 182_500 });
+        expect(await repos.contasFixas.pagamentos()).toEqual([
+          { ...pagamento, valorCentavos: 182_500 },
+        ]);
+        expect(await repos.contasFixas.possuiCompras(aluguel)).toBe(true);
+
+        await repos.contasFixas.desmarcar(aluguel, '2026-10');
+        expect(await repos.contasFixas.pagamentos()).toEqual([]);
+        await expect(
+          repos.contasFixas.marcarPaga({ ...pagamento, contaId: 999 }),
+        ).rejects.toThrow();
+      });
+
+      it('guarda e tira o limite mensal da categoria', async () => {
+        const feira = await repos.categorias.criar({
+          nome: 'Feira',
+          icone: 'carrot',
+          limiteCentavos: 50_000,
+          ativo: true,
+        });
+        const lida = async () => (await repos.categorias.listar()).find((c) => c.id === feira);
+        expect(await lida()).toMatchObject({ limiteCentavos: 50_000 });
+
+        await repos.categorias.atualizar(feira, { limiteCentavos: null });
+
+        expect((await lida())?.limiteCentavos ?? null).toBeNull();
+      });
+
       it('categorias e terceiros seguem o mesmo contrato', async () => {
         const feira = await repos.categorias.criar({ nome: 'Feira', icone: 'carrot', ativo: true });
         await repos.categorias.atualizar(feira, { ativo: false });
@@ -254,6 +349,32 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
     });
 
     describe('a receber', () => {
+      it('abate a parte de uma conta fixa no mês', async () => {
+        const aluguel = await repos.contasFixas.criar({
+          descricao: 'Aluguel',
+          categoriaId: null,
+          valorCentavos: 180_000,
+          dia: 10,
+          inicio: '2026-10',
+          ativa: true,
+          rateios: [
+            { terceiroId: null, percentual: 50 },
+            { terceiroId: ana, percentual: 50 },
+          ],
+        });
+        await repos.receber.registrarDeposito({
+          terceiroId: ana,
+          valorCentavos: 90_000,
+          data: '2026-10-12',
+          competencia: '2026-10',
+          abatimentos: [{ contaFixaId: aluguel, competencia: '2026-10', valor: 90_000 }],
+        });
+
+        expect((await repos.receber.movimentos())[0]?.abatimentos).toEqual([
+          { contaFixaId: aluguel, competencia: '2026-10', valor: 90_000 },
+        ]);
+      });
+
       it('registra depósito com abatimentos, cobrança, e exclui/restaura', async () => {
         const id = await repos.compras.salvar(
           compra({ rateios: [{ terceiroId: ana, percentual: 100 }] }),

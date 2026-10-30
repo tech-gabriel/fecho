@@ -79,6 +79,57 @@ describe('Configurações › cadastros', () => {
     });
   });
 
+  it('cadastra banco e final, com prévia do cartão desenhado', async () => {
+    await abrir();
+
+    fireEvent.click(within(secao('Cartões')).getByRole('button', { name: 'Adicionar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Novo cartão' });
+    preencher('Nome', 'Cartão Verde');
+    preencher('Banco', 'Banco Aurora');
+    preencher('Final', '482');
+    preencher('Fecha dia', '3');
+    preencher('Vence dia', '10');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+
+    expect(await within(dialog).findByText('Digite os 4 últimos números')).toBeInTheDocument();
+    preencher('Final', '4821');
+    expect(
+      within(dialog).getByRole('img', { name: 'Cartão Verde, Banco Aurora, final 4821' }),
+    ).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByRole('row', { name: /Cartão Verde/ })).toHaveTextContent(
+      'Banco Aurora · final 4821',
+    );
+    expect((await repos.cartoes.listar())[1]).toMatchObject({
+      banco: 'Banco Aurora',
+      final: '4821',
+    });
+  });
+
+  it('põe e tira o limite mensal de uma categoria', async () => {
+    await abrir();
+
+    fireEvent.click(within(secao('Categorias')).getByRole('button', { name: 'Adicionar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nova categoria' });
+    preencher('Nome', 'Feira');
+    preencher('Limite por mês', '500,00');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+
+    expect(await screen.findByRole('row', { name: /Feira/ })).toHaveTextContent('R$ 500,00');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Feira' }));
+    await screen.findByRole('dialog', { name: 'Feira' });
+    preencher('Limite por mês', '');
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(async () => {
+      const feira = (await repos.categorias.listar()).find((c) => c.nome === 'Feira');
+      expect(feira?.limiteCentavos ?? null).toBeNull();
+    });
+    expect(screen.getByRole('row', { name: /Feira/ })).toHaveTextContent('—');
+  });
+
   it('aceita qualquer cor além das sugeridas', async () => {
     await abrir();
 
@@ -313,5 +364,25 @@ describe('Configurações › Sobre', () => {
 
     expect(sobre.getByText(`Fechô ${__VERSAO__}`)).toBeInTheDocument();
     expect(sobre.getByRole('button', { name: 'Procurar atualizações' })).toBeDisabled();
+  });
+});
+
+describe('Restrição de digitação nos cadastros', () => {
+  it('dia e final só aceitam dígitos e o nome longo mostra o limite', async () => {
+    await abrir();
+
+    fireEvent.click(within(secao('Cartões')).getByRole('button', { name: 'Adicionar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Novo cartão' });
+    fireEvent.input(within(dialog).getByLabelText('Fecha dia'), { target: { value: '3x1' } });
+    fireEvent.input(within(dialog).getByLabelText('Final'), { target: { value: '12-345' } });
+    fireEvent.input(within(dialog).getByLabelText('Limite'), { target: { value: 'R$ 5.000,00' } });
+
+    expect(within(dialog).getByLabelText('Fecha dia')).toHaveValue('31');
+    expect(within(dialog).getByLabelText('Final')).toHaveValue('1234');
+    expect(within(dialog).getByLabelText('Limite')).toHaveValue('5.000,00');
+
+    preencher('Nome', 'C'.repeat(41));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    expect(await within(dialog).findByText('Use até 40 letras')).toBeInTheDocument();
   });
 });

@@ -6,6 +6,8 @@ import { hojeLocal, useApp } from '@/app/store';
 import type {
   EmprestimoConcedido,
   Cartao,
+  ContaFixa,
+  PagamentoDeConta,
   Movimento,
   ParcelaDoMes,
   Preferencias,
@@ -22,6 +24,7 @@ interface Dados {
   movimentos: Movimento[];
   preferencias: Preferencias;
   concedidos: EmprestimoConcedido[];
+  contasFixas: { contas: ContaFixa[]; pagamentos: PagamentoDeConta[] };
 }
 
 const ORDEM = { atrasado: 0, parcial: 1, pendente: 2, pago: 3 };
@@ -43,11 +46,32 @@ export function AReceber() {
       repos.receber.movimentos(),
       repos.preferencias.ler(),
       repos.emprestimos.concedidos.listar(),
-    ]).then(([cartoes, terceiros, parcelas, movimentos, preferencias, concedidos]) => {
-      if (montado) {
-        setDados({ cartoes, terceiros, parcelas, movimentos, preferencias, concedidos });
-      }
-    });
+      repos.contasFixas.listar(),
+      repos.contasFixas.pagamentos(),
+    ]).then(
+      ([
+        cartoes,
+        terceiros,
+        parcelas,
+        movimentos,
+        preferencias,
+        concedidos,
+        contas,
+        pagamentos,
+      ]) => {
+        if (montado) {
+          setDados({
+            cartoes,
+            terceiros,
+            parcelas,
+            movimentos,
+            preferencias,
+            concedidos,
+            contasFixas: { contas, pagamentos },
+          });
+        }
+      },
+    );
     return () => {
       montado = false;
     };

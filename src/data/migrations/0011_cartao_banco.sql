@@ -1,0 +1,3 @@
+ALTER TABLE cartoes ADD COLUMN banco TEXT;
+ALTER TABLE cartoes ADD COLUMN final TEXT;
+ALTER TABLE cartoes ADD COLUMN bandeira TEXT;

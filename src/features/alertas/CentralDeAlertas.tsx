@@ -10,6 +10,8 @@ import {
   HandCoins,
   Landmark,
   Lock,
+  PiggyBank,
+  ReceiptText,
   Repeat,
   TriangleAlert,
 } from 'lucide-react';
@@ -35,6 +37,8 @@ const VISUAL: Record<TipoDeAlerta, { icone: typeof Bell; classe: string }> = {
   devolucao: { icone: HandCoins, classe: 'bg-danger-bg text-danger-text' },
   'parcela-emprestimo': { icone: Landmark, classe: 'bg-warning-bg text-warning-text' },
   'fechar-mes': { icone: Lock, classe: 'bg-brand-subtle text-brand-text' },
+  orcamento: { icone: PiggyBank, classe: 'bg-warning-bg text-warning-text' },
+  'conta-fixa': { icone: ReceiptText, classe: 'bg-warning-bg text-warning-text' },
 };
 
 const GRUPOS: GrupoDeAlerta[] = ['Hoje', 'Esta semana', 'Antes'];
@@ -56,6 +60,16 @@ export function CentralDeAlertas() {
       void navigate(`/fechar/${alerta.competencia}`);
       return;
     }
+    if (alerta.tipo === 'orcamento') {
+      irParaCompetencia(alerta.competencia);
+      void navigate('/');
+      return;
+    }
+    if (alerta.tipo === 'conta-fixa') {
+      irParaCompetencia(alerta.competencia);
+      void navigate('/contas');
+      return;
+    }
     if (alerta.tipo === 'assinatura' || alerta.tipo === 'parcela-emprestimo') {
       void navigate(alerta.tipo === 'assinatura' ? '/assinaturas' : '/emprestimos');
       return;
@@ -68,7 +82,34 @@ export function CentralDeAlertas() {
     );
   };
 
+  const marcarContaPaga = ({ contaId, competencia, valor, conta }: AlertaNaTela) => {
+    if (contaId === undefined || valor === undefined) return;
+    void executar(async () => {
+      await repos.contasFixas.marcarPaga({
+        contaId,
+        competencia,
+        valorCentavos: valor,
+        pagoEm: hoje,
+      });
+      dadosMudaram();
+      toast.success(`${conta?.descricao ?? 'Conta'} marcada como paga`, {
+        action: {
+          label: 'Desfazer',
+          onClick: () =>
+            void executar(async () => {
+              await repos.contasFixas.desmarcar(contaId, competencia);
+              dadosMudaram();
+            }),
+        },
+      });
+    });
+  };
+
   const marcarPaga = (alerta: AlertaNaTela) => {
+    if (alerta.tipo === 'conta-fixa') {
+      marcarContaPaga(alerta);
+      return;
+    }
     const { emprestimoId, numero } = alerta;
     if (emprestimoId === undefined || numero === undefined) return;
     void executar(async () => {
@@ -211,7 +252,10 @@ function ItemDoAlerta({
   onCobrar: (alerta: AlertaNaTela) => void;
   onMarcarPaga: (alerta: AlertaNaTela) => void;
 }) {
-  const { icone: Icone, classe } = VISUAL[alerta.tipo];
+  const { icone: Icone } = VISUAL[alerta.tipo];
+  const classe = alerta.chave.endsWith(':100')
+    ? 'bg-danger-bg text-danger-text'
+    : VISUAL[alerta.tipo].classe;
   return (
     <li className="relative flex items-start gap-3 rounded-md px-2 py-2 hover:bg-soft">
       <span className={cn('flex size-8 flex-none items-center justify-center rounded-md', classe)}>
@@ -233,7 +277,7 @@ function ItemDoAlerta({
         </button>
         <div className="flex items-center gap-2 text-xs text-ink-muted">
           <span>{quandoComecou(alerta.idade)}</span>
-          {alerta.tipo === 'parcela-emprestimo' && (
+          {(alerta.tipo === 'parcela-emprestimo' || alerta.tipo === 'conta-fixa') && (
             <Button
               variant="outline"
               size="sm"

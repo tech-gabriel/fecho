@@ -113,6 +113,26 @@ describe('Fechar o mês', () => {
     expect(etapa()).toHaveTextContent('Tudo conferido');
   });
 
+  it('confere com o extrato em OFX', async () => {
+    await abrir();
+
+    const ofx = new File(
+      [
+        `OFXHEADER:100\nCHARSET:1252\n\n<OFX><BANKTRANLIST>
+<STMTTRN><DTPOSTED>20261012<TRNAMT>-487.30<MEMO>SUPERMERCADO PAO DE ACUCAR</STMTTRN>
+<STMTTRN><DTPOSTED>20261018<TRNAMT>-320.00<MEMO>RESTAURANTE JANTAR</STMTTRN>
+<STMTTRN><DTPOSTED>20261006<TRNAMT>900.00<MEMO>PAGAMENTO</STMTTRN>
+</BANKTRANLIST></OFX>`,
+      ],
+      'fatura-roxo.ofx',
+    );
+    fireEvent.change(await screen.findByLabelText('Escolher arquivo'), {
+      target: { files: [ofx] },
+    });
+
+    expect(await screen.findByText(/Bateu! O Fechô e o extrato/)).toBeVisible();
+  });
+
   it('confere sem extrato quando o banco só dá PDF', async () => {
     await abrir();
 
@@ -212,6 +232,25 @@ describe('Fechar o mês', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar e sair' }));
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/');
+    });
+  });
+
+  it('copia o backup para a pasta escolhida ao fechar', async () => {
+    const automatico = vi.fn().mockResolvedValue('D:\\OneDrive\\fecho.db');
+    repos = { ...repos, backup: { ...repos.backup, disponivel: true, automatico } };
+    await repos.preferencias.gravar({
+      ultimoBackup: new Date(2026, 10, 3, 9).toISOString(),
+      pastaDaCopiaExterna: 'D:\\OneDrive',
+      ultimaCopiaExterna: new Date(2026, 10, 1).toISOString(),
+    });
+    await abrir();
+    avancar();
+    avancar();
+    avancar();
+    fireEvent.click(await screen.findByRole('button', { name: /Fechar Outubro/ }));
+
+    await waitFor(() => {
+      expect(automatico).toHaveBeenCalledWith('fecho-2026-11-03-100000.db', 'D:\\OneDrive');
     });
   });
 

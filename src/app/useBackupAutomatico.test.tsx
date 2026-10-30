@@ -9,7 +9,7 @@ import { RepositoriosProvider } from './repositorios';
 import { rotas } from './router';
 
 let repos: Repositorios;
-const automatico = vi.fn<(nome: string) => Promise<string>>();
+const automatico = vi.fn<(nome: string, pasta?: string) => Promise<string>>();
 
 async function abrir() {
   const router = createMemoryRouter(rotas, { initialEntries: ['/faturas'] });
@@ -66,5 +66,43 @@ describe('backup automático', () => {
     await abrir();
 
     expect(await screen.findByText('O backup automático falhou.')).toBeInTheDocument();
+  });
+
+  it('copia para a pasta escolhida quando passou uma semana', async () => {
+    await repos.preferencias.gravar({
+      ultimoBackup: new Date(2026, 9, 20, 9).toISOString(),
+      pastaDaCopiaExterna: 'D:\\OneDrive\\Fechô',
+      ultimaCopiaExterna: new Date(2026, 9, 13, 14).toISOString(),
+    });
+    await abrir();
+
+    await waitFor(async () => {
+      expect((await repos.preferencias.ler()).ultimaCopiaExterna).toBe(
+        new Date(2026, 9, 20, 14, 0).toISOString(),
+      );
+    });
+    expect(automatico).toHaveBeenCalledTimes(1);
+    expect(automatico).toHaveBeenCalledWith('fecho-2026-10-20-140000.db', 'D:\\OneDrive\\Fechô');
+  });
+
+  it('não copia para fora antes de uma semana', async () => {
+    await repos.preferencias.gravar({
+      ultimoBackup: new Date(2026, 9, 20, 9).toISOString(),
+      pastaDaCopiaExterna: 'D:\\OneDrive',
+      ultimaCopiaExterna: new Date(2026, 9, 14, 14).toISOString(),
+    });
+    await abrir();
+
+    expect(automatico).not.toHaveBeenCalled();
+  });
+
+  it('avisa quando a cópia externa falha', async () => {
+    automatico.mockImplementation((_nome, pasta) =>
+      pasta ? Promise.reject(new Error('sem acesso')) : Promise.resolve('C:\\backup.db'),
+    );
+    await repos.preferencias.gravar({ pastaDaCopiaExterna: 'E:\\' });
+    await abrir();
+
+    expect(await screen.findByText('A cópia em E:\\ falhou.')).toBeInTheDocument();
   });
 });

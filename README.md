@@ -14,7 +14,7 @@ Você paga a fatura inteira, mas metade dela é da sua irmã, de um amigo, da su
 
 O Fechô guarda cada compra com o dono certo. Na abertura do mês ele responde três perguntas: quanto você precisa ter em caixa, quanto do gasto é seu e quem ainda não pagou a parte dele.
 
-Tudo roda no seu computador. Não tem conta, login nem servidor: os dados ficam num banco SQLite na pasta do app.
+Tudo roda no seu computador. Não tem conta, login nem servidor: os dados ficam num banco SQLite na pasta do app. O simulador de investimento só busca as taxas do Banco Central quando você pede, e nada seu vai junto.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/readme/dashboard-dark.webp">

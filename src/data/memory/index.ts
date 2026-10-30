@@ -13,6 +13,8 @@ import {
   type Objetivo,
   type EmprestimoTomado,
   type PagamentoDeParcela,
+  type ContaFixa,
+  type PagamentoDeConta,
   type Cartao,
   type CartoesRepository,
   type PagamentoDeFatura,
@@ -256,7 +258,10 @@ export function criarRepositoriosEmMemoria(): Repositorios {
             .map((p) => ({ numero: p.numero, competencia: p.competencia })),
         })),
     atualizarComParcelas: async (id, cartao, mudancas) => {
-      cadastroCartoes.vigente(id);
+      const atual = cadastroCartoes.vigente(id);
+      delete atual.banco;
+      delete atual.final;
+      delete atual.bandeira;
       const alvos = mudancas.flatMap((m) =>
         m.parcelas.map((nova) => {
           const parcela = parcelas.find(
@@ -279,6 +284,10 @@ export function criarRepositoriosEmMemoria(): Repositorios {
     p.cartaoId === cartaoId && p.competencia === competencia;
 
   let preferencias: Preferencias = { ...PREFERENCIAS_PADRAO };
+  let pagamentosDeConta: PagamentoDeConta[] = [];
+  const contasFixas = cadastroEmMemoria<ContaFixa>('Conta fixa', (id) =>
+    pagamentosDeConta.some((p) => p.contaId === id),
+  );
   const cadastroTerceiros = cadastroEmMemoria<Terceiro>('Terceiro', (id) =>
     compras.some((c) => c.rateios.some((r) => r.terceiroId === id)),
   );
@@ -411,6 +420,27 @@ export function criarRepositoriosEmMemoria(): Repositorios {
     ),
     terceiros: cadastroTerceiros,
     compras: comprasEmMemoria(compras, parcelas, (id) => cadastroCartoes.vigente(id)),
+    contasFixas: {
+      ...contasFixas,
+      pagamentos: async () =>
+        pagamentosDeConta
+          .map((p) => ({ ...p }))
+          .sort((a, b) => a.contaId - b.contaId || a.competencia.localeCompare(b.competencia)),
+      marcarPaga: async (pagamento) => {
+        contasFixas.vigente(pagamento.contaId);
+        pagamentosDeConta = [
+          ...pagamentosDeConta.filter(
+            (p) => !(p.contaId === pagamento.contaId && p.competencia === pagamento.competencia),
+          ),
+          { ...pagamento },
+        ];
+      },
+      desmarcar: async (contaId, competencia) => {
+        pagamentosDeConta = pagamentosDeConta.filter(
+          (p) => !(p.contaId === contaId && p.competencia === competencia),
+        );
+      },
+    },
     assinaturas: {
       ...cadastroEmMemoria<Assinatura>('Assinatura', (id) =>
         compras.some((c) => c.assinaturaId === id),

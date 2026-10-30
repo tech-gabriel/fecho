@@ -8,6 +8,10 @@ import assinaturas from './0007_assinaturas.sql?raw';
 import emprestimos from './0008_emprestimos.sql?raw';
 import economias from './0009_economias.sql?raw';
 import fechamento from './0010_fechamento.sql?raw';
+import contasFixas from './0013_contas_fixas.sql?raw';
+import abatimentoDeConta from './0014_abatimento_de_conta.sql?raw';
+import cartaoBanco from './0011_cartao_banco.sql?raw';
+import orcamento from './0012_orcamento.sql?raw';
 
 export const migrations = [
   { versao: 1, descricao: 'cadastros_e_compras', sql: cadastrosECompras },
@@ -20,4 +24,8 @@ export const migrations = [
   { versao: 8, descricao: 'emprestimos', sql: emprestimos },
   { versao: 9, descricao: 'economias', sql: economias },
   { versao: 10, descricao: 'fechamento', sql: fechamento },
+  { versao: 11, descricao: 'cartao_banco', sql: cartaoBanco },
+  { versao: 12, descricao: 'orcamento', sql: orcamento },
+  { versao: 13, descricao: 'contas_fixas', sql: contasFixas },
+  { versao: 14, descricao: 'abatimento_de_conta', sql: abatimentoDeConta },
 ];

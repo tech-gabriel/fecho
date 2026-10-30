@@ -16,7 +16,10 @@ import {
   type Objetivo,
   type EmprestimosRepository,
   type EmprestimoTomado,
+  type Bandeira,
   type Cartao,
+  type ContaFixa,
+  type ContasFixasRepository,
   type CartoesRepository,
   type FaturasRepository,
   PREFERENCIAS_PADRAO,
@@ -124,6 +127,7 @@ function cadastroSqlite<T extends { id: number }>(banco: Banco, m: Mapeamento<T>
 
 const numero = (v: unknown) => Number(v);
 const booleano = (v: unknown) => (v ? 1 : 0);
+const ouNulo = (v: unknown) => v ?? null;
 
 function cartoesSqlite(banco: Banco, comandos: ComandosAtomicos): CartoesRepository {
   const cadastro = cadastroSqlite<Cartao>(banco, {
@@ -131,6 +135,9 @@ function cartoesSqlite(banco: Banco, comandos: ComandosAtomicos): CartoesReposit
     tabela: 'cartoes',
     colunas: {
       nome: 'nome',
+      banco: 'banco',
+      final: 'final',
+      bandeira: 'bandeira',
       diaFechamento: 'dia_fechamento',
       diaVencimento: 'dia_vencimento',
       limiteCentavos: 'limite_centavos',
@@ -138,10 +145,13 @@ function cartoesSqlite(banco: Banco, comandos: ComandosAtomicos): CartoesReposit
       ativo: 'ativo',
     },
     usoSql: 'SELECT 1 FROM compras WHERE cartao_id = ?',
-    gravar: { ativo: booleano },
+    gravar: { ativo: booleano, banco: ouNulo, final: ouNulo, bandeira: ouNulo },
     ler: (l) => ({
       id: numero(l.id),
       nome: String(l.nome),
+      ...(typeof l.banco === 'string' ? { banco: l.banco } : {}),
+      ...(typeof l.final === 'string' ? { final: l.final } : {}),
+      ...(typeof l.bandeira === 'string' ? { bandeira: l.bandeira as Bandeira } : {}),
       diaFechamento: numero(l.dia_fechamento),
       diaVencimento: numero(l.dia_vencimento),
       limiteCentavos: assertCentavos(numero(l.limite_centavos)),
@@ -395,6 +405,67 @@ function faturasSqlite(banco: Banco): FaturasRepository {
   };
 }
 
+function contasFixasSqlite(banco: Banco): ContasFixasRepository {
+  return {
+    ...cadastroSqlite<ContaFixa>(banco, {
+      entidade: 'Conta fixa',
+      tabela: 'contas_fixas',
+      colunas: {
+        descricao: 'descricao',
+        categoriaId: 'categoria_id',
+        valorCentavos: 'valor_centavos',
+        dia: 'dia',
+        inicio: 'inicio',
+        ativa: 'ativa',
+        rateios: 'rateios',
+      },
+      usoSql: 'SELECT 1 FROM contas_fixas_pagamentos WHERE conta_id = ?',
+      gravar: { ativa: booleano, rateios: (v) => JSON.stringify(v) },
+      ler: (l) => ({
+        id: numero(l.id),
+        descricao: String(l.descricao),
+        categoriaId: l.categoria_id === null ? null : numero(l.categoria_id),
+        valorCentavos: assertCentavos(numero(l.valor_centavos)),
+        dia: numero(l.dia),
+        inicio: String(l.inicio),
+        ativa: Boolean(l.ativa),
+        rateios: JSON.parse(String(l.rateios)) as Rateio[],
+      }),
+    }),
+    pagamentos: async () => {
+      const linhas = await banco.select<Linha[]>(
+        'SELECT conta_id, competencia, valor_centavos, pago_em FROM contas_fixas_pagamentos ORDER BY conta_id, competencia',
+      );
+      return linhas.map((l) => ({
+        contaId: numero(l.conta_id),
+        competencia: String(l.competencia),
+        valorCentavos: assertCentavos(numero(l.valor_centavos)),
+        pagoEm: String(l.pago_em),
+      }));
+    },
+    marcarPaga: async ({ contaId, competencia, valorCentavos, pagoEm }) => {
+      const [existe] = await banco.select<Linha[]>(
+        'SELECT 1 FROM contas_fixas WHERE id = ? AND deleted_at IS NULL',
+        [contaId],
+      );
+      if (!existe) throw new RegistroNaoEncontrado('Conta fixa', contaId);
+      await banco.execute(
+        `INSERT INTO contas_fixas_pagamentos (conta_id, competencia, valor_centavos, pago_em)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT (conta_id, competencia)
+         DO UPDATE SET valor_centavos = excluded.valor_centavos, pago_em = excluded.pago_em`,
+        [contaId, competencia, valorCentavos, pagoEm],
+      );
+    },
+    desmarcar: async (contaId, competencia) => {
+      await banco.execute(
+        'DELETE FROM contas_fixas_pagamentos WHERE conta_id = ? AND competencia = ?',
+        [contaId, competencia],
+      );
+    },
+  };
+}
+
 function preferenciasSqlite(banco: Banco): PreferenciasRepository {
   return {
     ler: async () => {
@@ -556,7 +627,7 @@ function receberSqlite(banco: Banco, comandos: ComandosAtomicos): ReceberReposit
            WHERE deleted_at IS NULL ORDER BY data, id`,
         ),
         banco.select<Linha[]>(
-          'SELECT movimento_id, compra_id, numero, emprestimo_id, valor_centavos FROM abatimentos',
+          'SELECT movimento_id, compra_id, numero, emprestimo_id, conta_fixa_id, competencia, valor_centavos FROM abatimentos',
         ),
       ]);
       return linhas.map((l): Movimento => ({
@@ -570,9 +641,15 @@ function receberSqlite(banco: Banco, comandos: ComandosAtomicos): ReceberReposit
           .filter((a) => numero(a.movimento_id) === numero(l.id))
           .map((a) => {
             const valor = assertCentavos(numero(a.valor_centavos));
-            return a.emprestimo_id === null
-              ? { compraId: numero(a.compra_id), numero: numero(a.numero), valor }
-              : { emprestimoId: numero(a.emprestimo_id), valor };
+            if (a.emprestimo_id !== null) return { emprestimoId: numero(a.emprestimo_id), valor };
+            if (a.conta_fixa_id !== null) {
+              return {
+                contaFixaId: numero(a.conta_fixa_id),
+                competencia: String(a.competencia),
+                valor,
+              };
+            }
+            return { compraId: numero(a.compra_id), numero: numero(a.numero), valor };
           }),
       }));
     },
@@ -686,13 +763,14 @@ export function criarRepositoriosSqlite(
     categorias: cadastroSqlite<Categoria>(banco, {
       entidade: 'Categoria',
       tabela: 'categorias',
-      colunas: { nome: 'nome', icone: 'icone', ativo: 'ativo' },
+      colunas: { nome: 'nome', icone: 'icone', limiteCentavos: 'limite_centavos', ativo: 'ativo' },
       usoSql: 'SELECT 1 FROM compras WHERE categoria_id = ?',
-      gravar: { ativo: booleano },
+      gravar: { ativo: booleano, limiteCentavos: ouNulo },
       ler: (l) => ({
         id: numero(l.id),
         nome: String(l.nome),
         icone: String(l.icone),
+        ...(l.limite_centavos === null ? {} : { limiteCentavos: numero(l.limite_centavos) }),
         ativo: Boolean(l.ativo),
       }),
     }),
@@ -712,6 +790,7 @@ export function criarRepositoriosSqlite(
     compras: comprasSqlite(banco, comandos),
     emprestimos: emprestimosSqlite(banco),
     economias: economiasSqlite(banco),
+    contasFixas: contasFixasSqlite(banco),
     assinaturas: {
       ...cadastroSqlite<Assinatura>(banco, {
         entidade: 'Assinatura',

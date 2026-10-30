@@ -1,10 +1,25 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { CalendarClock, CircleCheck, CreditCard, HandCoins, Landmark, Repeat } from 'lucide-react';
+import {
+  CalendarClock,
+  CircleCheck,
+  CreditCard,
+  HandCoins,
+  Landmark,
+  ReceiptText,
+  Repeat,
+} from 'lucide-react';
 import { Link } from 'react-router';
 import { cn } from 'cn';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
-import type { Assinatura, Cartao, EmprestimoTomado, Terceiro } from '@/data';
+import type {
+  Assinatura,
+  Cartao,
+  ContaFixa,
+  EmprestimoTomado,
+  PagamentoDeConta,
+  Terceiro,
+} from '@/data';
 import type { EmprestimosParaAlerta, FaturaParaAlerta } from '@/domain/alertas';
 import { diasDaGrade, eventosDoPeriodo, type Evento } from '@/domain/calendario';
 import {
@@ -35,6 +50,7 @@ interface Dados {
   faturas: FaturaParaAlerta[];
   tomados: EmprestimoTomado[];
   emprestimos: EmprestimosParaAlerta;
+  contas: { contas: ContaFixa[]; pagamentos: PagamentoDeConta[] };
 }
 
 const curto = (nome: string) => nome.replace(/^cartão\s+/i, '');
@@ -121,6 +137,16 @@ function textos(evento: Evento, dados: Dados) {
         valor,
       };
     }
+    case 'conta': {
+      const nome = dados.contas.contas.find((c) => c.id === evento.contaId)?.descricao ?? 'Conta';
+      const situacao =
+        evento.status === 'paga'
+          ? 'paga'
+          : evento.status === 'atrasada'
+            ? 'venceu e não está marcada como paga'
+            : 'vence neste dia';
+      return { chip: nome, titulo: nome, descricao: `${valor} · ${situacao}`, valor };
+    }
     case 'devolucao': {
       const nome = dados.terceiros.find((t) => t.id === evento.terceiroId)?.nome ?? '';
       if (evento.status === 'paga') {
@@ -147,6 +173,7 @@ function textos(evento: Evento, dados: Dados) {
 function destino(evento: Evento): string {
   if (evento.tipo === 'assinatura') return '/assinaturas';
   if (evento.tipo === 'emprestimo') return '/emprestimos';
+  if (evento.tipo === 'conta') return '/contas';
   if (evento.tipo === 'reembolso' || evento.tipo === 'devolucao') {
     return `/receber?pessoa=${String(evento.terceiroId)}`;
   }
@@ -162,7 +189,7 @@ function Marcador({ evento, cor }: { evento: Evento; cor: string | undefined }) 
   if (atrasado(evento)) {
     return <span aria-hidden className="size-1.5 flex-none rounded-full bg-danger" />;
   }
-  if (evento.tipo === 'emprestimo' || evento.tipo === 'devolucao') {
+  if (evento.tipo === 'emprestimo' || evento.tipo === 'devolucao' || evento.tipo === 'conta') {
     return <span aria-hidden className="size-1.5 flex-none rounded-full bg-ink-muted" />;
   }
   return (
@@ -187,6 +214,7 @@ const ICONES = {
   devolucao: HandCoins,
   emprestimo: Landmark,
   assinatura: Repeat,
+  conta: ReceiptText,
 };
 
 export function Calendario() {
@@ -206,19 +234,23 @@ export function Calendario() {
     let montado = true;
     const atual = competenciaDe(hoje);
     const meses = [-1, 0, 1].flatMap((n) => [somarMeses(competencia, n), somarMeses(atual, n)]);
-    void Promise.all([carregarFaturas(repos, meses), repos.assinaturas.listar()]).then(
-      ([carregadas, assinaturas]) => {
-        if (!montado) return;
-        setDados({
-          cartoes: carregadas.cartoes,
-          terceiros: carregadas.terceiros,
-          assinaturas,
-          faturas: faturasParaAlerta(carregadas, hoje),
-          tomados: carregadas.tomados,
-          emprestimos: emprestimosParaAlerta(carregadas, hoje),
-        });
-      },
-    );
+    void Promise.all([
+      carregarFaturas(repos, meses),
+      repos.assinaturas.listar(),
+      repos.contasFixas.listar(),
+      repos.contasFixas.pagamentos(),
+    ]).then(([carregadas, assinaturas, contas, pagamentos]) => {
+      if (!montado) return;
+      setDados({
+        cartoes: carregadas.cartoes,
+        terceiros: carregadas.terceiros,
+        assinaturas,
+        faturas: faturasParaAlerta(carregadas, hoje),
+        tomados: carregadas.tomados,
+        emprestimos: emprestimosParaAlerta(carregadas, hoje),
+        contas: { contas, pagamentos },
+      });
+    });
     return () => {
       montado = false;
     };

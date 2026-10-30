@@ -49,26 +49,36 @@ export function resumoDoMes(mes: {
   linhas: readonly LinhaDaFatura[];
   faturas: readonly { total: Centavos; vencimento: DataLocal; paga: boolean }[];
   parcelasEmprestimos?: Centavos;
+  contas?: {
+    minhaParte: Centavos;
+    pendentes: readonly { valor: Centavos; vencimento: DataLocal }[];
+  };
 }) {
   const { meu, porTerceiro, total } = resumoDaFatura(mes.linhas);
   const emprestimos = mes.parcelasEmprestimos ?? 0;
   const renda = somar(mes.receitas);
   const abertas = mes.faturas.filter((f) => !f.paga && f.total > 0);
+  const minhasContas = mes.contas?.minhaParte ?? 0;
+  const contasAbertas = mes.contas?.pendentes ?? [];
   return {
     renda,
-    meusGastos: meu + emprestimos,
+    meusGastos: meu + emprestimos + minhasContas,
     saldoReal: saldoReal({
       receitas: mes.receitas,
       minhasParcelas: [meu],
-      despesasFixas: [],
+      despesasFixas: [minhasContas],
       parcelasEmprestimosTomados: [emprestimos],
     }),
     deTerceiros: total - meu,
     porTerceiro,
-    precisoTerEmCaixa: somar(abertas.map((f) => f.total)),
+    precisoTerEmCaixa: somar([
+      ...abertas.map((f) => f.total),
+      ...contasAbertas.map((c) => c.valor),
+    ]),
     faturasAbertas: abertas.length,
+    contasAbertas: contasAbertas.length,
     ultimoVencimento:
-      abertas
+      [...abertas, ...contasAbertas]
         .map((f) => f.vencimento)
         .sort()
         .at(-1) ?? null,
@@ -80,6 +90,7 @@ export function rendaComprometida(
     competencia: Competencia;
     minhasParcelas: Centavos;
     assinaturas?: Centavos;
+    contas?: Centavos;
     emprestimos?: Centavos;
     renda: Centavos;
   }[],
@@ -88,18 +99,22 @@ export function rendaComprometida(
   valor: Centavos;
   parcelas: Centavos;
   assinaturas: Centavos;
+  contas: Centavos;
   emprestimos: Centavos;
   percentual: number | null;
 }[] {
-  return meses.map(({ competencia, minhasParcelas, assinaturas = 0, emprestimos = 0, renda }) => {
-    const valor = minhasParcelas + assinaturas + emprestimos;
-    return {
-      competencia,
-      valor,
-      parcelas: minhasParcelas,
-      assinaturas,
-      emprestimos,
-      percentual: renda > 0 ? Math.round((valor / renda) * 10_000) / 100 : null,
-    };
-  });
+  return meses.map(
+    ({ competencia, minhasParcelas, assinaturas = 0, contas = 0, emprestimos = 0, renda }) => {
+      const valor = minhasParcelas + assinaturas + contas + emprestimos;
+      return {
+        competencia,
+        valor,
+        parcelas: minhasParcelas,
+        assinaturas,
+        contas,
+        emprestimos,
+        percentual: renda > 0 ? Math.round((valor / renda) * 10_000) / 100 : null,
+      };
+    },
+  );
 }

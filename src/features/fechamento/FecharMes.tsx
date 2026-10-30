@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { cn } from 'cn';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
+import { copiarParaFora } from '@/app/useBackupAutomatico';
 import { Kbd } from '@/app/layout/apoio';
 import { LogoSimbolo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
@@ -16,11 +17,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type {
   Conferencia,
+  ContaFixa,
   MetaDeEconomia,
   MovimentoDeEconomia,
+  PagamentoDeConta,
   Preferencias,
   Receita,
 } from '@/data';
+import { contasDoMes, contasParaResumo } from '@/domain/contasFixas';
 import {
   assertCompetencia,
   competenciaDe,
@@ -48,6 +52,8 @@ interface Dados extends FaturasCarregadas {
   metas: MetaDeEconomia[];
   movimentosDeEconomia: MovimentoDeEconomia[];
   receitas: Receita[];
+  contas: ContaFixa[];
+  pagamentosDeConta: PagamentoDeConta[];
 }
 
 const mesCurto = (c: Competencia) => nomeDoMes(c).split(' ')[0] ?? '';
@@ -96,6 +102,8 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
       repos.economias.metas.listar(),
       repos.economias.movimentos.listar(),
       repos.receitas.listar(),
+      repos.contasFixas.listar(),
+      repos.contasFixas.pagamentos(),
     ]).then(
       ([
         carregadas,
@@ -105,6 +113,8 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
         metas,
         movimentosDeEconomia,
         receitas,
+        contas,
+        pagamentosDeConta,
       ]) => {
         if (!montado) return;
         setDados({
@@ -115,6 +125,8 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
           metas,
           movimentosDeEconomia,
           receitas,
+          contas,
+          pagamentosDeConta,
         });
       },
     );
@@ -141,6 +153,7 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
       setEtapa(null);
       dadosMudaram();
       toast.success(`${mesCurto(competencia)} fechado`);
+      void copiarParaFora(repos, dadosMudaram);
     });
 
   const proximo = () => {
@@ -187,12 +200,14 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
     parcelas: dados.deTerceiros,
     competencia: corteDosDepositos,
     hoje,
+    contasFixas: { contas: dados.contas, pagamentos: dados.pagamentosDeConta, ate: competencia },
   });
   const resumo = resumoDoMes({
     receitas: receitasDoMes(dados.receitas, competencia).map((r) => r.valorCentavos),
     linhas: linhasPorDono(parcelas),
     faturas: [],
     parcelasEmprestimos: parcelasTomadasDoMes(dados.tomados, competencia),
+    contas: contasParaResumo(contasDoMes(dados.contas, dados.pagamentosDeConta, competencia, hoje)),
   });
   const guardado = guardadoNoMes(dados.movimentosDeEconomia, competencia);
   const meta = metaDoMes(dados.metas, competencia);

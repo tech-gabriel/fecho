@@ -25,6 +25,8 @@ describe('migrations', () => {
       'categorias',
       'compras',
       'conferencias',
+      'contas_fixas',
+      'contas_fixas_pagamentos',
       'economia_metas',
       'economia_movimentos',
       'economia_objetivos',
@@ -70,6 +72,43 @@ describe('migrations', () => {
     expect(() => {
       db.exec(
         "INSERT INTO compras (cartao_id, descricao, valor_total_centavos, num_parcelas, data_compra) VALUES (999, 'X', 100, 1, '2026-10-19')",
+      );
+    }).toThrow();
+  });
+
+  it('mantêm abatimentos de compra e de empréstimo ao aceitar contas fixas', () => {
+    const db = new DatabaseSync(':memory:');
+    for (const m of migrations.filter((m) => m.versao <= 13)) db.exec(m.sql);
+    db.exec(`
+      INSERT INTO cartoes (nome, dia_fechamento, dia_vencimento, cor) VALUES ('Roxo', 28, 5, '#000');
+      INSERT INTO terceiros (nome, cor) VALUES ('Ana', '#000');
+      INSERT INTO compras (cartao_id, descricao, valor_total_centavos, num_parcelas, data_compra)
+        VALUES (1, 'Tênis', 100, 1, '2026-10-02');
+      INSERT INTO emprestimos (tipo, descricao, terceiro_id, valor_centavos, data, prazo)
+        VALUES ('concedido', 'Empréstimo', 1, 800, '2026-08-15', '2026-10-15');
+      INSERT INTO contas_fixas (descricao, valor_centavos, dia, inicio)
+        VALUES ('Aluguel', 1800, 10, '2026-10');
+      INSERT INTO movimentos (terceiro_id, tipo, valor_centavos, data, competencia)
+        VALUES (1, 'deposito', 150, '2026-10-20', '2026-10');
+      INSERT INTO abatimentos (movimento_id, compra_id, numero, valor_centavos) VALUES (1, 1, 1, 100);
+      INSERT INTO abatimentos (movimento_id, emprestimo_id, valor_centavos) VALUES (1, 1, 50);
+    `);
+    for (const m of migrations.filter((m) => m.versao > 13)) db.exec(m.sql);
+
+    expect(db.prepare('SELECT count(*) AS n FROM abatimentos').get()).toEqual({ n: 2 });
+    db.exec(
+      `INSERT INTO abatimentos (movimento_id, conta_fixa_id, competencia, valor_centavos)
+       VALUES (1, 1, '2026-10', 900)`,
+    );
+    expect(() => {
+      db.exec(
+        'INSERT INTO abatimentos (movimento_id, conta_fixa_id, valor_centavos) VALUES (1, 1, 900)',
+      );
+    }).toThrow();
+    expect(() => {
+      db.exec(
+        `INSERT INTO abatimentos (movimento_id, compra_id, numero, conta_fixa_id, competencia, valor_centavos)
+         VALUES (1, 1, 1, 1, '2026-11', 900)`,
       );
     }).toThrow();
   });

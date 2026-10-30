@@ -30,7 +30,13 @@ const STATUS = {
   },
 } satisfies Record<StatusDaFatura, unknown>;
 
-export function SeloDeStatus({ status, texto }: { status: StatusDaFatura; texto?: string }) {
+export function SeloDeStatus({
+  status,
+  texto,
+}: {
+  status: StatusDaFatura;
+  texto?: string | undefined;
+}) {
   const { rotulo, icone: Icone, classe, cor } = STATUS[status];
   return (
     <span

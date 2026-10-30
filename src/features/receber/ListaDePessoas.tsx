@@ -3,17 +3,14 @@ import { cn } from 'cn';
 import type { Cartao } from '@/data';
 import { formatarMoeda } from '@/lib/formato';
 import { dataCurta, destinoDaTecla } from '@/features/faturas/ListaDeCartoes';
-import { Avatar, SeloDoTerceiro, type SituacaoDaPessoa } from './situacoes';
+import { Avatar, ondeDoItem, SeloDoTerceiro, type SituacaoDaPessoa } from './situacoes';
 
 export function ondeEQuando(situacao: SituacaoDaPessoa, cartoes: Cartao[]) {
   const { prazo, itens, credito } = situacao;
   if (!prazo) return credito > 0 ? `Crédito de ${formatarMoeda(credito)}` : 'Tudo depositado';
   const item = itens.find((i) => i.aberto > 0 && i.vencimento === prazo);
-  const cartao =
-    item?.emprestimoId !== undefined
-      ? 'Empréstimo'
-      : cartoes.find((c) => c.id === item?.cartaoId)?.nome;
-  return `${cartao ? `${cartao} · ` : ''}até ${dataCurta(prazo)}`;
+  const onde = item ? ondeDoItem(item, cartoes) : '';
+  return `${onde ? `${onde} · ` : ''}até ${dataCurta(prazo)}`;
 }
 
 export function ListaDePessoas({

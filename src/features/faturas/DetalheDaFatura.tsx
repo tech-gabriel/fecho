@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useRepositorios } from '@/app/repositorios';
 import { useApp } from '@/app/store';
+import { CartaoDesenhado } from '@/components/CartaoDesenhado';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -139,11 +140,7 @@ export function DetalheDaFatura({
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
       <div className="flex flex-col gap-4 rounded-lg border bg-surface p-6">
         <div className="flex items-center gap-4">
-          <span
-            aria-hidden
-            style={{ backgroundColor: cartao.cor }}
-            className="h-7 w-10 flex-none rounded-md"
-          />
+          <CartaoDesenhado cartao={cartao} tamanho="p" />
           <div className="flex min-w-0 flex-1 flex-col">
             <h2 className="truncate text-xl font-semibold">{cartao.nome}</h2>
             <p className="text-sm text-ink-muted">
