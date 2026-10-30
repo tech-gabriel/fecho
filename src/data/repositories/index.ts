@@ -6,6 +6,7 @@ import type { ServicoDeSeguranca } from '../seguranca';
 import type { CompraParaRecalculo, MudancaDeFatura } from '@/domain/faturas';
 import type { Centavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
+import type { Taxas } from '@/domain/simulador';
 import type { TipoDeAlerta } from '@/domain/alertas';
 import type { Assinatura } from '@/domain/assinaturas';
 import type {
@@ -182,6 +183,7 @@ export interface Preferencias {
   notificarNoWindows: boolean;
   etapaDoFechamento: { competencia: Competencia; etapa: number } | null;
   bloquearAposMinutos: number | null;
+  taxas: Taxas | null;
 }
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
@@ -199,6 +201,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   notificarNoWindows: true,
   etapaDoFechamento: null,
   bloquearAposMinutos: 5,
+  taxas: null,
 };
 
 export interface PreferenciasRepository {
