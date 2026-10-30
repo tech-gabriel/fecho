@@ -8,6 +8,7 @@ import assinaturas from './0007_assinaturas.sql?raw';
 import emprestimos from './0008_emprestimos.sql?raw';
 import economias from './0009_economias.sql?raw';
 import fechamento from './0010_fechamento.sql?raw';
+import cartaoBanco from './0011_cartao_banco.sql?raw';
 
 export const migrations = [
   { versao: 1, descricao: 'cadastros_e_compras', sql: cadastrosECompras },
@@ -20,4 +21,5 @@ export const migrations = [
   { versao: 8, descricao: 'emprestimos', sql: emprestimos },
   { versao: 9, descricao: 'economias', sql: economias },
   { versao: 10, descricao: 'fechamento', sql: fechamento },
+  { versao: 11, descricao: 'cartao_banco', sql: cartaoBanco },
 ];

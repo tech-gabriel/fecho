@@ -256,7 +256,10 @@ export function criarRepositoriosEmMemoria(): Repositorios {
             .map((p) => ({ numero: p.numero, competencia: p.competencia })),
         })),
     atualizarComParcelas: async (id, cartao, mudancas) => {
-      cadastroCartoes.vigente(id);
+      const atual = cadastroCartoes.vigente(id);
+      delete atual.banco;
+      delete atual.final;
+      delete atual.bandeira;
       const alvos = mudancas.flatMap((m) =>
         m.parcelas.map((nova) => {
           const parcela = parcelas.find(

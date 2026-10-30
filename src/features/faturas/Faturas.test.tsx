@@ -207,6 +207,19 @@ describe('Faturas', () => {
     expect(router.state.location.search).toBe(`?cartao=${ids.azul}`);
   });
 
+  it('desenha o cartão no cabeçalho da fatura', async () => {
+    await repos.cartoes.atualizar(ids.roxo, {
+      banco: 'Banco Aurora',
+      final: '4821',
+      bandeira: 'visa',
+    });
+    await abrir();
+
+    expect(
+      await screen.findByRole('img', { name: 'Cartão Roxo, Banco Aurora, final 4821, Visa' }),
+    ).toBeInTheDocument();
+  });
+
   it('cartão sem compras oferece registrar uma', async () => {
     await abrir(`/faturas?cartao=${ids.verde}`);
 

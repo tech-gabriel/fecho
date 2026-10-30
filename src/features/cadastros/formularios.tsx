@@ -1,10 +1,18 @@
 import { useId } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { cn } from 'cn';
+import { CartaoDesenhado, NOMES_DAS_BANDEIRAS } from '@/components/CartaoDesenhado';
 import { Input } from '@/components/ui/input';
-import type { Cartao, Categoria, Novo, Terceiro } from '@/data';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import type { Bandeira, Cartao, Categoria, Novo, Terceiro } from '@/data';
 import { lerReais } from '@/domain/money';
 import { formatarDecimal } from '@/lib/formato';
 import { atributosDeErro, Campo } from './Campo';
@@ -35,8 +43,16 @@ const reais = z.string().transform((texto, ctx) => {
   }
 });
 
+const SEM_BANDEIRA = 'nenhuma';
+
 const esquemaCartao = z.object({
   nome,
+  banco: z.string().trim().max(40, 'Use até 40 letras'),
+  final: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || /^\d{4}$/.test(v), 'Digite os 4 últimos números'),
+  bandeira: z.string(),
   cor: z.string().regex(/^#[0-9A-F]{6}$/i, 'Escolha uma cor'),
   diaFechamento: dia,
   diaVencimento: dia,
@@ -58,13 +74,19 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
     resolver: zodResolver(esquemaCartao),
     defaultValues: {
       nome: inicial?.nome ?? '',
+      banco: inicial?.banco ?? '',
+      final: inicial?.final ?? '',
+      bandeira: inicial?.bandeira ?? SEM_BANDEIRA,
       cor: inicial?.cor ?? CORES_DE_CARTAO[0].hex,
       diaFechamento: inicial ? String(inicial.diaFechamento) : '',
       diaVencimento: inicial ? String(inicial.diaVencimento) : '',
       limite: inicial?.limiteCentavos ? formatarDecimal(inicial.limiteCentavos) : '',
     },
   });
-  const cor = useWatch({ control, name: 'cor' });
+  const [cor, nomeDigitado, banco, final, bandeira] = useWatch({
+    control,
+    name: ['cor', 'nome', 'banco', 'final', 'bandeira'],
+  });
   const personalizada = !CORES_DE_CARTAO.some((c) => c.hex === cor.toUpperCase());
 
   return (
@@ -73,11 +95,30 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
       noValidate
       className="flex flex-col gap-4"
       onSubmit={(e) =>
-        void handleSubmit(({ limite, ...dados }) => {
-          onEnviar({ ...dados, limiteCentavos: limite, ativo: inicial?.ativo ?? true });
+        void handleSubmit(({ limite, banco, final, bandeira, ...dados }) => {
+          onEnviar({
+            ...dados,
+            ...(banco ? { banco } : {}),
+            ...(final ? { final } : {}),
+            ...(bandeira === SEM_BANDEIRA ? {} : { bandeira: bandeira as Bandeira }),
+            limiteCentavos: limite,
+            ativo: inicial?.ativo ?? true,
+          });
         })(e)
       }
     >
+      <CartaoDesenhado
+        tamanho="g"
+        className="self-center"
+        cartao={{
+          nome: nomeDigitado.trim() || 'Novo cartão',
+          cor,
+          ...(banco.trim() ? { banco: banco.trim() } : {}),
+          ...(final.trim() ? { final: final.trim() } : {}),
+          ...(bandeira === SEM_BANDEIRA ? {} : { bandeira: bandeira as Bandeira }),
+        }}
+      />
+
       <Campo id={`${id}-nome`} rotulo="Nome" erro={errors.nome?.message}>
         <Input
           {...atributosDeErro(`${id}-nome`, errors.nome?.message)}
@@ -85,6 +126,54 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
           {...register('nome')}
         />
       </Campo>
+
+      <Campo id={`${id}-banco`} rotulo="Banco" erro={errors.banco?.message} dica="Opcional.">
+        <Input
+          {...atributosDeErro(`${id}-banco`, errors.banco?.message)}
+          placeholder="Banco do Brasil"
+          maxLength={40}
+          {...register('banco')}
+        />
+      </Campo>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Campo
+          id={`${id}-final`}
+          rotulo="Final"
+          erro={errors.final?.message}
+          dica="Só os 4 últimos números. O Fechô nunca pede o número inteiro."
+        >
+          <Input
+            {...atributosDeErro(`${id}-final`, errors.final?.message)}
+            inputMode="numeric"
+            maxLength={4}
+            placeholder="1234"
+            className="tabular-nums"
+            {...register('final')}
+          />
+        </Campo>
+        <Campo id={`${id}-bandeira`} rotulo="Bandeira">
+          <Controller
+            control={control}
+            name="bandeira"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id={`${id}-bandeira`} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SEM_BANDEIRA}>Nenhuma</SelectItem>
+                  {Object.entries(NOMES_DAS_BANDEIRAS).map(([valor, rotulo]) => (
+                    <SelectItem key={valor} value={valor}>
+                      {rotulo}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Campo>
+      </div>
 
       <fieldset className={classeDoGrupo}>
         <legend className={classeDaLegenda}>Cor</legend>

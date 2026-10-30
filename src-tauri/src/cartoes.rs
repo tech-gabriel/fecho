@@ -9,6 +9,12 @@ use crate::compras::BANCO;
 #[serde(rename_all = "camelCase")]
 pub struct Cartao {
     pub nome: String,
+    #[serde(default)]
+    pub banco: Option<String>,
+    #[serde(default, rename = "final")]
+    pub final_: Option<String>,
+    #[serde(default)]
+    pub bandeira: Option<String>,
     pub dia_fechamento: i64,
     pub dia_vencimento: i64,
     pub limite_centavos: i64,
@@ -33,10 +39,13 @@ pub async fn gravar_cartao(
     let mut tx = pool.begin().await?;
 
     let alterados = sqlx::query(
-        "UPDATE cartoes SET nome = ?, dia_fechamento = ?, dia_vencimento = ?, limite_centavos = ?,
-           cor = ?, ativo = ? WHERE id = ? AND deleted_at IS NULL",
+        "UPDATE cartoes SET nome = ?, banco = ?, final = ?, bandeira = ?, dia_fechamento = ?,
+           dia_vencimento = ?, limite_centavos = ?, cor = ?, ativo = ? WHERE id = ? AND deleted_at IS NULL",
     )
     .bind(&cartao.nome)
+    .bind(&cartao.banco)
+    .bind(&cartao.final_)
+    .bind(&cartao.bandeira)
     .bind(cartao.dia_fechamento)
     .bind(cartao.dia_vencimento)
     .bind(cartao.limite_centavos)
@@ -127,6 +136,9 @@ mod testes {
     fn roxo(dia_fechamento: i64) -> Cartao {
         Cartao {
             nome: "Roxo".into(),
+            banco: Some("Banco Aurora".into()),
+            final_: Some("4821".into()),
+            bandeira: None,
             dia_fechamento,
             dia_vencimento: 5,
             limite_centavos: 0,
@@ -154,6 +166,10 @@ mod testes {
         tauri::async_runtime::block_on(gravar_cartao(&pool, 1, &roxo(25), &parcelas)).unwrap();
 
         assert_eq!(consultar(&pool, FECHAMENTO), "25");
+        assert_eq!(
+            consultar(&pool, "SELECT banco || ' ' || final FROM cartoes"),
+            "Banco Aurora 4821"
+        );
         assert_eq!(consultar(&pool, COMPETENCIAS), "2026-11,2026-12");
     }
 

@@ -131,10 +131,13 @@ export function bancoDeTeste() {
     db.exec('BEGIN');
     try {
       db.prepare(
-        `UPDATE cartoes SET nome = ?, dia_fechamento = ?, dia_vencimento = ?, limite_centavos = ?,
-           cor = ?, ativo = ? WHERE id = ?`,
+        `UPDATE cartoes SET nome = ?, banco = ?, final = ?, bandeira = ?, dia_fechamento = ?,
+           dia_vencimento = ?, limite_centavos = ?, cor = ?, ativo = ? WHERE id = ?`,
       ).run(
         cartao.nome,
+        cartao.banco ?? null,
+        cartao.final ?? null,
+        cartao.bandeira ?? null,
         cartao.diaFechamento,
         cartao.diaVencimento,
         cartao.limiteCentavos,
