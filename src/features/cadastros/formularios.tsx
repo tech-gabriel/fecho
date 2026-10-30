@@ -255,7 +255,7 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
   );
 }
 
-function EntradaEmReais(props: ComponentProps<typeof Input>) {
+export function EntradaEmReais(props: ComponentProps<typeof Input>) {
   return (
     <div className="relative">
       <span
