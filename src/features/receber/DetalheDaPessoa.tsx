@@ -16,6 +16,7 @@ import { RegistrarDeposito } from './RegistrarDeposito';
 import {
   Avatar,
   cartaoDaCobranca,
+  contaDaCobranca,
   faltaNaFatura,
   SeloDoTerceiro,
   type SituacaoDaPessoa,
@@ -58,15 +59,18 @@ export function DetalheDaPessoa({
     .filter((i) => i.aberto > 0)
     .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
   const primeiro = abertos[0];
+  const foraDoCartao = primeiro?.emprestimoId !== undefined || primeiro?.contaFixaId !== undefined;
   const faltaDaFatura =
-    primeiro?.emprestimoId !== undefined
+    primeiro && foraDoCartao
       ? primeiro.aberto
       : primeiro
         ? (faltaNaFatura([situacao], primeiro.cartaoId, primeiro.competencia)[0]?.falta ?? 0)
         : 0;
   const onde = (item: ItemComSituacao) =>
     item.emprestimoId === undefined
-      ? nomeDoCartao(item.cartaoId)
+      ? item.contaFixaId === undefined
+        ? nomeDoCartao(item.cartaoId)
+        : 'Conta fixa'
       : `Devolve até ${dataCurta(item.vencimento)}`;
   const visiveis = situacao.itens
     .filter((i) => i.aberto > 0 || i.competencia === competencia)
@@ -84,7 +88,12 @@ export function DetalheDaPessoa({
   const copiar = () =>
     copiarCobranca(
       terceiro,
-      { valor: falta, cartao: cartaoDaCobranca(situacao, cartoes), vencimento: prazo },
+      {
+        valor: falta,
+        cartao: cartaoDaCobranca(situacao, cartoes),
+        conta: contaDaCobranca(situacao),
+        vencimento: prazo,
+      },
       () => {
         setCopiado(true);
         setTimeout(() => {
@@ -125,9 +134,11 @@ export function DetalheDaPessoa({
             <p className="truncate text-sm text-ink-muted">
               {primeiro?.emprestimoId !== undefined && prazo
                 ? `Devolve o empréstimo até ${dataCurta(prazo)}`
-                : prazo
-                  ? `Deposita ${ondeEQuando(situacao, cartoes)}`
-                  : ondeEQuando(situacao, cartoes)}
+                : primeiro?.contaFixaId !== undefined && prazo
+                  ? `Paga a parte da conta ${primeiro.descricao} até ${dataCurta(prazo)}`
+                  : prazo
+                    ? `Deposita ${ondeEQuando(situacao, cartoes)}`
+                    : ondeEQuando(situacao, cartoes)}
             </p>
           </div>
           {falta > 0 && (
@@ -207,7 +218,14 @@ export function DetalheDaPessoa({
               aria-hidden
               className={cn('flex-none', status === 'atrasado' ? 'text-danger' : 'text-warning')}
             />
-            {primeiro.emprestimoId === undefined ? (
+            {primeiro.contaFixaId !== undefined ? (
+              <>
+                Faltam {formatarMoeda(faltaDaFatura)} de {nome} na conta {primeiro.descricao}
+                {status === 'atrasado'
+                  ? `, que venceu em ${dataCurta(primeiro.vencimento)}.`
+                  : `, que vence em ${dataCurta(primeiro.vencimento)}.`}
+              </>
+            ) : primeiro.emprestimoId === undefined ? (
               <>
                 Faltam {formatarMoeda(faltaDaFatura)} de {nome} para fechar a fatura do{' '}
                 {nomeDoCartao(primeiro.cartaoId)}

@@ -5,6 +5,7 @@ import { type Rateio, ratear, type StatusTerceiro, statusTerceiro } from './terc
 
 export interface ItemDevido {
   emprestimoId?: number;
+  contaFixaId?: number;
   chave: string;
   compraId: number;
   numero: number;
@@ -18,10 +19,19 @@ export interface ItemDevido {
 }
 
 export type Abatimento =
-  { compraId: number; numero: number; valor: Centavos } | { emprestimoId: number; valor: Centavos };
+  | { compraId: number; numero: number; valor: Centavos }
+  | { emprestimoId: number; valor: Centavos }
+  | { contaFixaId: number; competencia: Competencia; valor: Centavos };
+
+export const chaveDaConta = (contaFixaId: number, competencia: Competencia) =>
+  `f:${String(contaFixaId)}:${competencia}`;
 
 const chaveDoAbatimento = (a: Abatimento) =>
-  'emprestimoId' in a ? `e:${String(a.emprestimoId)}` : chaveDoItem(a.compraId, a.numero);
+  'emprestimoId' in a
+    ? `e:${String(a.emprestimoId)}`
+    : 'contaFixaId' in a
+      ? chaveDaConta(a.contaFixaId, a.competencia)
+      : chaveDoItem(a.compraId, a.numero);
 
 export interface DepositoDaPessoa {
   valor: Centavos;
@@ -125,6 +135,8 @@ export function situacaoDaPessoa(
 interface Aberto {
   chave: string;
   emprestimoId?: number | undefined;
+  contaFixaId?: number | undefined;
+  competencia?: Competencia;
   compraId: number;
   numero: number;
   vencimento: DataLocal;
@@ -156,15 +168,20 @@ export function distribuir(
     const parte = Math.min(restante, item.aberto);
     if (parte > 0) {
       abatimentos.push(
-        item.emprestimoId === undefined
-          ? { compraId: item.compraId, numero: item.numero, valor: parte }
-          : { emprestimoId: item.emprestimoId, valor: parte },
+        item.emprestimoId !== undefined
+          ? { emprestimoId: item.emprestimoId, valor: parte }
+          : item.contaFixaId !== undefined && item.competencia !== undefined
+            ? { contaFixaId: item.contaFixaId, competencia: item.competencia, valor: parte }
+            : { compraId: item.compraId, numero: item.numero, valor: parte },
       );
     }
     restante -= parte;
   }
   return { abatimentos, sobra: restante };
 }
+
+const MODELO_DE_CONTA =
+  'Oi, {nome}! Faltam {valor} da sua parte da conta {conta}, que vence em {vencimento}. Meu Pix: {pix}';
 
 const MODELO_DE_EMPRESTIMO =
   'Oi, {nome}! Faltam {valor} do empréstimo, que combinamos para {vencimento}. Meu Pix: {pix}';
@@ -176,12 +193,16 @@ export function mensagemDeCobranca(
     nome: string;
     valor: string;
     cartao: string | null;
+    conta?: string | null | undefined;
     vencimento: string;
     pix: string;
   },
 ): string {
   const cartao = variaveis.cartao ?? '';
-  return (variaveis.cartao === null ? MODELO_DE_EMPRESTIMO : modelo)
+  const base =
+    variaveis.cartao !== null ? modelo : variaveis.conta ? MODELO_DE_CONTA : MODELO_DE_EMPRESTIMO;
+  return base
+    .replaceAll('{conta}', variaveis.conta ?? '')
     .replaceAll('{nome}', variaveis.nome)
     .replaceAll('{valor}', variaveis.valor)
     .replaceAll('{cartão}', cartao)

@@ -23,6 +23,7 @@ import { useAcoesDeCobranca } from '@/features/receber/acoes';
 import {
   Avatar,
   cartaoDaCobranca,
+  contaDaCobranca,
   SeloDoTerceiro,
   type SituacaoDaPessoa,
 } from '@/features/receber/situacoes';
@@ -228,7 +229,12 @@ export function EtapaTerceiros({
                 onClick={() =>
                   void copiarCobranca(
                     s.terceiro,
-                    { valor: s.falta, cartao: cartaoDaCobranca(s, cartoes), vencimento: s.prazo },
+                    {
+                      valor: s.falta,
+                      cartao: cartaoDaCobranca(s, cartoes),
+                      conta: contaDaCobranca(s),
+                      vencimento: s.prazo,
+                    },
                     () => undefined,
                   )
                 }

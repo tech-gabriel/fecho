@@ -85,6 +85,28 @@ describe('Contas fixas', () => {
     });
   });
 
+  it('divide a conta com uma pessoa', async () => {
+    const ana = await repos.terceiros.criar({ nome: 'Ana', cor: '#2563EB', ativo: true });
+    await abrir();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Nova conta' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nova conta fixa' });
+    preencher(dialog, 'Descrição', 'Internet');
+    preencher(dialog, 'Valor por mês', '120,00');
+    preencher(dialog, 'Vence dia', '5');
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Dividida' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ana', pressed: false }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+
+    expect(await linha('Internet')).toHaveTextContent('Ana paga metade');
+    expect(
+      (await repos.contasFixas.listar()).find((c) => c.descricao === 'Internet')?.rateios,
+    ).toEqual([
+      { terceiroId: ana, percentual: 50 },
+      { terceiroId: null, percentual: 50 },
+    ]);
+  });
+
   it('marca como paga com o valor do mês ajustado e desfaz', async () => {
     await abrir();
 

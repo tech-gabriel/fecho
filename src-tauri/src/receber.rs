@@ -14,6 +14,10 @@ pub struct Abatimento {
     pub numero: Option<i64>,
     #[serde(default)]
     pub emprestimo_id: Option<i64>,
+    #[serde(default)]
+    pub conta_fixa_id: Option<i64>,
+    #[serde(default)]
+    pub competencia: Option<String>,
     pub valor: i64,
 }
 
@@ -43,13 +47,16 @@ pub async fn gravar_deposito(pool: &SqlitePool, deposito: &Deposito) -> Result<i
 
     for abatimento in &deposito.abatimentos {
         sqlx::query(
-            "INSERT INTO abatimentos (movimento_id, compra_id, numero, emprestimo_id, valor_centavos)
-             VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO abatimentos
+               (movimento_id, compra_id, numero, emprestimo_id, conta_fixa_id, competencia, valor_centavos)
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(id)
         .bind(abatimento.compra_id)
         .bind(abatimento.numero)
         .bind(abatimento.emprestimo_id)
+        .bind(abatimento.conta_fixa_id)
+        .bind(&abatimento.competencia)
         .bind(abatimento.valor)
         .execute(&mut *tx)
         .await?;
@@ -95,7 +102,9 @@ mod testes {
                  INSERT INTO compras (cartao_id, descricao, valor_total_centavos, num_parcelas, data_compra)
                    VALUES (1, 'Tênis', 200, 2, '2026-10-02');
                  INSERT INTO emprestimos (tipo, descricao, terceiro_id, valor_centavos, data, prazo)
-                   VALUES ('concedido', 'Empréstimo', 1, 800, '2026-08-15', '2026-10-15');",
+                   VALUES ('concedido', 'Empréstimo', 1, 800, '2026-08-15', '2026-10-15');
+                 INSERT INTO contas_fixas (descricao, valor_centavos, dia, inicio)
+                   VALUES ('Aluguel', 1800, 10, '2026-10');",
             )
             .execute(&pool)
             .await
@@ -124,12 +133,16 @@ mod testes {
                     compra_id: Some(1),
                     numero: Some(1),
                     emprestimo_id: None,
+                    conta_fixa_id: None,
+                    competencia: None,
                     valor: 100,
                 },
                 Abatimento {
                     compra_id: Some(compra_id),
                     numero: Some(2),
                     emprestimo_id: None,
+                    conta_fixa_id: None,
+                    competencia: None,
                     valor: 50,
                 },
             ],
@@ -154,10 +167,30 @@ mod testes {
             compra_id: None,
             numero: None,
             emprestimo_id: Some(1),
+            conta_fixa_id: None,
+            competencia: None,
             valor: 300,
         });
 
         tauri::async_runtime::block_on(gravar_deposito(&pool, &com_emprestimo)).unwrap();
+
+        assert_eq!(contar(&pool, "abatimentos"), 3);
+    }
+
+    #[test]
+    fn abate_a_parte_de_uma_conta_fixa_no_mes() {
+        let pool = banco();
+        let mut com_conta = deposito(1);
+        com_conta.abatimentos.push(Abatimento {
+            compra_id: None,
+            numero: None,
+            emprestimo_id: None,
+            conta_fixa_id: Some(1),
+            competencia: Some("2026-10".into()),
+            valor: 900,
+        });
+
+        tauri::async_runtime::block_on(gravar_deposito(&pool, &com_conta)).unwrap();
 
         assert_eq!(contar(&pool, "abatimentos"), 3);
     }

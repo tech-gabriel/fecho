@@ -210,3 +210,50 @@ describe('empréstimo concedido em A receber', () => {
     });
   });
 });
+
+describe('conta fixa dividida em A receber', () => {
+  const aluguel = {
+    chave: 'f:4:2026-10',
+    contaFixaId: 4,
+    compraId: 0,
+    numero: 1,
+    numParcelas: 1,
+    descricao: 'Aluguel',
+    dataCompra: '2026-10-10',
+    cartaoId: 0,
+    competencia: '2026-10',
+    vencimento: '2026-10-10',
+    valor: 90_000,
+  };
+
+  it('abate a parte da conta do mês pelo depósito', () => {
+    const situacao = situacaoDaPessoa(
+      [aluguel],
+      [{ valor: 90_000, abatimentos: [{ contaFixaId: 4, competencia: '2026-10', valor: 90_000 }] }],
+      '2026-10-19',
+    );
+    expect(situacao).toMatchObject({ falta: 0, status: 'pago' });
+  });
+
+  it('distribui o depósito para a conta com a competência', () => {
+    expect(distribuir(50_000, [{ ...aluguel, aberto: 90_000 }])).toEqual({
+      abatimentos: [{ contaFixaId: 4, competencia: '2026-10', valor: 50_000 }],
+      sobra: 0,
+    });
+  });
+
+  it('cobrança só de conta usa o texto da conta', () => {
+    expect(
+      mensagemDeCobranca('Modelo das compras no {cartão}', {
+        nome: 'Bia',
+        valor: 'R$ 900,00',
+        cartao: null,
+        conta: 'Aluguel',
+        vencimento: '10/10',
+        pix: 'eu@pix',
+      }),
+    ).toBe(
+      'Oi, Bia! Faltam R$ 900,00 da sua parte da conta Aluguel, que vence em 10/10. Meu Pix: eu@pix',
+    );
+  });
+});

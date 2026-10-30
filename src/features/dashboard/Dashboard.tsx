@@ -261,7 +261,13 @@ export function Dashboard() {
   );
 
   const mes = nomeDoMes(competencia).split(' ')[0] ?? '';
-  const situacoes = montarSituacoes({ ...dados, parcelas: dados.deTerceiros, competencia, hoje });
+  const situacoes = montarSituacoes({
+    ...dados,
+    parcelas: dados.deTerceiros,
+    competencia,
+    hoje,
+    contasFixas: { contas: dados.contas, pagamentos: dados.pagamentosDeConta },
+  });
   const faltaDoMes = faturas
     .flatMap((f) => faltaNaFatura(situacoes, f.cartao.id, competencia))
     .reduce((soma, f) => soma + f.falta, 0);

@@ -4,12 +4,15 @@ import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { Categoria, ContaFixa } from '@/data';
+import type { Categoria, ContaFixa, Terceiro } from '@/data';
+import { rateioDaCompra, type ModoDaCompra } from '@/domain/compras';
 import { lerReais } from '@/domain/money';
 import { atributosDeErro, Campo } from '@/features/cadastros/Campo';
 import { EntradaEmReais } from '@/features/cadastros/formularios';
 import { executar } from '@/features/cadastros/SecaoCadastro';
 import { ComboCategoria } from '@/features/nova-compra/ComboCategoria';
+import { entradaDaCompra } from '@/features/nova-compra/NovaCompra';
+import { ParaQuem } from '@/features/nova-compra/ParaQuem';
 import { formatarDecimal } from '@/lib/formato';
 
 export function valorPositivo(texto: string): number | null {
@@ -32,19 +35,49 @@ const esquema = z
       .max(31, 'Digite um dia de 1 a 31'),
     inicio: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Escolha o mês'),
     categoriaId: z.number().nullable(),
+    modo: z.enum(['minha', 'outra', 'dividida']),
+    pessoas: z.array(z.object({ terceiroId: z.number(), percentual: z.number() })),
   })
-  .transform(({ valor, ...dados }) => ({ ...dados, valorCentavos: valorPositivo(valor) ?? 0 }));
+  .superRefine(({ modo, pessoas }, ctx) => {
+    try {
+      rateioDaCompra(modo, pessoas);
+    } catch (erro) {
+      ctx.addIssue({ code: 'custom', path: ['pessoas'], message: (erro as Error).message });
+    }
+  })
+  .transform(({ valor, modo, pessoas, ...dados }) => ({
+    ...dados,
+    valorCentavos: valorPositivo(valor) ?? 0,
+    rateios: rateioDaCompra(modo, pessoas),
+  }));
 
 export type ContaDoFormulario = z.output<typeof esquema>;
 
+function divisaoInicial(conta: ContaFixa | undefined) {
+  if (!conta) return { modo: 'minha' as ModoDaCompra, pessoas: [] };
+  const { modo, pessoas } = entradaDaCompra({
+    cartaoId: 0,
+    descricao: conta.descricao,
+    categoriaId: conta.categoriaId,
+    valorTotal: conta.valorCentavos,
+    numParcelas: 1,
+    dataCompra: '2000-01-01',
+    recorrente: false,
+    rateios: conta.rateios,
+  });
+  return { modo, pessoas };
+}
+
 export function FormularioDeConta({
   categorias,
+  terceiros,
   inicial,
   inicioPadrao,
   rodape,
   onSalvar,
 }: {
   categorias: Categoria[];
+  terceiros: Terceiro[];
   inicial?: ContaFixa | undefined;
   inicioPadrao: string;
   rodape: React.ReactNode;
@@ -57,7 +90,7 @@ export function FormularioDeConta({
     handleSubmit,
     setValue,
     setFocus,
-    formState: { errors },
+    formState: { errors, isSubmitted },
   } = useForm({
     resolver: zodResolver(esquema),
     defaultValues: {
@@ -66,9 +99,14 @@ export function FormularioDeConta({
       dia: inicial?.dia ?? 10,
       inicio: inicial?.inicio ?? inicioPadrao,
       categoriaId: inicial?.categoriaId ?? null,
+      ...divisaoInicial(inicial),
     },
   });
-  const categoriaId = useWatch({ control, name: 'categoriaId' });
+  const [categoriaId, modo, pessoas] = useWatch({
+    control,
+    name: ['categoriaId', 'modo', 'pessoas'],
+  });
+  const revalidar = { shouldValidate: isSubmitted };
 
   useEffect(() => {
     setFocus('descricao');
@@ -137,6 +175,21 @@ export function FormularioDeConta({
           }}
         />
       </div>
+
+      <ParaQuem
+        id={`${id}-quem`}
+        periodo="mês"
+        modo={modo}
+        pessoas={pessoas}
+        terceiros={terceiros}
+        erro={errors.pessoas?.message}
+        onModo={(novo: ModoDaCompra) => {
+          setValue('modo', novo, revalidar);
+        }}
+        onPessoas={(novas) => {
+          setValue('pessoas', novas, revalidar);
+        }}
+      />
 
       {rodape}
     </form>

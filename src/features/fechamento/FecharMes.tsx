@@ -200,6 +200,7 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
     parcelas: dados.deTerceiros,
     competencia: corteDosDepositos,
     hoje,
+    contasFixas: { contas: dados.contas, pagamentos: dados.pagamentosDeConta, ate: competencia },
   });
   const resumo = resumoDoMes({
     receitas: receitasDoMes(dados.receitas, competencia).map((r) => r.valorCentavos),

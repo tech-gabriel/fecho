@@ -30,7 +30,9 @@ export function ParaQuem({
   erro,
   onModo,
   onPessoas,
+  periodo = 'parcela',
 }: {
+  periodo?: 'parcela' | 'mês';
   id: string;
   modo: ModoDaCompra;
   pessoas: ParteDePessoa[];
@@ -72,8 +74,8 @@ export function ParaQuem({
       : modo === 'outra'
         ? `${nome(pessoas[0]?.terceiroId ?? 0)} deposita o valor todo antes do vencimento`
         : pessoas.length === 1
-          ? `${nome(pessoas[0]?.terceiroId ?? 0)} deposita ${pessoas[0]?.percentual ?? 0}% de cada parcela`
-          : 'Cada pessoa deposita a parte dela de cada parcela';
+          ? `${nome(pessoas[0]?.terceiroId ?? 0)} deposita ${pessoas[0]?.percentual ?? 0}% de cada ${periodo}`
+          : `Cada pessoa deposita a parte dela de cada ${periodo}`;
 
   return (
     <fieldset

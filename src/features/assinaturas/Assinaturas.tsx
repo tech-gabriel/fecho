@@ -24,6 +24,7 @@ import { proximaCobranca, resumoDasAssinaturas } from '@/domain/assinaturas';
 import { competenciaDe, type DataLocal } from '@/domain/competencia';
 import { somar } from '@/domain/money';
 import { receitasDoMes } from '@/domain/resumo';
+import type { Rateio } from '@/domain/terceiros';
 import { executar } from '@/features/cadastros/SecaoCadastro';
 import { dataCurta } from '@/features/faturas/ListaDeCartoes';
 import { formatarMoeda } from '@/lib/formato';
@@ -61,8 +62,11 @@ export function inicioDaAssinatura(dia: number, hoje: DataLocal) {
   );
 }
 
-function quemPaga(assinatura: Assinatura, terceiros: Terceiro[]): string | null {
-  const deles = assinatura.rateios.filter((r) => r.terceiroId !== null);
+export function quemPaga(
+  { rateios }: { rateios: readonly Rateio[] },
+  terceiros: Terceiro[],
+): string | null {
+  const deles = rateios.filter((r) => r.terceiroId !== null);
   if (deles.length === 0) return null;
   const nome = (id: number | null) => terceiros.find((t) => t.id === id)?.nome ?? '';
   if (deles.length > 1) return `Dividida com ${deles.map((r) => nome(r.terceiroId)).join(' e ')}`;

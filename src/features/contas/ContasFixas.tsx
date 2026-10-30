@@ -19,8 +19,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import type { Categoria, ContaFixa, PagamentoDeConta } from '@/data';
+import type { Categoria, ContaFixa, PagamentoDeConta, Terceiro } from '@/data';
 import { contasDoMes, type ContaDoMes } from '@/domain/contasFixas';
+import { quemPaga } from '@/features/assinaturas/Assinaturas';
 import { BotoesDoFormulario } from '@/features/assinaturas/FormularioDeAssinatura';
 import { atributosDeErro, Campo } from '@/features/cadastros/Campo';
 import { EntradaEmReais } from '@/features/cadastros/formularios';
@@ -34,6 +35,7 @@ interface Dados {
   contas: ContaFixa[];
   pagamentos: PagamentoDeConta[];
   categorias: Categoria[];
+  terceiros: Terceiro[];
 }
 
 const ORDEM = { atrasada: 0, pendente: 1, paga: 2 };
@@ -128,8 +130,9 @@ export function ContasFixas() {
       repos.contasFixas.listar(),
       repos.contasFixas.pagamentos(),
       repos.categorias.listar(),
-    ]).then(([contas, pagamentos, categorias]) => {
-      if (montado) setDados({ contas, pagamentos, categorias });
+      repos.terceiros.listar(),
+    ]).then(([contas, pagamentos, categorias, terceiros]) => {
+      if (montado) setDados({ contas, pagamentos, categorias, terceiros });
     });
     return () => {
       montado = false;
@@ -146,7 +149,7 @@ export function ContasFixas() {
   const mes = mesCurto(competencia);
 
   const criar = async (conta: ContaDoFormulario) => {
-    await repos.contasFixas.criar({ ...conta, ativa: true, rateios: [] });
+    await repos.contasFixas.criar({ ...conta, ativa: true });
     setCriando(false);
     dadosMudaram();
     toast.success(`${conta.descricao} cadastrada`);
@@ -300,6 +303,7 @@ export function ContasFixas() {
                 const { conta } = item;
                 const categoria = dados.categorias.find((c) => c.id === conta.categoriaId);
                 const Icone = iconeDaCategoria(categoria?.icone ?? 'receipt-text');
+                const quem = quemPaga(conta, dados.terceiros);
                 return (
                   <tr key={conta.id} className="h-12 border-b last:border-b-0 hover:bg-soft">
                     <td className="pl-6">
@@ -309,9 +313,9 @@ export function ContasFixas() {
                         </span>
                         <span className="flex min-w-0 flex-col">
                           <span className="truncate font-medium">{conta.descricao}</span>
-                          {categoria && (
+                          {(categoria || quem) && (
                             <span className="truncate text-xs text-ink-muted">
-                              {categoria.nome}
+                              {[categoria?.nome, quem].filter(Boolean).join(' · ')}
                             </span>
                           )}
                         </span>
@@ -413,6 +417,7 @@ export function ContasFixas() {
           </DialogHeader>
           <FormularioDeConta
             categorias={dados.categorias}
+            terceiros={dados.terceiros.filter((t) => t.ativo)}
             inicioPadrao={competencia}
             onSalvar={criar}
             rodape={
@@ -440,6 +445,7 @@ export function ContasFixas() {
           {editando && (
             <FormularioDeConta
               categorias={dados.categorias}
+              terceiros={dados.terceiros.filter((t) => t.ativo)}
               inicial={editando}
               inicioPadrao={competencia}
               onSalvar={(conta) => salvar(editando, conta)}

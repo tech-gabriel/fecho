@@ -211,3 +211,47 @@ describe('A receber', () => {
     expect(await screen.findByText('Ninguém te deve nada neste mês.')).toBeInTheDocument();
   });
 });
+
+describe('Conta fixa dividida em A receber', () => {
+  let bia: number;
+
+  beforeEach(async () => {
+    bia = await repos.terceiros.criar({ nome: 'Bia', cor: '#2563EB', ativo: true });
+    await repos.preferencias.gravar({ chavePix: 'eu@pix' });
+    await repos.contasFixas.criar({
+      descricao: 'Aluguel',
+      categoriaId: null,
+      valorCentavos: 180_000,
+      dia: 25,
+      inicio: '2026-10',
+      ativa: true,
+      rateios: [
+        { terceiroId: null, percentual: 50 },
+        { terceiroId: bia, percentual: 50 },
+      ],
+    });
+  });
+
+  it('mostra a parte da pessoa, cobra com o texto da conta e quita pelo Recebi', async () => {
+    await abrir(`/receber?pessoa=${String(bia)}`);
+
+    expect(await opcao(/Bia.*R\$\s900,00/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Faltam R\$\s900,00 de Bia na conta Aluguel, que vence em 25\/10\./),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar cobrança' }));
+    await waitFor(() => {
+      expect(writeText.mock.calls[0]?.[0].replaceAll(' ', ' ')).toBe(
+        'Oi, Bia! Faltam R$ 900,00 da sua parte da conta Aluguel, que vence em 25/10. Meu Pix: eu@pix',
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Recebi R\$\s900,00$/ }));
+    expect(await opcao(/Bia.*Pago/)).toBeInTheDocument();
+    const deposito = (await repos.receber.movimentos()).find((m) => m.tipo === 'deposito');
+    expect(deposito?.abatimentos).toEqual([
+      { contaFixaId: expect.any(Number) as number, competencia: '2026-10', valor: 90_000 },
+    ]);
+  });
+});
