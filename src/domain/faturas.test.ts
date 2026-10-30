@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ordemDaCarteira,
   competenciaDaCompra,
   datasDaFatura,
   linhasPorDono,
@@ -205,5 +206,25 @@ describe('linhas e resumo da fatura', () => {
         [8, 9_000],
       ]),
     });
+  });
+});
+
+describe('ordemDaCarteira', () => {
+  it('põe as atrasadas primeiro, depois as pendentes e as pagas no fim, cada grupo por vencimento', () => {
+    const itens = [
+      { id: 'roxo', status: 'pendente' as const, vencimento: '2026-11-05' },
+      { id: 'paga', status: 'paga' as const, vencimento: '2026-10-01' },
+      { id: 'azul', status: 'atrasada' as const, vencimento: '2026-10-10' },
+      { id: 'verde', status: 'atrasada' as const, vencimento: '2026-10-05' },
+      { id: 'grafite', status: 'pendente' as const, vencimento: '2026-10-30' },
+    ];
+
+    expect(ordemDaCarteira(itens).map((i) => i.id)).toEqual([
+      'verde',
+      'azul',
+      'grafite',
+      'roxo',
+      'paga',
+    ]);
   });
 });

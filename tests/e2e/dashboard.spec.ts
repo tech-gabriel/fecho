@@ -4,7 +4,7 @@ test('mostra o caixa do mês, cadastra renda e reage a uma compra nova', async (
   await page.clock.setFixedTime(new Date(2026, 9, 20, 10));
   await page.goto('/');
   const caixa = page.getByRole('region', { name: 'Preciso ter em caixa' });
-  await expect(caixa).toContainText('para pagar as 3 faturas abertas e 2 contas de Outubro');
+  await expect(caixa).toContainText('em 3 faturas e R$ 570,00 em 2 contas.');
 
   const renda = page.getByRole('main').getByRole('button', { name: /Renda/ });
   await expect(renda).toContainText('R$ 7.200,00');
@@ -16,7 +16,7 @@ test('mostra o caixa do mês, cadastra renda e reage a uma compra nova', async (
   await dialog.getByRole('button', { name: 'Adicionar' }).click();
   await expect(dialog).toContainText('R$ 8.000,00');
   await page.keyboard.press('Escape');
-  await expect(renda).toContainText('Salário + Freela + Bônus');
+  await expect(renda).toContainText('R$ 8.000,00');
 
   await page.keyboard.press('Control+n');
   const nova = page.getByRole('dialog', { name: 'Nova compra' });
@@ -25,6 +25,6 @@ test('mostra o caixa do mês, cadastra renda e reage a uma compra nova', async (
   await nova.getByLabel('Descrição').press('Enter');
   await expect(nova).toBeHidden();
   await expect(page.getByRole('main').getByRole('link', { name: /Meus gastos/ })).toContainText(
-    'cartões, contas e empréstimos',
+    'da renda',
   );
 });

@@ -103,29 +103,86 @@ afterEach(() => {
 });
 
 describe('Dashboard', () => {
-  it('mostra quanto ter em caixa, os KPIs e de quem é cada parte', async () => {
+  it('mostra quanto ter em caixa, de onde vem e os três números do mês', async () => {
     await abrir();
 
     await screen.findByText('Preciso ter em caixa');
-    expect(caixa()).toHaveTextContent('R$ 1.503,80');
     expect(caixa()).toHaveTextContent('até 05/11');
-    expect(caixa()).toHaveTextContent('para pagar as 2 faturas abertas de Outubro');
-    expect(caixa()).toHaveTextContent(
-      '0% · R$ 0,00 de R$ 428,25 já depositados · faltam R$ 428,25',
-    );
-    expect(screen.getByRole('button', { name: /Renda/ })).toHaveTextContent(
-      'R$ 7.200,00Salário + Freela',
-    );
-    expect(kpi(/Meus gastos/)).toHaveTextContent(
-      'R$ 1.075,5515% da renda · cartões, contas e empréstimos',
-    );
+    expect(caixa()).toHaveTextContent('R$ 1.503,80');
+    expect(caixa()).toHaveTextContent('R$ 1.503,80 em 2 faturas.');
+    expect(caixa()).toHaveTextContent('R$ 428,25 voltam de Ana.');
+    expect(screen.getByRole('button', { name: /Renda/ })).toHaveTextContent('R$ 7.200,00');
+    expect(kpi(/Meus gastos/)).toHaveTextContent('R$ 1.075,55');
+    expect(kpi(/Meus gastos/)).toHaveTextContent('15% da renda');
     expect(kpi(/Meus gastos/)).toHaveAttribute('href', '/lancamentos?ver=meu');
     expect(kpi(/Saldo real/)).toHaveTextContent('R$ 6.124,45');
-    expect(kpi(/A receber/)).toHaveTextContent('R$ 428,25Ana');
-    expect(kpi(/A receber/)).toHaveAttribute('href', '/receber');
+    expect(kpi(/voltam de Ana/)).toHaveAttribute('href', '/receber');
   });
 
-  it('mostra a renda comprometida e os próximos vencimentos', async () => {
+  it('mostra cada fatura na carteira, atrasada primeiro, com o seu e o de cada pessoa', async () => {
+    await abrir();
+
+    const carteira = await screen.findByRole('list', { name: 'Faturas por cartão' });
+    const itens = within(carteira).getAllByRole('listitem');
+    expect(itens.map((i) => i.getAttribute('aria-label'))).toEqual(['Cartão Azul', 'Cartão Roxo']);
+    expect(itens[0]).toHaveTextContent('Atrasada');
+    expect(itens[0]).toHaveTextContent('Tudo seu');
+    expect(itens[1]).toHaveTextContent(/Seu R\$\s595,55/);
+    expect(itens[1]).toHaveTextContent(/Ana R\$\s428,25/);
+    expect(
+      within(itens[1] as HTMLElement).getByRole('link', { name: /Ver fatura do Cartão Roxo/ }),
+    ).toHaveAttribute('href', `/faturas?cartao=${String(ids.roxo)}`);
+  });
+
+  it('marca a fatura como paga na carteira, com Desfazer', async () => {
+    await abrir();
+
+    const carteira = await screen.findByRole('list', { name: 'Faturas por cartão' });
+    const azul = within(carteira).getByRole('listitem', { name: 'Cartão Azul' });
+    fireEvent.click(within(azul).getByRole('button', { name: 'Marcar paga' }));
+
+    await waitFor(async () => {
+      expect(await repos.faturas.pagamentos()).toEqual([
+        expect.objectContaining({ cartaoId: ids.azul, valorPagoCentavos: 48_000 }),
+      ]);
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
+    await waitFor(async () => {
+      expect(await repos.faturas.pagamentos()).toEqual([]);
+    });
+  });
+
+  it('cobra a pessoa direto do cartão', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    await abrir();
+
+    const carteira = await screen.findByRole('list', { name: 'Faturas por cartão' });
+    const roxo = within(carteira).getByRole('listitem', { name: 'Cartão Roxo' });
+    fireEvent.click(within(roxo).getByRole('button', { name: 'Cobrar Ana' }));
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Cartão Roxo'));
+    });
+  });
+
+  it('lista os cartões sem compra no mês numa linha só', async () => {
+    await repos.cartoes.criar({
+      nome: 'Cartão Rosa',
+      diaFechamento: 20,
+      diaVencimento: 28,
+      limiteCentavos: 0,
+      cor: '#EC4899',
+      ativo: true,
+    });
+    await abrir();
+
+    expect(await screen.findByText(/Sem fatura em Outubro:/)).toHaveTextContent(
+      'Sem fatura em Outubro: Cartão Rosa',
+    );
+  });
+
+  it('a renda comprometida continua no fim', async () => {
     await abrir();
 
     const tabela = await screen.findByRole('table', {
@@ -133,16 +190,6 @@ describe('Dashboard', () => {
     });
     expect(within(tabela).getByRole('row', { name: /Novembro 2026/ })).toHaveTextContent(
       'R$ 588,25R$ 0,00R$ 0,00R$ 0,009%',
-    );
-    const vencimentos = screen.getByRole('region', { name: 'Próximos vencimentos' });
-    expect(
-      within(vencimentos)
-        .getAllByRole('listitem')
-        .map((l) => l.textContent),
-    ).toEqual([expect.stringContaining('Cartão Azul'), expect.stringContaining('Cartão Roxo')]);
-    expect(within(vencimentos).getAllByRole('listitem')[0]).toHaveTextContent('Atrasada');
-    expect(within(vencimentos).getByRole('status')).toHaveTextContent(
-      'Faltam R$ 428,25 de Ana para fechar a fatura do Cartão Roxo',
     );
   });
 
@@ -170,23 +217,6 @@ describe('Dashboard', () => {
     );
   });
 
-  it('Recebi no alerta registra o depósito e completa a barra do reembolso', async () => {
-    await abrir();
-
-    const vencimentos = await screen.findByRole('region', { name: 'Próximos vencimentos' });
-    fireEvent.click(within(vencimentos).getByRole('button', { name: 'Recebi' }));
-
-    expect(await screen.findByText('Depósito de R$ 428,25 registrado')).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByRole('progressbar', { name: 'Reembolso já depositado' })).toHaveAttribute(
-        'aria-valuenow',
-        '100',
-      );
-    });
-    expect(within(vencimentos).queryByRole('status')).not.toBeInTheDocument();
-    expect(kpi(/A receber/)).toHaveTextContent('Ninguém te deve nada neste mês');
-  });
-
   it('com as faturas pagas não há nada a separar', async () => {
     for (const [cartaoId, valor] of [
       [ids.roxo, 102_380],
@@ -203,7 +233,7 @@ describe('Dashboard', () => {
 
     await screen.findByText('Preciso ter em caixa');
     expect(caixa()).toHaveTextContent('R$ 0,00');
-    expect(caixa()).toHaveTextContent('Faturas de Outubro pagas');
+    expect(caixa()).toHaveTextContent('Tudo de Outubro pago.');
   });
 
   it('saldo negativo aparece com sinal de menos', async () => {
@@ -302,18 +332,18 @@ describe('Contas fixas no Dashboard', () => {
 
     await screen.findByText('Preciso ter em caixa');
     expect(caixa()).toHaveTextContent('R$ 3.303,80');
-    expect(caixa()).toHaveTextContent('para pagar as 2 faturas abertas e 1 conta de Outubro');
+    expect(caixa()).toHaveTextContent('R$ 1.503,80 em 2 faturas e R$ 1.800,00 em 1 conta.');
     expect(kpi(/Meus gastos/)).toHaveTextContent('R$ 2.875,55');
     expect(kpi(/Saldo real/)).toHaveTextContent('R$ 4.324,45');
   });
 
-  it('lista a conta em próximos vencimentos e marca como paga', async () => {
+  it('mostra a conta em Fora do cartão e marca como paga', async () => {
     await abrir();
 
-    const proximos = await screen.findByRole('region', { name: 'Próximos vencimentos' });
-    const aluguel = await within(proximos).findByRole('listitem', { name: /Aluguel/ });
-    expect(aluguel).toHaveTextContent('Atrasada');
-    fireEvent.click(within(aluguel).getByRole('button', { name: 'Marcar paga' }));
+    const fora = await screen.findByRole('region', { name: 'Fora do cartão' });
+    const aluguel = await within(fora).findByRole('listitem', { name: /Aluguel/ });
+    expect(aluguel).toHaveTextContent('Venceu 10/10');
+    fireEvent.click(within(aluguel).getByRole('button', { name: 'Marcar Aluguel como paga' }));
 
     await waitFor(async () => {
       expect(await repos.contasFixas.pagamentos()).toEqual([

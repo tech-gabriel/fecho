@@ -137,3 +137,14 @@ export function resumoDaFatura(linhas: readonly LinhaDaFatura[]): {
   const total = meu + [...porTerceiro.values()].reduce((a, b) => a + b, 0);
   return { total, meu, porTerceiro };
 }
+
+const PRIORIDADE: Record<StatusDaFatura, number> = { atrasada: 0, pendente: 1, paga: 2 };
+
+export function ordemDaCarteira<T extends { status: StatusDaFatura; vencimento: DataLocal }>(
+  itens: readonly T[],
+): T[] {
+  return [...itens].sort(
+    (a, b) =>
+      PRIORIDADE[a.status] - PRIORIDADE[b.status] || a.vencimento.localeCompare(b.vencimento),
+  );
+}
