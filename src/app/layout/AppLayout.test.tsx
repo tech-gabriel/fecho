@@ -40,7 +40,7 @@ describe('layout base', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Principal' });
-    expect(nav.querySelectorAll('a')).toHaveLength(10);
+    expect(nav.querySelectorAll('a')).toHaveLength(11);
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
   });
 

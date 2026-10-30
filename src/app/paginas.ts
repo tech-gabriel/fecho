@@ -11,6 +11,7 @@ import {
   ReceiptText,
   Repeat,
   Settings,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 import { useMatches } from 'react-router';
@@ -56,6 +57,13 @@ export const PAGINAS: Pagina[] = [
     legenda: 'O que você pegou emprestado e ainda está pagando',
   },
   { caminho: '/economias', titulo: 'Economias', rotulo: 'Economias', icone: PiggyBank },
+  {
+    caminho: '/simulador',
+    titulo: 'Simulador',
+    rotulo: 'Simulador',
+    icone: TrendingUp,
+    legenda: 'Quanto seu dinheiro pode render',
+  },
   { caminho: '/calendario', titulo: 'Calendário', rotulo: 'Calendário', icone: CalendarDays },
   {
     caminho: '/relatorio',
