@@ -27,3 +27,19 @@ export async function gerarPlanilha(abas: readonly AbaExportada[]): Promise<Uint
   }
   return new Uint8Array(XLSX.write(livro, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer);
 }
+
+export async function gerarPlanilhaDeValores(abas: readonly AbaExportada[]): Promise<Uint8Array> {
+  const XLSX = await import('xlsx');
+  const livro = XLSX.utils.book_new();
+  for (const aba of abas) {
+    const folha = XLSX.utils.aoa_to_sheet(aba.linhas);
+    for (const [endereco, celula] of Object.entries(folha)) {
+      if (!endereco.startsWith('!') && (celula as { t?: string }).t === 'n') {
+        (celula as { z?: string }).z = '"R$" #,##0.00';
+      }
+    }
+    folha['!cols'] = [{ wch: 24 }, ...Array.from({ length: 13 }, () => ({ wch: 12 }))];
+    XLSX.utils.book_append_sheet(livro, folha, aba.nome);
+  }
+  return new Uint8Array(XLSX.write(livro, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer);
+}
