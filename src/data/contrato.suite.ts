@@ -108,6 +108,21 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         expect(roxo).not.toHaveProperty('bandeira');
       });
 
+      it('guarda e tira o limite mensal da categoria', async () => {
+        const feira = await repos.categorias.criar({
+          nome: 'Feira',
+          icone: 'carrot',
+          limiteCentavos: 50_000,
+          ativo: true,
+        });
+        const lida = async () => (await repos.categorias.listar()).find((c) => c.id === feira);
+        expect(await lida()).toMatchObject({ limiteCentavos: 50_000 });
+
+        await repos.categorias.atualizar(feira, { limiteCentavos: null });
+
+        expect((await lida())?.limiteCentavos ?? null).toBeNull();
+      });
+
       it('categorias e terceiros seguem o mesmo contrato', async () => {
         const feira = await repos.categorias.criar({ nome: 'Feira', icone: 'carrot', ativo: true });
         await repos.categorias.atualizar(feira, { ativo: false });

@@ -16,6 +16,7 @@ import { hojeLocal, useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
 import type {
   Assinatura,
+  Categoria,
   EmprestimoConcedido,
   EmprestimoTomado,
   Cartao,
@@ -30,6 +31,7 @@ import { projecaoDeAssinaturas } from '@/domain/assinaturas';
 import { parcelasTomadasDoMes } from '@/domain/emprestimos';
 import { somarMeses } from '@/domain/competencia';
 import { linhasPorDono, resumoDaFatura } from '@/domain/faturas';
+import { situacaoDoOrcamento } from '@/domain/orcamento';
 import { receitasDoMes, rendaComprometida, resumoDoMes } from '@/domain/resumo';
 import { montarFaturas } from '@/features/faturas/Faturas';
 import { dataCurta } from '@/features/faturas/ListaDeCartoes';
@@ -38,6 +40,7 @@ import { formatarComSinal, formatarMoeda, nomeDoMes } from '@/lib/formato';
 import { DURACAO, MOVIMENTO, gsap, useGSAP } from '@/lib/gsap';
 import { DialogRenda } from './DialogRenda';
 import { GraficoComprometida } from './GraficoComprometida';
+import { Orcamento } from './Orcamento';
 import { ProximosVencimentos } from './ProximosVencimentos';
 import { useContagem } from './useContagem';
 
@@ -55,6 +58,7 @@ interface Dados {
   geradas: string[];
   tomados: EmprestimoTomado[];
   concedidos: EmprestimoConcedido[];
+  categorias: Categoria[];
 }
 
 const MESES_DO_GRAFICO = 6;
@@ -135,6 +139,7 @@ export function Dashboard() {
       repos.assinaturas.geradas(),
       repos.emprestimos.tomados.listar(),
       repos.emprestimos.concedidos.listar(),
+      repos.categorias.listar(),
     ]).then(
       ([
         cartoes,
@@ -150,6 +155,7 @@ export function Dashboard() {
         geradas,
         tomados,
         concedidos,
+        categorias,
       ]) => {
         if (montado) {
           setDados({
@@ -166,6 +172,7 @@ export function Dashboard() {
             geradas,
             tomados,
             concedidos,
+            categorias,
           });
         }
       },
@@ -424,6 +431,14 @@ export function Dashboard() {
             hoje={hoje}
           />
         </div>
+      </div>
+
+      <div className="cartao-do-dashboard">
+        <Orcamento
+          competencia={competencia}
+          categorias={dados.categorias}
+          situacoes={situacaoDoOrcamento(dados.categorias, dados.parcelas)}
+        />
       </div>
 
       <DialogRenda

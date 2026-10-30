@@ -11,10 +11,11 @@ export function textoDoAlerta(
     cartao: string;
     terceiro: string | undefined;
     assinatura?: string | undefined;
+    categoria?: string | undefined;
     emprestimo?: { descricao: string; numParcelas: number } | undefined;
   },
 ): string {
-  const { cartao, terceiro, assinatura, emprestimo } = nomes;
+  const { cartao, terceiro, assinatura, emprestimo, categoria } = nomes;
   switch (alerta.tipo) {
     case 'reembolso':
       return `Faltam ${formatarMoeda(alerta.valor ?? 0)} de ${terceiro ?? ''} para fechar a fatura do ${cartao}`;
@@ -44,6 +45,15 @@ export function textoDoAlerta(
             ? 'amanhã'
             : `em ${String(alerta.dias)} dias`;
       return `${mes} fecha ${quando}. Que tal começar a conferir as faturas?`;
+    }
+    case 'orcamento': {
+      const mes = nomeDoMes(alerta.competencia).split(' ')[0] ?? '';
+      const gasto = alerta.valor ?? 0;
+      const limite = alerta.limite ?? 1;
+      const valores = `${formatarMoeda(gasto)} de ${formatarMoeda(limite)}`;
+      return gasto > limite
+        ? `${categoria ?? ''} passou do limite de ${mes}: ${valores}`
+        : `${categoria ?? ''} chegou a ${String(Math.floor((gasto * 100) / limite))}% do limite de ${mes}: ${valores}`;
     }
     case 'atraso':
       return `A fatura do ${cartao} está atrasada há ${String(-alerta.dias)} ${alerta.dias === -1 ? 'dia' : 'dias'}`;

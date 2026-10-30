@@ -694,13 +694,14 @@ export function criarRepositoriosSqlite(
     categorias: cadastroSqlite<Categoria>(banco, {
       entidade: 'Categoria',
       tabela: 'categorias',
-      colunas: { nome: 'nome', icone: 'icone', ativo: 'ativo' },
+      colunas: { nome: 'nome', icone: 'icone', limiteCentavos: 'limite_centavos', ativo: 'ativo' },
       usoSql: 'SELECT 1 FROM compras WHERE categoria_id = ?',
-      gravar: { ativo: booleano },
+      gravar: { ativo: booleano, limiteCentavos: ouNulo },
       ler: (l) => ({
         id: numero(l.id),
         nome: String(l.nome),
         icone: String(l.icone),
+        ...(l.limite_centavos === null ? {} : { limiteCentavos: numero(l.limite_centavos) }),
         ativo: Boolean(l.ativo),
       }),
     }),

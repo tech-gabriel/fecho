@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type ComponentProps } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
@@ -245,23 +245,27 @@ export function FormCartao({ idForm, inicial, onEnviar }: PropsDoFormulario<Cart
         erro={errors.limite?.message}
         dica="Opcional. Serve para mostrar quanto do limite você já usou."
       >
-        <div className="relative">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-ink-muted"
-          >
-            R$
-          </span>
-          <Input
-            {...atributosDeErro(`${id}-limite`, errors.limite?.message)}
-            inputMode="decimal"
-            placeholder="5.000,00"
-            className="pl-9 tabular-nums"
-            {...register('limite')}
-          />
-        </div>
+        <EntradaEmReais
+          {...atributosDeErro(`${id}-limite`, errors.limite?.message)}
+          placeholder="5.000,00"
+          {...register('limite')}
+        />
       </Campo>
     </form>
+  );
+}
+
+function EntradaEmReais(props: ComponentProps<typeof Input>) {
+  return (
+    <div className="relative">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-ink-muted"
+      >
+        R$
+      </span>
+      <Input inputMode="decimal" className="pl-9 tabular-nums" {...props} />
+    </div>
   );
 }
 
@@ -308,7 +312,7 @@ export function FormPessoa({ idForm, inicial, onEnviar }: PropsDoFormulario<Terc
   );
 }
 
-const esquemaCategoria = z.object({ nome, icone: z.string() });
+const esquemaCategoria = z.object({ nome, icone: z.string(), limite: reais });
 
 export function FormCategoria({ idForm, inicial, onEnviar }: PropsDoFormulario<Categoria>) {
   const id = useId();
@@ -318,7 +322,11 @@ export function FormCategoria({ idForm, inicial, onEnviar }: PropsDoFormulario<C
     formState: { errors },
   } = useForm({
     resolver: zodResolver(esquemaCategoria),
-    defaultValues: { nome: inicial?.nome ?? '', icone: inicial?.icone ?? 'tag' },
+    defaultValues: {
+      nome: inicial?.nome ?? '',
+      icone: inicial?.icone ?? 'tag',
+      limite: inicial?.limiteCentavos ? formatarDecimal(inicial.limiteCentavos) : '',
+    },
   });
 
   return (
@@ -327,8 +335,16 @@ export function FormCategoria({ idForm, inicial, onEnviar }: PropsDoFormulario<C
       noValidate
       className="flex flex-col gap-4"
       onSubmit={(e) =>
-        void handleSubmit((dados) => {
-          onEnviar({ ...dados, ativo: inicial?.ativo ?? true });
+        void handleSubmit(({ limite, ...dados }) => {
+          onEnviar({
+            ...dados,
+            ...(limite
+              ? { limiteCentavos: limite }
+              : inicial?.limiteCentavos
+                ? { limiteCentavos: null }
+                : {}),
+            ativo: inicial?.ativo ?? true,
+          });
         })(e)
       }
     >
@@ -337,6 +353,19 @@ export function FormCategoria({ idForm, inicial, onEnviar }: PropsDoFormulario<C
           {...atributosDeErro(`${id}-nome`, errors.nome?.message)}
           placeholder="Mercado"
           {...register('nome')}
+        />
+      </Campo>
+
+      <Campo
+        id={`${id}-limite`}
+        rotulo="Limite por mês"
+        erro={errors.limite?.message}
+        dica="Opcional. Conta só a sua parte das compras, e avisa em 80% e 100%."
+      >
+        <EntradaEmReais
+          {...atributosDeErro(`${id}-limite`, errors.limite?.message)}
+          placeholder="500,00"
+          {...register('limite')}
         />
       </Campo>
 

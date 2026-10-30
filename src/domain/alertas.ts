@@ -19,7 +19,8 @@ export type TipoDeAlerta =
   | 'assinatura'
   | 'devolucao'
   | 'parcela-emprestimo'
-  | 'fechar-mes';
+  | 'fechar-mes'
+  | 'orcamento';
 
 export interface EmprestimosParaAlerta {
   devolucoes: readonly {
@@ -60,8 +61,10 @@ export interface Alerta {
   terceiroId?: number;
   assinaturaId?: number;
   emprestimoId?: number;
+  categoriaId?: number;
   numero?: number;
   valor?: Centavos;
+  limite?: Centavos;
   data: DataLocal;
   dias: number;
   idade: number;

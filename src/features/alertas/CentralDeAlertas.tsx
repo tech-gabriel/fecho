@@ -10,6 +10,7 @@ import {
   HandCoins,
   Landmark,
   Lock,
+  PiggyBank,
   Repeat,
   TriangleAlert,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ const VISUAL: Record<TipoDeAlerta, { icone: typeof Bell; classe: string }> = {
   devolucao: { icone: HandCoins, classe: 'bg-danger-bg text-danger-text' },
   'parcela-emprestimo': { icone: Landmark, classe: 'bg-warning-bg text-warning-text' },
   'fechar-mes': { icone: Lock, classe: 'bg-brand-subtle text-brand-text' },
+  orcamento: { icone: PiggyBank, classe: 'bg-warning-bg text-warning-text' },
 };
 
 const GRUPOS: GrupoDeAlerta[] = ['Hoje', 'Esta semana', 'Antes'];
@@ -54,6 +56,11 @@ export function CentralDeAlertas() {
     setAberta(false);
     if (alerta.tipo === 'fechar-mes') {
       void navigate(`/fechar/${alerta.competencia}`);
+      return;
+    }
+    if (alerta.tipo === 'orcamento') {
+      irParaCompetencia(alerta.competencia);
+      void navigate('/');
       return;
     }
     if (alerta.tipo === 'assinatura' || alerta.tipo === 'parcela-emprestimo') {
@@ -211,7 +218,10 @@ function ItemDoAlerta({
   onCobrar: (alerta: AlertaNaTela) => void;
   onMarcarPaga: (alerta: AlertaNaTela) => void;
 }) {
-  const { icone: Icone, classe } = VISUAL[alerta.tipo];
+  const { icone: Icone } = VISUAL[alerta.tipo];
+  const classe = alerta.chave.endsWith(':100')
+    ? 'bg-danger-bg text-danger-text'
+    : VISUAL[alerta.tipo].classe;
   return (
     <li className="relative flex items-start gap-3 rounded-md px-2 py-2 hover:bg-soft">
       <span className={cn('flex size-8 flex-none items-center justify-center rounded-md', classe)}>

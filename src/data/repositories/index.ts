@@ -70,6 +70,7 @@ export interface Categoria {
   id: number;
   nome: string;
   icone: string;
+  limiteCentavos?: Centavos | null;
   ativo: boolean;
 }
 
