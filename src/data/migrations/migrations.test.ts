@@ -25,6 +25,8 @@ describe('migrations', () => {
       'categorias',
       'compras',
       'conferencias',
+      'contas_fixas',
+      'contas_fixas_pagamentos',
       'economia_metas',
       'economia_movimentos',
       'economia_objetivos',

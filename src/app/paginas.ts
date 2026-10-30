@@ -8,6 +8,7 @@ import {
   List,
   Lock,
   PiggyBank,
+  ReceiptText,
   Repeat,
   Settings,
   TrendingUp,
@@ -42,6 +43,13 @@ export const PAGINAS: Pagina[] = [
     legenda: 'Tudo o que se repete todo mês',
   },
   {
+    caminho: '/contas',
+    titulo: 'Contas fixas',
+    rotulo: 'Contas fixas',
+    icone: ReceiptText,
+    legenda: 'O que você paga todo mês fora do cartão',
+  },
+  {
     caminho: '/emprestimos',
     titulo: 'Meus empréstimos',
     rotulo: 'Empréstimos',
@@ -62,7 +70,7 @@ export const PAGINAS: Pagina[] = [
     titulo: 'Relatório',
     rotulo: 'Relatório',
     icone: ChartColumn,
-    legenda: 'Seus gastos no cartão, mês a mês',
+    legenda: 'Seus gastos no cartão e nas contas fixas, mês a mês',
   },
 ];
 

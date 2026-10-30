@@ -11,12 +11,15 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { cn } from 'cn';
+import { toast } from 'sonner';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
 import type {
   Assinatura,
   Categoria,
+  ContaFixa,
+  PagamentoDeConta,
   EmprestimoConcedido,
   EmprestimoTomado,
   Cartao,
@@ -31,6 +34,13 @@ import { projecaoDeAssinaturas } from '@/domain/assinaturas';
 import { parcelasTomadasDoMes } from '@/domain/emprestimos';
 import { somarMeses } from '@/domain/competencia';
 import { linhasPorDono, resumoDaFatura } from '@/domain/faturas';
+import {
+  contasDoMes,
+  contasParaResumo,
+  minhaParteDasContas,
+  type ContaDoMes,
+} from '@/domain/contasFixas';
+import { executar } from '@/features/cadastros/SecaoCadastro';
 import { situacaoDoOrcamento } from '@/domain/orcamento';
 import { receitasDoMes, rendaComprometida, resumoDoMes } from '@/domain/resumo';
 import { montarFaturas } from '@/features/faturas/Faturas';
@@ -59,6 +69,8 @@ interface Dados {
   tomados: EmprestimoTomado[];
   concedidos: EmprestimoConcedido[];
   categorias: Categoria[];
+  contas: ContaFixa[];
+  pagamentosDeConta: PagamentoDeConta[];
 }
 
 const MESES_DO_GRAFICO = 6;
@@ -140,6 +152,8 @@ export function Dashboard() {
       repos.emprestimos.tomados.listar(),
       repos.emprestimos.concedidos.listar(),
       repos.categorias.listar(),
+      repos.contasFixas.listar(),
+      repos.contasFixas.pagamentos(),
     ]).then(
       ([
         cartoes,
@@ -156,6 +170,8 @@ export function Dashboard() {
         tomados,
         concedidos,
         categorias,
+        contas,
+        pagamentosDeConta,
       ]) => {
         if (montado) {
           setDados({
@@ -173,6 +189,8 @@ export function Dashboard() {
             tomados,
             concedidos,
             categorias,
+            contas,
+            pagamentosDeConta,
           });
         }
       },
@@ -211,6 +229,7 @@ export function Dashboard() {
 
   const faturas = montarFaturas(dados, competencia, hoje);
   const receitas = receitasDoMes(dados.receitas, competencia);
+  const contasDoMesAtual = contasDoMes(dados.contas, dados.pagamentosDeConta, competencia, hoje);
   const resumo = resumoDoMes({
     receitas: receitas.map((r) => r.valorCentavos),
     linhas: linhasPorDono(dados.parcelas),
@@ -220,6 +239,7 @@ export function Dashboard() {
       paga: f.pagamento !== undefined,
     })),
     parcelasEmprestimos: parcelasTomadasDoMes(dados.tomados, competencia),
+    contas: contasParaResumo(contasDoMesAtual),
   });
   const comprometida = rendaComprometida(
     dados.futuras.map((parcelas, i) => {
@@ -233,6 +253,7 @@ export function Dashboard() {
           new Set(dados.geradas),
           dados.cartoes,
         ),
+        contas: minhaParteDasContas(contasDoMes(dados.contas, dados.pagamentosDeConta, mes, hoje)),
         emprestimos: parcelasTomadasDoMes(dados.tomados, mes),
         renda: receitasDoMes(dados.receitas, mes).reduce((s, r) => s + r.valorCentavos, 0),
       };
@@ -249,12 +270,24 @@ export function Dashboard() {
     resumo.deTerceiros > 0 ? Math.round((depositadoDoMes / resumo.deTerceiros) * 100) : 0;
   const devedores = situacoes.filter((s) => s.falta > 0);
   const aReceber = devedores.reduce((soma, s) => soma + s.falta, 0);
-  const temFaturas = faturas.some((f) => f.resumo.total > 0);
+  const temFaturas = faturas.some((f) => f.resumo.total > 0) || contasDoMesAtual.length > 0;
+  const pagar = [
+    resumo.faturasAbertas === 0
+      ? null
+      : resumo.faturasAbertas === 1
+        ? 'a fatura aberta'
+        : `as ${String(resumo.faturasAbertas)} faturas abertas`,
+    resumo.contasAbertas === 0
+      ? null
+      : `${String(resumo.contasAbertas)} ${resumo.contasAbertas === 1 ? 'conta' : 'contas'}`,
+  ].filter(Boolean);
   const legendaDoCaixa = !temFaturas
     ? `Nenhuma fatura em ${mes}`
-    : resumo.faturasAbertas === 0
-      ? `Faturas de ${mes} pagas`
-      : `para pagar ${resumo.faturasAbertas === 1 ? 'a fatura aberta' : `as ${resumo.faturasAbertas} faturas abertas`} de ${mes}`;
+    : pagar.length === 0
+      ? contasDoMesAtual.length > 0
+        ? `Tudo de ${mes} pago`
+        : `Faturas de ${mes} pagas`
+      : `para pagar ${pagar.join(' e ')} de ${mes}`;
 
   if (!temFaturas && receitas.length === 0) {
     return (
@@ -292,6 +325,27 @@ export function Dashboard() {
       </div>
     );
   }
+
+  const pagarConta = (item: ContaDoMes) =>
+    executar(async () => {
+      await repos.contasFixas.marcarPaga({
+        contaId: item.conta.id,
+        competencia: item.competencia,
+        valorCentavos: item.valor,
+        pagoEm: hoje,
+      });
+      dadosMudaram();
+      toast.success(`${item.conta.descricao} marcada como paga`, {
+        action: {
+          label: 'Desfazer',
+          onClick: () =>
+            void executar(async () => {
+              await repos.contasFixas.desmarcar(item.conta.id, item.competencia);
+              dadosMudaram();
+            }),
+        },
+      });
+    });
 
   const link = (para: string) => (conteudo: ReactNode, classe: string) => (
     <Link to={para} className={classe}>
@@ -387,8 +441,8 @@ export function Dashboard() {
             centavos={resumo.meusGastos}
             legenda={
               resumo.renda > 0
-                ? `${Math.round((resumo.meusGastos / resumo.renda) * 100)}% da renda · cartões e empréstimos`
-                : 'cartões e empréstimos'
+                ? `${Math.round((resumo.meusGastos / resumo.renda) * 100)}% da renda · cartões, contas e empréstimos`
+                : 'cartões, contas e empréstimos'
             }
             envolver={link('/lancamentos?ver=meu')}
           />
@@ -425,6 +479,8 @@ export function Dashboard() {
         </div>
         <div className="cartao-do-dashboard">
           <ProximosVencimentos
+            contas={contasDoMesAtual.filter((i) => !i.pagamento)}
+            onPagarConta={(item) => void pagarConta(item)}
             faturas={faturas}
             situacoes={situacoes}
             preferencias={dados.preferencias}

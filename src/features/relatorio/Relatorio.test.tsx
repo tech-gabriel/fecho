@@ -84,6 +84,22 @@ describe('Relatório do ano', () => {
     expect(screen.getByText('Total do ano').parentElement).toHaveTextContent(/R\$\s300,00/);
   });
 
+  it('soma as contas fixas até o mês de hoje', async () => {
+    const [mercado] = await repos.categorias.listar();
+    await repos.contasFixas.criar({
+      descricao: 'Feira do mês',
+      categoriaId: mercado?.id ?? null,
+      valorCentavos: 5_000,
+      dia: 5,
+      inicio: '2026-09',
+      ativa: true,
+      rateios: [],
+    });
+    await abrir();
+
+    expect(await linha('Mercado')).toHaveTextContent(/R\$\s400,00$/);
+  });
+
   it('troca para Todos e para Terceiros', async () => {
     await abrir();
     await linha('Mercado');

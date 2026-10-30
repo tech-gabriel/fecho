@@ -3,12 +3,13 @@ import { ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
 import { useRepositorios } from '@/app/repositorios';
-import { useApp } from '@/app/store';
+import { hojeLocal, useApp } from '@/app/store';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { Categoria, ParcelaDoMes } from '@/data';
 import { salvarPlanilha } from '@/data/backup';
 import type { Competencia } from '@/domain/competencia';
+import { contasComoGastos } from '@/domain/contasFixas';
 import {
   abasDoRelatorio,
   MESES_CURTOS,
@@ -50,7 +51,10 @@ const compacto = new Intl.NumberFormat('pt-BR', {
 
 interface Dados {
   ano: number;
-  meses: { competencia: Competencia; parcelas: ParcelaDoMes[] }[];
+  meses: {
+    competencia: Competencia;
+    parcelas: Pick<ParcelaDoMes, 'categoriaId' | 'valorCentavos' | 'rateios'>[];
+  }[];
   categorias: Categoria[];
 }
 
@@ -90,11 +94,17 @@ export function Relatorio() {
     void Promise.all([
       Promise.all(competencias.map((c) => repos.compras.parcelasDaCompetencia(c))),
       repos.categorias.listar(),
-    ]).then(([parcelas, categorias]) => {
+      repos.contasFixas.listar(),
+      repos.contasFixas.pagamentos(),
+    ]).then(([parcelas, categorias, contas, pagamentos]) => {
+      const hoje = hojeLocal();
       if (!montado) return;
       setDados({
         ano,
-        meses: competencias.map((c, i) => ({ competencia: c, parcelas: parcelas[i] ?? [] })),
+        meses: competencias.map((c, i) => ({
+          competencia: c,
+          parcelas: [...(parcelas[i] ?? []), ...contasComoGastos(contas, pagamentos, c, hoje)],
+        })),
         categorias,
       });
     });

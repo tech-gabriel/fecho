@@ -9,6 +9,7 @@ import { Calendario } from '@/features/calendario/Calendario';
 import { Economias } from '@/features/economias/Economias';
 import { FecharMes } from '@/features/fechamento/FecharMes';
 import { Emprestimos } from '@/features/emprestimos/Emprestimos';
+import { ContasFixas } from '@/features/contas/ContasFixas';
 import { Simulador } from '@/features/simulador/Simulador';
 import { Relatorio } from '@/features/relatorio/Relatorio';
 import { EmBreve } from './EmBreve';
@@ -23,6 +24,7 @@ const TELAS: Record<string, () => React.ReactNode> = {
   '/lancamentos': Lancamentos,
   '/receber': AReceber,
   '/assinaturas': Assinaturas,
+  '/contas': ContasFixas,
   '/calendario': Calendario,
   '/emprestimos': Emprestimos,
   '/economias': Economias,

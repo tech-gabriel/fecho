@@ -108,6 +108,51 @@ export function contratoDosRepositorios(nome: string, criar: () => Promise<Repos
         expect(roxo).not.toHaveProperty('bandeira');
       });
 
+      it('cadastra conta fixa e marca, corrige e desmarca o pagamento do mês', async () => {
+        const aluguel = await repos.contasFixas.criar({
+          descricao: 'Aluguel',
+          categoriaId: null,
+          valorCentavos: 180_000,
+          dia: 10,
+          inicio: '2026-10',
+          ativa: true,
+          rateios: [
+            { terceiroId: null, percentual: 50 },
+            { terceiroId: ana, percentual: 50 },
+          ],
+        });
+        expect(await repos.contasFixas.listar()).toEqual([
+          expect.objectContaining({
+            id: aluguel,
+            descricao: 'Aluguel',
+            rateios: [
+              { terceiroId: null, percentual: 50 },
+              { terceiroId: ana, percentual: 50 },
+            ],
+          }),
+        ]);
+        expect(await repos.contasFixas.possuiCompras(aluguel)).toBe(false);
+
+        const pagamento = {
+          contaId: aluguel,
+          competencia: '2026-10',
+          valorCentavos: 180_000,
+          pagoEm: '2026-10-09',
+        };
+        await repos.contasFixas.marcarPaga(pagamento);
+        await repos.contasFixas.marcarPaga({ ...pagamento, valorCentavos: 182_500 });
+        expect(await repos.contasFixas.pagamentos()).toEqual([
+          { ...pagamento, valorCentavos: 182_500 },
+        ]);
+        expect(await repos.contasFixas.possuiCompras(aluguel)).toBe(true);
+
+        await repos.contasFixas.desmarcar(aluguel, '2026-10');
+        expect(await repos.contasFixas.pagamentos()).toEqual([]);
+        await expect(
+          repos.contasFixas.marcarPaga({ ...pagamento, contaId: 999 }),
+        ).rejects.toThrow();
+      });
+
       it('guarda e tira o limite mensal da categoria', async () => {
         const feira = await repos.categorias.criar({
           nome: 'Feira',

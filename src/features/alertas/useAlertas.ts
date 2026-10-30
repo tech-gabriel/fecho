@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRepositorios } from '@/app/repositorios';
 import { hojeLocal, useApp } from '@/app/store';
-import type { Assinatura, Cartao, Categoria, Preferencias, Terceiro } from '@/data';
+import type {
+  Assinatura,
+  Cartao,
+  Categoria,
+  ContaFixa,
+  PagamentoDeConta,
+  Preferencias,
+  Terceiro,
+} from '@/data';
 import { alertasDoDia, type Alerta } from '@/domain/alertas';
 import { competenciaDe, somarMeses, type DataLocal } from '@/domain/competencia';
+import { alertasDeContas } from '@/domain/contasFixas';
 import { alertasDeOrcamento, situacaoDoOrcamento } from '@/domain/orcamento';
 import {
   carregarFaturas,
@@ -22,6 +31,8 @@ interface Dados extends FaturasCarregadas {
   preferencias: Preferencias;
   assinaturas: Assinatura[];
   categorias: Categoria[];
+  contas: ContaFixa[];
+  pagamentosDeConta: PagamentoDeConta[];
   fechados: string[];
 }
 
@@ -29,6 +40,7 @@ export interface AlertaNaTela extends Alerta {
   texto: string;
   cartao: Cartao | undefined;
   terceiro: Terceiro | undefined;
+  conta: ContaFixa | undefined;
   lido: boolean;
 }
 
@@ -49,8 +61,12 @@ function calcular(dados: Dados, hoje: DataLocal): AlertaNaTela[] {
           hoje,
         ),
       );
+  const deContas = alertasDesligados.includes('conta-fixa')
+    ? []
+    : alertasDeContas(dados.contas, dados.pagamentosDeConta, hoje);
   return [
     ...deOrcamento,
+    ...deContas,
     ...alertasDoDia(
       faturas,
       dados.cartoes.filter((c) => c.ativo),
@@ -60,29 +76,34 @@ function calcular(dados: Dados, hoje: DataLocal): AlertaNaTela[] {
       emprestimosParaAlerta(dados, hoje),
       new Set(dados.fechados),
     ),
-  ].flatMap((alerta) => {
-    const cartao = dados.cartoes.find((c) => c.id === alerta.cartaoId);
-    if (!cartao && alerta.cartaoId !== 0) return [];
-    const terceiro = dados.terceiros.find((t) => t.id === alerta.terceiroId);
-    const tomado = dados.tomados.find((e) => e.id === alerta.emprestimoId);
-    return [
-      {
-        ...alerta,
-        cartao,
-        terceiro,
-        texto: textoDoAlerta(alerta, {
-          cartao: cartao?.nome ?? '',
-          emprestimo: tomado
-            ? { descricao: tomado.descricao, numParcelas: tomado.numParcelas }
-            : undefined,
-          terceiro: terceiro?.nome,
-          assinatura: dados.assinaturas.find((a) => a.id === alerta.assinaturaId)?.nome,
-          categoria: dados.categorias.find((c) => c.id === alerta.categoriaId)?.nome,
-        }),
-        lido: lidos.has(alerta.chave),
-      },
-    ];
-  });
+  ]
+    .sort((a, b) => a.idade - b.idade)
+    .flatMap((alerta) => {
+      const conta = dados.contas.find((c) => c.id === alerta.contaId);
+      const cartao = dados.cartoes.find((c) => c.id === alerta.cartaoId);
+      if (!cartao && alerta.cartaoId !== 0) return [];
+      const terceiro = dados.terceiros.find((t) => t.id === alerta.terceiroId);
+      const tomado = dados.tomados.find((e) => e.id === alerta.emprestimoId);
+      return [
+        {
+          ...alerta,
+          cartao,
+          terceiro,
+          conta,
+          texto: textoDoAlerta(alerta, {
+            conta: conta?.descricao,
+            cartao: cartao?.nome ?? '',
+            emprestimo: tomado
+              ? { descricao: tomado.descricao, numParcelas: tomado.numParcelas }
+              : undefined,
+            terceiro: terceiro?.nome,
+            assinatura: dados.assinaturas.find((a) => a.id === alerta.assinaturaId)?.nome,
+            categoria: dados.categorias.find((c) => c.id === alerta.categoriaId)?.nome,
+          }),
+          lido: lidos.has(alerta.chave),
+        },
+      ];
+    });
 }
 
 export function useAlertas() {
@@ -111,10 +132,23 @@ export function useAlertas() {
       repos.preferencias.ler(),
       repos.assinaturas.listar(),
       repos.categorias.listar(),
+      repos.contasFixas.listar(),
+      repos.contasFixas.pagamentos(),
       repos.fechamento.fechados(),
-    ]).then(([faturas, preferencias, assinaturas, categorias, fechados]) => {
-      if (montado) setDados({ ...faturas, preferencias, assinaturas, categorias, fechados });
-    });
+    ]).then(
+      ([faturas, preferencias, assinaturas, categorias, contas, pagamentosDeConta, fechados]) => {
+        if (montado)
+          setDados({
+            ...faturas,
+            preferencias,
+            assinaturas,
+            categorias,
+            contas,
+            pagamentosDeConta,
+            fechados,
+          });
+      },
+    );
     return () => {
       montado = false;
     };
