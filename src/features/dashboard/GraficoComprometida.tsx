@@ -60,7 +60,9 @@ export function GraficoComprometida({
           <h2 id="renda-comprometida" className="text-base font-semibold">
             Renda comprometida
           </h2>
-          <p className="text-xs text-ink-muted">Próximos 6 meses · o que já está lançado</p>
+          <p className="text-xs text-ink-muted">
+            Próximos 6 meses · o que já está lançado · limite {porcento(limite)}
+          </p>
         </div>
         <span className="flex items-center gap-4 text-xs text-ink-muted">
           <span className="flex items-center gap-2">
@@ -120,17 +122,7 @@ export function GraficoComprometida({
                 tick={{ fill: 'var(--ink-muted)', fontSize: 12 }}
               />
               <Tooltip content={() => null} cursor={{ fill: 'var(--soft)' }} />
-              <ReferenceLine
-                y={limite}
-                stroke="var(--border-strong)"
-                strokeDasharray="4 4"
-                label={{
-                  value: `limite ${porcento(limite)}`,
-                  position: 'insideTopRight',
-                  fill: 'var(--ink-muted)',
-                  fontSize: 12,
-                }}
-              />
+              <ReferenceLine y={limite} stroke="var(--border-strong)" strokeDasharray="4 4" />
               <Bar
                 dataKey="parcelas"
                 stackId="comprometida"

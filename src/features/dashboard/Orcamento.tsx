@@ -59,7 +59,7 @@ export function Orcamento({
           </Link>
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-x-8 gap-y-4">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-x-8 gap-y-4">
           {situacoes.map((situacao) => {
             const categoria = categorias.find((c) => c.id === situacao.categoriaId);
             const Icone = iconeDaCategoria(categoria?.icone ?? 'tag');
