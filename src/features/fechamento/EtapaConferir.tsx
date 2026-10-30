@@ -213,7 +213,8 @@ function SemExtrato({
           <Upload size={24} strokeWidth={1.75} aria-hidden />
         </span>
         <p className="text-sm">
-          Solte aqui a fatura do {fatura.cartao.nome} em .csv ou .xlsx, baixada no app do banco.
+          Solte aqui a fatura do {fatura.cartao.nome} em .ofx, .csv ou .xlsx, baixada no app do
+          banco.
         </p>
         <label htmlFor={`${id}-arquivo`}>
           <span className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border-strong px-4 text-sm font-medium hover:bg-soft has-[:focus-visible]:outline-2">
@@ -223,7 +224,7 @@ function SemExtrato({
           <input
             id={`${id}-arquivo`}
             type="file"
-            accept=".csv,.xlsx"
+            accept=".ofx,.csv,.xlsx"
             className="sr-only"
             onChange={(e) => void ler(e.target.files?.[0])}
           />

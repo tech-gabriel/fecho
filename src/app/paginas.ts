@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  ChartColumn,
   CreditCard,
   HandCoins,
   Landmark,
@@ -56,6 +57,13 @@ export const PAGINAS: Pagina[] = [
     legenda: 'Quanto seu dinheiro pode render',
   },
   { caminho: '/calendario', titulo: 'Calendário', rotulo: 'Calendário', icone: CalendarDays },
+  {
+    caminho: '/relatorio',
+    titulo: 'Relatório',
+    rotulo: 'Relatório',
+    icone: ChartColumn,
+    legenda: 'Seus gastos no cartão, mês a mês',
+  },
 ];
 
 export const CONFIGURACOES: Pagina = {

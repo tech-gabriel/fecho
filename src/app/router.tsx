@@ -10,6 +10,7 @@ import { Economias } from '@/features/economias/Economias';
 import { FecharMes } from '@/features/fechamento/FecharMes';
 import { Emprestimos } from '@/features/emprestimos/Emprestimos';
 import { Simulador } from '@/features/simulador/Simulador';
+import { Relatorio } from '@/features/relatorio/Relatorio';
 import { EmBreve } from './EmBreve';
 import { AppLayout } from './layout/AppLayout';
 import { Raiz } from './layout/Raiz';
@@ -26,6 +27,7 @@ const TELAS: Record<string, () => React.ReactNode> = {
   '/emprestimos': Emprestimos,
   '/economias': Economias,
   '/simulador': Simulador,
+  '/relatorio': Relatorio,
 };
 
 export const rotas: RouteObject[] = [
