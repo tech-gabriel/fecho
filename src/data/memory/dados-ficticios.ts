@@ -239,4 +239,40 @@ export async function semearDadosFicticios(repos: Repositorios) {
   ];
   for (const [mes, valor] of meses) await guardar(`${mes}-05`, valor, reserva);
   await guardar('2026-05-20', -20_000, reserva);
+
+  const casa = await repos.categorias.criar({ nome: 'Casa', icone: 'house', ativo: true });
+  const saude = await repos.categorias.criar({ nome: 'Saúde', icone: 'heart-pulse', ativo: true });
+  const conta = (descricao: string, categoriaId: number, valorCentavos: number, dia: number) =>
+    repos.contasFixas.criar({
+      descricao,
+      categoriaId,
+      valorCentavos,
+      dia,
+      inicio: '2026-07',
+      ativa: true,
+      rateios: [],
+    });
+  const aluguel = await conta('Aluguel', casa, 180_000, 10);
+  await conta('Plano de saúde', saude, 42_000, 15);
+  const luz = await conta('Luz', casa, 15_000, 20);
+  for (const mes of ['2026-07', '2026-08', '2026-09']) {
+    await repos.contasFixas.marcarPaga({
+      contaId: aluguel,
+      competencia: mes,
+      valorCentavos: 180_000,
+      pagoEm: `${mes}-09`,
+    });
+  }
+  await repos.contasFixas.marcarPaga({
+    contaId: aluguel,
+    competencia: '2026-10',
+    valorCentavos: 180_000,
+    pagoEm: '2026-10-08',
+  });
+  await repos.contasFixas.marcarPaga({
+    contaId: luz,
+    competencia: '2026-09',
+    valorCentavos: 18_740,
+    pagoEm: '2026-09-19',
+  });
 }

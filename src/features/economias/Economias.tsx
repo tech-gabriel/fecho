@@ -24,7 +24,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type {
+  ContaFixa,
   EmprestimoTomado,
+  PagamentoDeConta,
   MetaDeEconomia,
   MovimentoDeEconomia,
   Objetivo,
@@ -32,6 +34,7 @@ import type {
   Receita,
 } from '@/data';
 import { competenciaDe, legendaDoMes, type Competencia } from '@/domain/competencia';
+import { contasDoMes, contasParaResumo } from '@/domain/contasFixas';
 import {
   guardadoNoMes,
   historicoDeEconomia,
@@ -54,6 +57,8 @@ interface Dados {
   receitas: Receita[];
   parcelas: ParcelaDoMes[];
   tomados: EmprestimoTomado[];
+  contas: ContaFixa[];
+  pagamentosDeConta: PagamentoDeConta[];
 }
 
 const mesCurto = (c: Competencia) => nomeDoMes(c).split(' ')[0] ?? '';
@@ -112,9 +117,23 @@ export function Economias() {
       repos.receitas.listar(),
       repos.compras.parcelasDaCompetencia(competencia),
       repos.emprestimos.tomados.listar(),
-    ]).then(([metas, objetivos, movimentos, receitas, parcelas, tomados]) => {
-      if (montado) setDados({ metas, objetivos, movimentos, receitas, parcelas, tomados });
-    });
+      repos.contasFixas.listar(),
+      repos.contasFixas.pagamentos(),
+    ]).then(
+      ([metas, objetivos, movimentos, receitas, parcelas, tomados, contas, pagamentosDeConta]) => {
+        if (montado)
+          setDados({
+            metas,
+            objetivos,
+            movimentos,
+            receitas,
+            parcelas,
+            tomados,
+            contas,
+            pagamentosDeConta,
+          });
+      },
+    );
     return () => {
       montado = false;
     };
@@ -138,6 +157,9 @@ export function Economias() {
     linhas: linhasPorDono(dados.parcelas),
     faturas: [],
     parcelasEmprestimos: parcelasTomadasDoMes(dados.tomados, competencia),
+    contas: contasParaResumo(
+      contasDoMes(dados.contas, dados.pagamentosDeConta, competencia, hojeLocal()),
+    ),
   });
   const historico = historicoDeEconomia(dados.movimentos, dados.metas, competencia);
   const total = somar(dados.movimentos.map((m) => m.valorCentavos));

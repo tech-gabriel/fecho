@@ -1,5 +1,6 @@
 import type { EmprestimosParaAlerta, FaturaParaAlerta } from './alertas';
 import type { Assinatura } from './assinaturas';
+import { contasDoMes, type ContaFixa, type PagamentoDeConta } from './contasFixas';
 import {
   type Competencia,
   type DataLocal,
@@ -13,7 +14,7 @@ import { type DiasDoCartao, type StatusDaFatura, datasDaFatura, statusDaFatura }
 import type { Centavos } from './money';
 
 export type TipoDeEvento =
-  'fechamento' | 'vencimento' | 'reembolso' | 'devolucao' | 'emprestimo' | 'assinatura';
+  'fechamento' | 'vencimento' | 'reembolso' | 'devolucao' | 'emprestimo' | 'assinatura' | 'conta';
 
 export interface Evento {
   data: DataLocal;
@@ -25,6 +26,7 @@ export interface Evento {
   terceiroId?: number;
   assinaturaId?: number;
   emprestimoId?: number;
+  contaId?: number;
   numero?: number;
 }
 
@@ -35,6 +37,7 @@ const ORDEM: Record<TipoDeEvento, number> = {
   devolucao: 3,
   emprestimo: 4,
   assinatura: 5,
+  conta: 6,
 };
 
 export function diasDaGrade(competencia: Competencia): { data: DataLocal; doMes: boolean }[] {
@@ -62,7 +65,9 @@ export function eventosDoPeriodo({
   ate,
   hoje,
   emprestimos = { parcelas: [], devolucoes: [] },
+  contas = { contas: [], pagamentos: [] },
 }: {
+  contas?: { contas: readonly ContaFixa[]; pagamentos: readonly PagamentoDeConta[] };
   emprestimos?: EmprestimosParaAlerta;
   faturas: readonly FaturaParaAlerta[];
   cartoes: readonly ({ id: number; ativo: boolean } & DiasDoCartao)[];
@@ -123,6 +128,21 @@ export function eventosDoPeriodo({
         competencia,
         assinaturaId: assinatura.id,
         valor: assinatura.valorCentavos,
+      });
+    }
+  }
+
+  for (const competencia of meses) {
+    for (const item of contasDoMes(contas.contas, contas.pagamentos, competencia, hoje)) {
+      if (!dentro(item.vencimento)) continue;
+      eventos.push({
+        data: item.vencimento,
+        tipo: 'conta',
+        cartaoId: 0,
+        competencia,
+        contaId: item.conta.id,
+        valor: item.valor,
+        status: item.status,
       });
     }
   }

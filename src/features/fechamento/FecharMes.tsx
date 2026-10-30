@@ -17,11 +17,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type {
   Conferencia,
+  ContaFixa,
   MetaDeEconomia,
   MovimentoDeEconomia,
+  PagamentoDeConta,
   Preferencias,
   Receita,
 } from '@/data';
+import { contasDoMes, contasParaResumo } from '@/domain/contasFixas';
 import {
   assertCompetencia,
   competenciaDe,
@@ -49,6 +52,8 @@ interface Dados extends FaturasCarregadas {
   metas: MetaDeEconomia[];
   movimentosDeEconomia: MovimentoDeEconomia[];
   receitas: Receita[];
+  contas: ContaFixa[];
+  pagamentosDeConta: PagamentoDeConta[];
 }
 
 const mesCurto = (c: Competencia) => nomeDoMes(c).split(' ')[0] ?? '';
@@ -97,6 +102,8 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
       repos.economias.metas.listar(),
       repos.economias.movimentos.listar(),
       repos.receitas.listar(),
+      repos.contasFixas.listar(),
+      repos.contasFixas.pagamentos(),
     ]).then(
       ([
         carregadas,
@@ -106,6 +113,8 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
         metas,
         movimentosDeEconomia,
         receitas,
+        contas,
+        pagamentosDeConta,
       ]) => {
         if (!montado) return;
         setDados({
@@ -116,6 +125,8 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
           metas,
           movimentosDeEconomia,
           receitas,
+          contas,
+          pagamentosDeConta,
         });
       },
     );
@@ -195,6 +206,7 @@ function Fechamento({ competencia }: { competencia: Competencia }) {
     linhas: linhasPorDono(parcelas),
     faturas: [],
     parcelasEmprestimos: parcelasTomadasDoMes(dados.tomados, competencia),
+    contas: contasParaResumo(contasDoMes(dados.contas, dados.pagamentosDeConta, competencia, hoje)),
   });
   const guardado = guardadoNoMes(dados.movimentosDeEconomia, competencia);
   const meta = metaDoMes(dados.metas, competencia);

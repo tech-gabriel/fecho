@@ -18,6 +18,7 @@ export interface MesComprometido {
   valor: number;
   parcelas: number;
   assinaturas: number;
+  contas: number;
   emprestimos: number;
   percentual: number | null;
 }
@@ -41,6 +42,7 @@ export function GraficoComprometida({
       percentual,
       parcelas: daParte(m.parcelas),
       assinaturas: daParte(m.assinaturas),
+      contas: daParte(m.contas),
       emprestimos: daParte(m.emprestimos),
     };
   });
@@ -53,7 +55,7 @@ export function GraficoComprometida({
       aria-labelledby="renda-comprometida"
       className="flex flex-col gap-4 rounded-lg border bg-surface p-6"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="flex flex-col">
           <h2 id="renda-comprometida" className="text-base font-semibold">
             Renda comprometida
@@ -68,6 +70,10 @@ export function GraficoComprometida({
           <span className="flex items-center gap-2">
             <span aria-hidden className="size-2.5 rounded-sm bg-chart-3" />
             Assinaturas
+          </span>
+          <span className="flex items-center gap-2">
+            <span aria-hidden className="size-2.5 rounded-sm bg-chart-4" />
+            Contas
           </span>
           <span className="flex items-center gap-2">
             <span
@@ -148,6 +154,17 @@ export function GraficoComprometida({
                 }}
               />
               <Bar
+                dataKey="contas"
+                stackId="comprometida"
+                fill="var(--chart-4)"
+                stroke="var(--surface)"
+                strokeWidth={2}
+                maxBarSize={40}
+                onMouseEnter={(_, indice) => {
+                  setAtivo(indice);
+                }}
+              />
+              <Bar
                 dataKey="emprestimos"
                 stackId="comprometida"
                 fill="url(#hachura-emprestimos)"
@@ -181,8 +198,8 @@ export function GraficoComprometida({
           {destaque.percentual !== null && ` · ${porcento(destaque.percentual)} da renda`}
           <span className="block text-xs">
             Parcelas {formatarMoeda(destaque.parcelas)} · Assinaturas{' '}
-            {formatarMoeda(destaque.assinaturas)} · Empréstimos{' '}
-            {formatarMoeda(destaque.emprestimos)}
+            {formatarMoeda(destaque.assinaturas)} · Contas {formatarMoeda(destaque.contas)} ·
+            Empréstimos {formatarMoeda(destaque.emprestimos)}
           </span>
         </p>
       )}
@@ -194,6 +211,7 @@ export function GraficoComprometida({
             <th scope="col">Mês</th>
             <th scope="col">Parcelas</th>
             <th scope="col">Assinaturas</th>
+            <th scope="col">Contas fixas</th>
             <th scope="col">Empréstimos</th>
             <th scope="col">Da renda</th>
           </tr>
@@ -204,6 +222,7 @@ export function GraficoComprometida({
               <th scope="row">{nomeDoMes(m.competencia)}</th>
               <td>{formatarMoeda(m.parcelas)}</td>
               <td>{formatarMoeda(m.assinaturas)}</td>
+              <td>{formatarMoeda(m.contas)}</td>
               <td>{formatarMoeda(m.emprestimos)}</td>
               <td>{m.percentual === null ? 'sem renda' : porcento(m.percentual)}</td>
             </tr>

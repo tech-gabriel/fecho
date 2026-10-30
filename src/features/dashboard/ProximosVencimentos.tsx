@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Check, Copy, TriangleAlert } from 'lucide-react';
+import { Check, Copy, ReceiptText, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Preferencias } from '@/data';
 import type { DataLocal } from '@/domain/competencia';
+import type { ContaDoMes } from '@/domain/contasFixas';
 import type { FaturaDoCartao } from '@/features/faturas/Faturas';
-import { quando, SeloDeStatus } from '@/features/faturas/ListaDeCartoes';
+import { dataCurta, quando, SeloDeStatus } from '@/features/faturas/ListaDeCartoes';
 import { useAcoesDeCobranca } from '@/features/receber/acoes';
 import { faltaNaFatura, type SituacaoDaPessoa } from '@/features/receber/situacoes';
 import { formatarMoeda } from '@/lib/formato';
@@ -14,7 +15,11 @@ export function ProximosVencimentos({
   situacoes,
   preferencias,
   hoje,
+  contas,
+  onPagarConta,
 }: {
+  contas: ContaDoMes[];
+  onPagarConta: (item: ContaDoMes) => void;
   faturas: FaturaDoCartao[];
   situacoes: SituacaoDaPessoa[];
   preferencias: Preferencias;
@@ -34,7 +39,7 @@ export function ProximosVencimentos({
       <h2 id="proximos-vencimentos" className="text-base font-semibold">
         Próximos vencimentos
       </h2>
-      {comCompras.length === 0 ? (
+      {comCompras.length === 0 && contas.length === 0 ? (
         <p className="py-8 text-center text-sm text-ink-muted">Nada vence neste mês.</p>
       ) : (
         <ul className="flex flex-col">
@@ -123,6 +128,39 @@ export function ProximosVencimentos({
               </li>
             );
           })}
+          {contas.map((item) => (
+            <li
+              key={`conta-${String(item.conta.id)}`}
+              aria-label={item.conta.descricao}
+              className="flex items-center gap-3 border-t py-3 first:border-t-0 first:pt-0"
+            >
+              <ReceiptText
+                size={16}
+                strokeWidth={1.75}
+                aria-hidden
+                className="w-6 flex-none text-ink-muted"
+              />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-sm font-semibold">{item.conta.descricao}</span>
+                <span className="truncate text-xs text-ink-muted">
+                  Conta fixa · vence {dataCurta(item.vencimento)}
+                </span>
+              </span>
+              <span className="text-sm font-semibold tabular-nums">
+                {formatarMoeda(item.valor)}
+              </span>
+              <SeloDeStatus status={item.status} />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onPagarConta(item);
+                }}
+              >
+                Marcar paga
+              </Button>
+            </li>
+          ))}
         </ul>
       )}
     </section>

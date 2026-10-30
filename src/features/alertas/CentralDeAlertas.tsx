@@ -11,6 +11,7 @@ import {
   Landmark,
   Lock,
   PiggyBank,
+  ReceiptText,
   Repeat,
   TriangleAlert,
 } from 'lucide-react';
@@ -37,6 +38,7 @@ const VISUAL: Record<TipoDeAlerta, { icone: typeof Bell; classe: string }> = {
   'parcela-emprestimo': { icone: Landmark, classe: 'bg-warning-bg text-warning-text' },
   'fechar-mes': { icone: Lock, classe: 'bg-brand-subtle text-brand-text' },
   orcamento: { icone: PiggyBank, classe: 'bg-warning-bg text-warning-text' },
+  'conta-fixa': { icone: ReceiptText, classe: 'bg-warning-bg text-warning-text' },
 };
 
 const GRUPOS: GrupoDeAlerta[] = ['Hoje', 'Esta semana', 'Antes'];
@@ -63,6 +65,11 @@ export function CentralDeAlertas() {
       void navigate('/');
       return;
     }
+    if (alerta.tipo === 'conta-fixa') {
+      irParaCompetencia(alerta.competencia);
+      void navigate('/contas');
+      return;
+    }
     if (alerta.tipo === 'assinatura' || alerta.tipo === 'parcela-emprestimo') {
       void navigate(alerta.tipo === 'assinatura' ? '/assinaturas' : '/emprestimos');
       return;
@@ -75,7 +82,34 @@ export function CentralDeAlertas() {
     );
   };
 
+  const marcarContaPaga = ({ contaId, competencia, valor, conta }: AlertaNaTela) => {
+    if (contaId === undefined || valor === undefined) return;
+    void executar(async () => {
+      await repos.contasFixas.marcarPaga({
+        contaId,
+        competencia,
+        valorCentavos: valor,
+        pagoEm: hoje,
+      });
+      dadosMudaram();
+      toast.success(`${conta?.descricao ?? 'Conta'} marcada como paga`, {
+        action: {
+          label: 'Desfazer',
+          onClick: () =>
+            void executar(async () => {
+              await repos.contasFixas.desmarcar(contaId, competencia);
+              dadosMudaram();
+            }),
+        },
+      });
+    });
+  };
+
   const marcarPaga = (alerta: AlertaNaTela) => {
+    if (alerta.tipo === 'conta-fixa') {
+      marcarContaPaga(alerta);
+      return;
+    }
     const { emprestimoId, numero } = alerta;
     if (emprestimoId === undefined || numero === undefined) return;
     void executar(async () => {
@@ -243,7 +277,7 @@ function ItemDoAlerta({
         </button>
         <div className="flex items-center gap-2 text-xs text-ink-muted">
           <span>{quandoComecou(alerta.idade)}</span>
-          {alerta.tipo === 'parcela-emprestimo' && (
+          {(alerta.tipo === 'parcela-emprestimo' || alerta.tipo === 'conta-fixa') && (
             <Button
               variant="outline"
               size="sm"

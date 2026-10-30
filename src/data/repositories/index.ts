@@ -8,6 +8,7 @@ import type { Centavos } from '@/domain/money';
 import type { Rateio } from '@/domain/terceiros';
 import type { TipoDeAlerta } from '@/domain/alertas';
 import type { Assinatura } from '@/domain/assinaturas';
+import type { ContaFixa, PagamentoDeConta } from '@/domain/contasFixas';
 import type {
   EmprestimoConcedido,
   EmprestimoTomado,
@@ -18,11 +19,13 @@ import type { MetaDeEconomia, MovimentoDeEconomia, Objetivo } from '@/domain/eco
 
 export type {
   Assinatura,
+  ContaFixa,
   EmprestimoConcedido,
   EmprestimoTomado,
   MetaDeEconomia,
   MovimentoDeEconomia,
   Objetivo,
+  PagamentoDeConta,
   PagamentoDeParcela,
 };
 
@@ -241,6 +244,12 @@ export interface AssinaturasRepository extends Cadastro<Assinatura> {
   geradas(): Promise<string[]>;
 }
 
+export interface ContasFixasRepository extends Cadastro<ContaFixa> {
+  pagamentos(): Promise<PagamentoDeConta[]>;
+  marcarPaga(pagamento: PagamentoDeConta): Promise<void>;
+  desmarcar(contaId: number, competencia: Competencia): Promise<void>;
+}
+
 export interface Repositorios {
   cartoes: CartoesRepository;
   categorias: Cadastro<Categoria>;
@@ -253,6 +262,7 @@ export interface Repositorios {
   seguranca: ServicoDeSeguranca;
   receber: ReceberRepository;
   assinaturas: AssinaturasRepository;
+  contasFixas: ContasFixasRepository;
   emprestimos: EmprestimosRepository;
   economias: EconomiasRepository;
   fechamento: FechamentoRepository;

@@ -195,3 +195,36 @@ describe('eventos de empréstimo', () => {
     expect(eventos.map((e) => e.status)).toEqual(['paga']);
   });
 });
+
+describe('eventos de conta fixa', () => {
+  const aluguel = {
+    id: 3,
+    descricao: 'Aluguel',
+    categoriaId: null,
+    valorCentavos: 180_000,
+    dia: 10,
+    inicio: '2026-09',
+    ativa: true,
+    rateios: [],
+  };
+
+  it('marca o vencimento de cada mês com o status do pagamento', () => {
+    const eventos = eventosDoPeriodo({
+      ...base,
+      de: '2026-09-01',
+      ate: '2026-11-30',
+      contas: {
+        contas: [aluguel],
+        pagamentos: [
+          { contaId: 3, competencia: '2026-09', valorCentavos: 181_000, pagoEm: '2026-09-09' },
+        ],
+      },
+    }).filter((e) => e.tipo === 'conta');
+
+    expect(eventos.map((e) => [e.data, e.status, e.valor, e.contaId])).toEqual([
+      ['2026-09-10', 'paga', 181_000, 3],
+      ['2026-10-10', 'atrasada', 180_000, 3],
+      ['2026-11-10', 'pendente', 180_000, 3],
+    ]);
+  });
+});

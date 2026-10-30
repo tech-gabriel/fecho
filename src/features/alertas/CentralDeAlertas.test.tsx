@@ -311,3 +311,30 @@ describe('Alerta de orçamento', () => {
     expect(central.queryByText(/Mercado passou do limite/)).not.toBeInTheDocument();
   });
 });
+
+describe('Alerta de conta fixa', () => {
+  it('avisa a conta vencida e marca como paga pela central', async () => {
+    const aluguel = await repos.contasFixas.criar({
+      descricao: 'Aluguel',
+      categoriaId: null,
+      valorCentavos: 180_000,
+      dia: 1,
+      inicio: '2026-11',
+      ativa: true,
+      rateios: [],
+    });
+    await abrir();
+
+    const central = await abrirSino();
+    expect(
+      central.getByText('Aluguel venceu há 1 dia e não está marcada como paga'),
+    ).toBeInTheDocument();
+    fireEvent.click(central.getByRole('button', { name: 'Marcar paga' }));
+
+    await waitFor(async () => {
+      expect(await repos.contasFixas.pagamentos()).toEqual([
+        { contaId: aluguel, competencia: '2026-11', valorCentavos: 180_000, pagoEm: '2026-11-02' },
+      ]);
+    });
+  });
+});

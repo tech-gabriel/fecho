@@ -4,7 +4,7 @@ test('mostra o caixa do mês, cadastra renda e reage a uma compra nova', async (
   await page.clock.setFixedTime(new Date(2026, 9, 20, 10));
   await page.goto('/');
   const caixa = page.getByRole('region', { name: 'Preciso ter em caixa' });
-  await expect(caixa).toContainText('para pagar as 3 faturas abertas de Outubro');
+  await expect(caixa).toContainText('para pagar as 3 faturas abertas e 2 contas de Outubro');
 
   const renda = page.getByRole('main').getByRole('button', { name: /Renda/ });
   await expect(renda).toContainText('R$ 7.200,00');
@@ -25,6 +25,6 @@ test('mostra o caixa do mês, cadastra renda e reage a uma compra nova', async (
   await nova.getByLabel('Descrição').press('Enter');
   await expect(nova).toBeHidden();
   await expect(page.getByRole('main').getByRole('link', { name: /Meus gastos/ })).toContainText(
-    'cartões e empréstimos',
+    'cartões, contas e empréstimos',
   );
 });

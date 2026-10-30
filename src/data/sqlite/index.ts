@@ -18,6 +18,8 @@ import {
   type EmprestimoTomado,
   type Bandeira,
   type Cartao,
+  type ContaFixa,
+  type ContasFixasRepository,
   type CartoesRepository,
   type FaturasRepository,
   PREFERENCIAS_PADRAO,
@@ -403,6 +405,67 @@ function faturasSqlite(banco: Banco): FaturasRepository {
   };
 }
 
+function contasFixasSqlite(banco: Banco): ContasFixasRepository {
+  return {
+    ...cadastroSqlite<ContaFixa>(banco, {
+      entidade: 'Conta fixa',
+      tabela: 'contas_fixas',
+      colunas: {
+        descricao: 'descricao',
+        categoriaId: 'categoria_id',
+        valorCentavos: 'valor_centavos',
+        dia: 'dia',
+        inicio: 'inicio',
+        ativa: 'ativa',
+        rateios: 'rateios',
+      },
+      usoSql: 'SELECT 1 FROM contas_fixas_pagamentos WHERE conta_id = ?',
+      gravar: { ativa: booleano, rateios: (v) => JSON.stringify(v) },
+      ler: (l) => ({
+        id: numero(l.id),
+        descricao: String(l.descricao),
+        categoriaId: l.categoria_id === null ? null : numero(l.categoria_id),
+        valorCentavos: assertCentavos(numero(l.valor_centavos)),
+        dia: numero(l.dia),
+        inicio: String(l.inicio),
+        ativa: Boolean(l.ativa),
+        rateios: JSON.parse(String(l.rateios)) as Rateio[],
+      }),
+    }),
+    pagamentos: async () => {
+      const linhas = await banco.select<Linha[]>(
+        'SELECT conta_id, competencia, valor_centavos, pago_em FROM contas_fixas_pagamentos ORDER BY conta_id, competencia',
+      );
+      return linhas.map((l) => ({
+        contaId: numero(l.conta_id),
+        competencia: String(l.competencia),
+        valorCentavos: assertCentavos(numero(l.valor_centavos)),
+        pagoEm: String(l.pago_em),
+      }));
+    },
+    marcarPaga: async ({ contaId, competencia, valorCentavos, pagoEm }) => {
+      const [existe] = await banco.select<Linha[]>(
+        'SELECT 1 FROM contas_fixas WHERE id = ? AND deleted_at IS NULL',
+        [contaId],
+      );
+      if (!existe) throw new RegistroNaoEncontrado('Conta fixa', contaId);
+      await banco.execute(
+        `INSERT INTO contas_fixas_pagamentos (conta_id, competencia, valor_centavos, pago_em)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT (conta_id, competencia)
+         DO UPDATE SET valor_centavos = excluded.valor_centavos, pago_em = excluded.pago_em`,
+        [contaId, competencia, valorCentavos, pagoEm],
+      );
+    },
+    desmarcar: async (contaId, competencia) => {
+      await banco.execute(
+        'DELETE FROM contas_fixas_pagamentos WHERE conta_id = ? AND competencia = ?',
+        [contaId, competencia],
+      );
+    },
+  };
+}
+
 function preferenciasSqlite(banco: Banco): PreferenciasRepository {
   return {
     ler: async () => {
@@ -721,6 +784,7 @@ export function criarRepositoriosSqlite(
     compras: comprasSqlite(banco, comandos),
     emprestimos: emprestimosSqlite(banco),
     economias: economiasSqlite(banco),
+    contasFixas: contasFixasSqlite(banco),
     assinaturas: {
       ...cadastroSqlite<Assinatura>(banco, {
         entidade: 'Assinatura',

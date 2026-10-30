@@ -20,7 +20,8 @@ export type TipoDeAlerta =
   | 'devolucao'
   | 'parcela-emprestimo'
   | 'fechar-mes'
-  | 'orcamento';
+  | 'orcamento'
+  | 'conta-fixa';
 
 export interface EmprestimosParaAlerta {
   devolucoes: readonly {
@@ -62,6 +63,7 @@ export interface Alerta {
   assinaturaId?: number;
   emprestimoId?: number;
   categoriaId?: number;
+  contaId?: number;
   numero?: number;
   valor?: Centavos;
   limite?: Centavos;

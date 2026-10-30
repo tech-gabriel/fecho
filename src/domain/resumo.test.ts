@@ -81,6 +81,32 @@ describe('receitasDoMes', () => {
   });
 });
 
+describe('resumoDoMes com contas fixas', () => {
+  it('soma a minha parte nos gastos e as contas pendentes no caixa', () => {
+    const resumo = resumoDoMes({
+      receitas: [500_000],
+      linhas: [{ parcelaId: 1, dono: null, valorCentavos: 10_000 }],
+      faturas: [{ total: 10_000, vencimento: '2026-11-05', paga: false }],
+      contas: {
+        minhaParte: 200_000,
+        pendentes: [
+          { valor: 180_000, vencimento: '2026-11-10' },
+          { valor: 20_000, vencimento: '2026-10-28' },
+        ],
+      },
+    });
+
+    expect(resumo).toMatchObject({
+      meusGastos: 210_000,
+      saldoReal: 290_000,
+      precisoTerEmCaixa: 210_000,
+      faturasAbertas: 1,
+      contasAbertas: 2,
+      ultimoVencimento: '2026-11-10',
+    });
+  });
+});
+
 describe('resumoDoMes', () => {
   const linhas = [
     { parcelaId: 1, dono: null, valorCentavos: 48_730 },
@@ -109,6 +135,7 @@ describe('resumoDoMes', () => {
       porTerceiro: new Map([[7, 42_825]]),
       precisoTerEmCaixa: 165_380,
       faturasAbertas: 2,
+      contasAbertas: 0,
       ultimoVencimento: '2026-11-05',
     });
   });
@@ -141,6 +168,7 @@ describe('rendaComprometida', () => {
         valor: 221_000,
         parcelas: 221_000,
         assinaturas: 0,
+        contas: 0,
         emprestimos: 0,
         percentual: 30.69,
       },
@@ -149,6 +177,7 @@ describe('rendaComprometida', () => {
         valor: 10_000,
         parcelas: 10_000,
         assinaturas: 0,
+        contas: 0,
         emprestimos: 0,
         percentual: null,
       },
@@ -168,10 +197,21 @@ describe('rendaComprometida com assinaturas', () => {
         valor: 216_000,
         parcelas: 200_000,
         assinaturas: 16_000,
+        contas: 0,
         emprestimos: 0,
         percentual: 30,
       },
     ]);
+  });
+});
+
+describe('rendaComprometida com contas fixas', () => {
+  it('soma as contas na renda comprometida', () => {
+    expect(
+      rendaComprometida([
+        { competencia: '2026-11', minhasParcelas: 100_000, contas: 116_000, renda: 720_000 },
+      ])[0],
+    ).toMatchObject({ valor: 216_000, contas: 116_000, percentual: 30 });
   });
 });
 

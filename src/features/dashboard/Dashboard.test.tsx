@@ -116,7 +116,9 @@ describe('Dashboard', () => {
     expect(screen.getByRole('button', { name: /Renda/ })).toHaveTextContent(
       'R$ 7.200,00Salário + Freela',
     );
-    expect(kpi(/Meus gastos/)).toHaveTextContent('R$ 1.075,5515% da renda · cartões e empréstimos');
+    expect(kpi(/Meus gastos/)).toHaveTextContent(
+      'R$ 1.075,5515% da renda · cartões, contas e empréstimos',
+    );
     expect(kpi(/Meus gastos/)).toHaveAttribute('href', '/lancamentos?ver=meu');
     expect(kpi(/Saldo real/)).toHaveTextContent('R$ 6.124,45');
     expect(kpi(/A receber/)).toHaveTextContent('R$ 428,25Ana');
@@ -130,7 +132,7 @@ describe('Dashboard', () => {
       name: 'Renda comprometida nos próximos 6 meses',
     });
     expect(within(tabela).getByRole('row', { name: /Novembro 2026/ })).toHaveTextContent(
-      'R$ 588,25R$ 0,00R$ 0,009%',
+      'R$ 588,25R$ 0,00R$ 0,00R$ 0,009%',
     );
     const vencimentos = screen.getByRole('region', { name: 'Próximos vencimentos' });
     expect(
@@ -279,6 +281,48 @@ describe('Dashboard', () => {
 
     expect(await screen.findByText('Nada lançado em Outubro ainda.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cadastrar renda' })).toBeInTheDocument();
+  });
+});
+
+describe('Contas fixas no Dashboard', () => {
+  beforeEach(async () => {
+    await repos.contasFixas.criar({
+      descricao: 'Aluguel',
+      categoriaId: null,
+      valorCentavos: 180_000,
+      dia: 10,
+      inicio: '2026-10',
+      ativa: true,
+      rateios: [],
+    });
+  });
+
+  it('soma a conta pendente no caixa, nos gastos e no saldo real', async () => {
+    await abrir();
+
+    await screen.findByText('Preciso ter em caixa');
+    expect(caixa()).toHaveTextContent('R$ 3.303,80');
+    expect(caixa()).toHaveTextContent('para pagar as 2 faturas abertas e 1 conta de Outubro');
+    expect(kpi(/Meus gastos/)).toHaveTextContent('R$ 2.875,55');
+    expect(kpi(/Saldo real/)).toHaveTextContent('R$ 4.324,45');
+  });
+
+  it('lista a conta em próximos vencimentos e marca como paga', async () => {
+    await abrir();
+
+    const proximos = await screen.findByRole('region', { name: 'Próximos vencimentos' });
+    const aluguel = await within(proximos).findByRole('listitem', { name: /Aluguel/ });
+    expect(aluguel).toHaveTextContent('Atrasada');
+    fireEvent.click(within(aluguel).getByRole('button', { name: 'Marcar paga' }));
+
+    await waitFor(async () => {
+      expect(await repos.contasFixas.pagamentos()).toEqual([
+        expect.objectContaining({ competencia: '2026-10', valorCentavos: 180_000 }),
+      ]);
+    });
+    await waitFor(() => {
+      expect(caixa()).toHaveTextContent('R$ 1.503,80');
+    });
   });
 });
 
