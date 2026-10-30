@@ -166,6 +166,8 @@ export interface Preferencias {
   limiteRendaComprometida: number;
   backupAutomatico: boolean;
   ultimoBackup: string | null;
+  pastaDaCopiaExterna: string | null;
+  ultimaCopiaExterna: string | null;
   modeloCobranca: string;
   chavePix: string;
   alertasDesligados: TipoDeAlerta[];
@@ -180,6 +182,8 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   limiteRendaComprometida: 30,
   backupAutomatico: true,
   ultimoBackup: null,
+  pastaDaCopiaExterna: null,
+  ultimaCopiaExterna: null,
   modeloCobranca:
     'Oi, {nome}! Faltam {valor} das suas compras no meu {cartão}, que vence em {vencimento}. Meu Pix: {pix}',
   chavePix: '',

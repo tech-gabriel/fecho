@@ -215,6 +215,25 @@ describe('Fechar o mês', () => {
     });
   });
 
+  it('copia o backup para a pasta escolhida ao fechar', async () => {
+    const automatico = vi.fn().mockResolvedValue('D:\\OneDrive\\fecho.db');
+    repos = { ...repos, backup: { ...repos.backup, disponivel: true, automatico } };
+    await repos.preferencias.gravar({
+      ultimoBackup: new Date(2026, 10, 3, 9).toISOString(),
+      pastaDaCopiaExterna: 'D:\\OneDrive',
+      ultimaCopiaExterna: new Date(2026, 10, 1).toISOString(),
+    });
+    await abrir();
+    avancar();
+    avancar();
+    avancar();
+    fireEvent.click(await screen.findByRole('button', { name: /Fechar Outubro/ }));
+
+    await waitFor(() => {
+      expect(automatico).toHaveBeenCalledWith('fecho-2026-11-03-100000.db', 'D:\\OneDrive');
+    });
+  });
+
   it('volta para a etapa em que parou', async () => {
     await repos.preferencias.gravar({ etapaDoFechamento: { competencia: '2026-10', etapa: 3 } });
     await abrir();

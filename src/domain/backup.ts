@@ -1,9 +1,9 @@
 const UM_DIA = 24 * 60 * 60 * 1000;
 const dois = (n: number) => String(n).padStart(2, '0');
 
-export function backupAutomaticoPendente(ultimo: string | null, agora: Date): boolean {
+export function backupAutomaticoPendente(ultimo: string | null, agora: Date, dias = 1): boolean {
   const quando = ultimo ? Date.parse(ultimo) : Number.NaN;
-  return Number.isNaN(quando) || agora.getTime() - quando >= UM_DIA;
+  return Number.isNaN(quando) || agora.getTime() - quando >= dias * UM_DIA;
 }
 
 export function nomeDoBackup(agora: Date): string {

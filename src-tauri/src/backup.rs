@@ -16,6 +16,8 @@ const RESTAURACAO_PENDENTE: &str = "fecho.db.restaurar";
 const BACKUPS_MANTIDOS: usize = 10;
 const NAO_E_BACKUP: &str = "Este arquivo não é um backup do Fechô.";
 const MAIS_NOVO: &str = "Este backup é de uma versão mais nova do Fechô.";
+const COPIA_EXIGE_SENHA: &str = "A cópia em outra pasta só sai criptografada.";
+const PASTA_INDISPONIVEL: &str = "Essa pasta não está disponível.";
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -236,16 +238,33 @@ pub async fn exportar_backup<R: Runtime>(
     .await
 }
 
+pub fn pasta_externa(pasta: &Path, chave: Option<&Segredo>) -> Result<PathBuf, String> {
+    if chave.is_none() {
+        return Err(COPIA_EXIGE_SENHA.into());
+    }
+    if !pasta.is_dir() {
+        return Err(PASTA_INDISPONIVEL.into());
+    }
+    Ok(pasta.to_path_buf())
+}
+
 #[tauri::command]
 pub async fn backup_automatico<R: Runtime>(
     app: AppHandle<R>,
     bancos: State<'_, DbInstances>,
     nome: String,
+    pasta: Option<String>,
 ) -> Result<String, String> {
-    let pasta = pasta_de_backups(&app)?;
-    fs::create_dir_all(&pasta).map_err(|erro| erro.to_string())?;
-    let destino = pasta.join(nome);
     let chave = chave_atual(&app)?;
+    let pasta = match pasta {
+        Some(externa) => pasta_externa(Path::new(&externa), chave.as_ref())?,
+        None => {
+            let padrao = pasta_de_backups(&app)?;
+            fs::create_dir_all(&padrao).map_err(|erro| erro.to_string())?;
+            padrao
+        }
+    };
+    let destino = pasta.join(nome);
     copiar_protegido(
         &pool_aberto(&bancos).await?,
         &destino,
@@ -303,6 +322,27 @@ pub async fn restaurar_backup<R: Runtime>(
 mod testes {
     use super::*;
     use sqlx::sqlite::SqlitePoolOptions;
+
+    #[test]
+    fn copia_externa_exige_criptografia_e_pasta_existente() {
+        let pasta = pasta_temporaria("externa");
+        let chave = Segredo {
+            sal: vec![0; 16],
+            valor: vec![0; 32],
+            iteracoes: 1,
+        };
+
+        assert_eq!(pasta_externa(&pasta, Some(&chave)), Ok(pasta.clone()));
+        assert_eq!(
+            pasta_externa(&pasta, None),
+            Err(COPIA_EXIGE_SENHA.to_string())
+        );
+        assert_eq!(
+            pasta_externa(&pasta.join("sumiu"), Some(&chave)),
+            Err(PASTA_INDISPONIVEL.to_string())
+        );
+        let _ = fs::remove_dir_all(&pasta);
+    }
 
     #[test]
     fn so_grava_planilha_xlsx() {

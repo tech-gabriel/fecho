@@ -13,6 +13,15 @@ describe('backupAutomaticoPendente', () => {
     expect(backupAutomaticoPendente(new Date(2026, 9, 19, 14, 0).toISOString(), agora)).toBe(true);
   });
 
+  it('aceita intervalo em dias para a cópia semanal', () => {
+    expect(backupAutomaticoPendente(new Date(2026, 9, 13, 14, 1).toISOString(), agora, 7)).toBe(
+      false,
+    );
+    expect(backupAutomaticoPendente(new Date(2026, 9, 13, 14, 0).toISOString(), agora, 7)).toBe(
+      true,
+    );
+  });
+
   it('trata data inválida como sem backup', () => {
     expect(backupAutomaticoPendente('ontem', agora)).toBe(true);
   });
